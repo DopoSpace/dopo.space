@@ -1,0 +1,45 @@
+{
+	"name": "api.dopo.space",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/adapter-node": "^5.4.0",
+		"@sveltejs/kit": "^2.47.1",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@types/bcrypt": "^6.0.0",
+		"@types/jsonwebtoken": "^9.0.10",
+		"@types/node": "^24.10.1",
+		"@types/nodemailer": "^7.0.3",
+		"autoprefixer": "^10.4.22",
+		"eslint": "^9.39.1",
+		"postcss": "^8.5.6",
+		"prettier": "^3.6.2",
+		"prettier-plugin-svelte": "^3.4.0",
+		"prisma": "^6.19.0",
+		"svelte": "^5.41.0",
+		"svelte-check": "^4.3.3",
+		"tailwindcss": "^3.4.18",
+		"typescript": "^5.9.3",
+		"vite": "^7.1.10"
+	},
+	"dependencies": {
+		"@mailchimp/mailchimp_marketing": "^3.0.80",
+		"@paypal/paypal-server-sdk": "^2.0.0",
+		"@prisma/client": "^6.19.0",
+		"bcrypt": "^6.0.0",
+		"date-fns": "^4.1.0",
+		"jsonwebtoken": "^9.0.2",
+		"nodemailer": "^7.0.10",
+		"zod": "^4.1.12"
+	}
+}

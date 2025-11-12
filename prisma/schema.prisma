@@ -1,0 +1,177 @@
+// Prisma Schema for Dopo Space Membership Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+// Models
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?  // Optional display name for audit trails
+  authToken String?  @map("auth_token")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admins")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String?
+  authToken String?  @map("auth_token")
+
+  // Newsletter management
+  newsletterSubscribed Boolean @default(false) @map("newsletter_subscribed")
+  mailchimpSubscriberId String? @map("mailchimp_subscriber_id")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  profile     UserProfile?
+  memberships Membership[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+
+  // Personal information
+  firstName   String  @map("first_name")
+  lastName    String  @map("last_name")
+  birthDate   DateTime @map("birth_date")
+  taxCode     String? @map("tax_code") // Codice Fiscale
+
+  // Address
+  address      String
+  city         String
+  postalCode   String  @map("postal_code")
+  province     String
+
+  // Document information (optional for digital card)
+  documentType   String? @map("document_type")
+  documentNumber String? @map("document_number")
+
+  // Consents
+  privacyConsent Boolean @map("privacy_consent")
+  dataConsent    Boolean @map("data_consent")
+
+  // Computed field (can be calculated in application logic)
+  profileComplete Boolean @default(false) @map("profile_complete")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model AssociationYear {
+  id    String @id @default(cuid())
+
+  // Year period
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  // Membership fee for this year (in cents to avoid floating point issues)
+  membershipFee Int @map("membership_fee")
+
+  // Only one active year at a time
+  isActive Boolean @default(false) @map("is_active")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  memberships Membership[]
+
+  @@map("association_years")
+  @@index([isActive])
+}
+
+model Membership {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  // Membership card number (assigned by admin after payment)
+  membershipNumber String? @unique @map("membership_number")
+
+  // Association year reference
+  associationYearId String @map("association_year_id")
+
+  // Validity period
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+
+  // Status
+  status        MembershipStatus @default(PENDING)
+  paymentStatus PaymentStatus    @default(PENDING) @map("payment_status")
+
+  // Payment information
+  paymentProviderId String? @map("payment_provider_id")
+  paymentAmount     Int?    @map("payment_amount") // in cents
+
+  // Audit trail
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // Admin ID who updated (for audit)
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  associationYear AssociationYear  @relation(fields: [associationYearId], references: [id])
+  paymentLogs     PaymentLog[]
+
+  @@map("memberships")
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+}
+
+model PaymentLog {
+  id           String   @id @default(cuid())
+  membershipId String   @map("membership_id")
+
+  // Event information
+  eventType        String @map("event_type")
+  providerResponse Json   @map("provider_response")
+
+  // Timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@map("payment_logs")
+  @@index([membershipId])
+}
