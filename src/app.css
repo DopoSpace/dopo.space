@@ -2,10 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dopolavoro Custom Font */
+@font-face {
+  font-family: 'Dopolavoro';
+  src: url('/fonts/Dopolavoro.woff2') format('woff2'),
+       url('/fonts/Dopolavoro.woff') format('woff'),
+       url('/fonts/Dopolavoro.ttf') format('truetype'),
+       url('/fonts/Dopolavoro.eot') format('eot'),
+       url('/fonts/Dopolavoro.svg') format('svg');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Custom base styles */
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    font-family: 'Dopolavoro', -apple-system, BlinkMacSystemFont, sans-serif;
+    @apply text-white;
   }
 }
 
