@@ -29,6 +29,7 @@ model Admin {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?  // Optional display name for audit trails
+  password  String   @map("password")
   authToken String?  @map("auth_token")
 
   // Timestamps

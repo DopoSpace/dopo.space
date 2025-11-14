@@ -48,14 +48,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Check if route requires authentication
 	const pathname = event.url.pathname;
 
-	// Admin-only routes
-	if (pathname.startsWith('/admin')) {
+	// Admin-only routes (except /admin/login)
+	if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
 		if (!event.locals.admin) {
-			// Not an admin - redirect to login or show error
+			// Not an admin - redirect to admin login page
 			return new Response(null, {
 				status: 302,
 				headers: {
-					location: '/auth/login?error=admin_required'
+					location: '/admin/login'
 				}
 			});
 		}

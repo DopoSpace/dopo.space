@@ -1,8 +1,10 @@
 <script lang="ts">
 	import TextContainer from '$lib/components/TextContainer.svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
 </script>
 
-<TextContainer>
+<PublicPageLayout>
+	<TextContainer>
 	<p>
 		<span>email:</span>
 		<a
@@ -36,4 +38,5 @@
 			Via Boncompagni 51/10, Milano
 		</a>.
 	</p>
-</TextContainer>
+	</TextContainer>
+</PublicPageLayout>

@@ -1,8 +1,10 @@
 <script lang="ts">
 	import TextContainer from '$lib/components/TextContainer.svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
 </script>
 
-<TextContainer>
+<PublicPageLayout>
+	<TextContainer>
 	<p>
 		DOPO? è un centro culturale dove lavorare, sviluppare progetti collaborativi e organizzare
 		eventi, mostre e ogni forma di espressione creativa. Lo spazio è composto da un'area
@@ -26,4 +28,5 @@
 			TRASPARENZA DATI
 		</a>
 	</p>
-</TextContainer>
+	</TextContainer>
+</PublicPageLayout>

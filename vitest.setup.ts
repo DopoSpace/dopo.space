@@ -16,3 +16,19 @@ vi.mock('$app/stores', () => {
 		})
 	};
 });
+
+// Global mock for $app/forms - enhance action
+vi.mock('$app/forms', () => {
+	return {
+		enhance: () => {
+			return () => {};
+		}
+	};
+});
+
+// Global mock for $app/navigation - goto function
+vi.mock('$app/navigation', () => {
+	return {
+		goto: vi.fn()
+	};
+});

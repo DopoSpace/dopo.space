@@ -1,12 +1,12 @@
 <script lang="ts">
+	import Menu from '$lib/components/Menu.svelte';
+	import type { LayoutData } from './$types';
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
 
-	let { children } = $props();
+	let { data, children }: { data: LayoutData; children: any } = $props();
 </script>
 
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
-
-{@render children()}
+<Menu user={data.user} admin={data.admin} />
+<div class="flex flex-col bg-dopoRed min-h-screen">
+	{@render children()}
+</div>

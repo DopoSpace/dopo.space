@@ -62,6 +62,15 @@ export const assignMembershipNumberSchema = z.object({
 });
 
 /**
+ * Simple subscription form schema (first name and last name only)
+ * Used for the initial subscription step before full profile completion
+ */
+export const simpleSubscriptionSchema = z.object({
+	firstName: z.string().min(2, 'Il nome deve contenere almeno 2 caratteri').max(50, 'Il nome è troppo lungo'),
+	lastName: z.string().min(2, 'Il cognome deve contenere almeno 2 caratteri').max(50, 'Il cognome è troppo lungo')
+});
+
+/**
  * Helper function to format Zod validation errors
  */
 export function formatZodErrors(errors: z.ZodError): Record<string, string> {
