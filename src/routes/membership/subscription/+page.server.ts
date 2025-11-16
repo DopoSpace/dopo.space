@@ -2,6 +2,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { simpleSubscriptionSchema, formatZodErrors } from '$lib/server/utils/validation';
 import { prisma } from '$lib/server/db/prisma';
+import { createLogger } from '$lib/server/utils/logger';
+
+const logger = createLogger({ module: 'membership' });
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// User is guaranteed to be authenticated by hooks.server.ts
@@ -56,46 +59,27 @@ export const actions = {
 		}
 
 		try {
-			// Check if profile exists
-			const existingProfile = await prisma.userProfile.findUnique({
-				where: { userId: user.id }
+			// Use upsert to atomically create or update profile (prevents race conditions)
+			await prisma.userProfile.upsert({
+				where: { userId: user.id },
+				update: {
+					firstName: validation.data.firstName,
+					lastName: validation.data.lastName
+				},
+				create: {
+					userId: user.id,
+					firstName: validation.data.firstName,
+					lastName: validation.data.lastName
+					// All other fields (birthDate, address, consents) are nullable
+					// and will be filled when user completes full profile
+				}
 			});
-
-			if (existingProfile) {
-				// Update existing profile (only firstName and lastName)
-				await prisma.userProfile.update({
-					where: { userId: user.id },
-					data: {
-						firstName: validation.data.firstName,
-						lastName: validation.data.lastName
-					}
-				});
-			} else {
-				// Create new profile with placeholder values for required fields
-				// These will be filled in when the user completes the full profile later
-				await prisma.userProfile.create({
-					data: {
-						userId: user.id,
-						firstName: validation.data.firstName,
-						lastName: validation.data.lastName,
-						// Placeholder values for required fields (temporary)
-						birthDate: new Date('2000-01-01'),
-						address: 'Da completare',
-						city: 'Da completare',
-						postalCode: '00000',
-						province: 'XX',
-						privacyConsent: false,
-						dataConsent: false,
-						profileComplete: false
-					}
-				});
-			}
 
 			return {
 				success: true
 			};
 		} catch (error) {
-			console.error('Error saving profile:', error);
+			logger.error('Error saving profile:', error);
 			return fail(500, {
 				errors: { _form: 'Errore durante il salvataggio. Riprova più tardi.' },
 				values: { firstName: validation.data.firstName, lastName: validation.data.lastName }

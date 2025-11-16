@@ -6,5 +6,6 @@ export interface NavItem {
 export const navigationItems: NavItem[] = [
 	{ to: '/', label: 'Home' },
 	{ to: '/about', label: 'About' },
-	{ to: '/contact', label: 'Contact' }
+	{ to: '/contact', label: 'Contact' },
+	{ to: '/auth/login', label: 'Membership' }
 ];

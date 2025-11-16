@@ -6,6 +6,7 @@ import {
 	authenticateAdmin,
 	generateSessionToken
 } from '$lib/server/auth/magic-link';
+import { SESSION_COOKIE_NAME, getCookieOptions } from '$lib/server/config/constants';
 
 export const load: PageServerLoad = async ({ url, cookies }) => {
 	const token = url.searchParams.get('token');
@@ -19,10 +20,13 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 		};
 	}
 
-	// Verify magic link token
-	const payload = verifyMagicLinkToken(token);
+	// Normalize email for comparison
+	const normalizedEmail = email.toLowerCase().trim();
 
-	if (!payload || payload.email !== email) {
+	// Verify magic link token (one-time use enforcement)
+	const payload = await verifyMagicLinkToken(token);
+
+	if (!payload || payload.email !== normalizedEmail) {
 		return {
 			error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.'
 		};
@@ -31,14 +35,16 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	let userId: string;
 	let userEmail: string;
 	let redirectPath: string;
+	let role: 'user' | 'admin';
 
 	if (type === 'admin') {
 		// Authenticate as admin (does NOT auto-create, must exist)
 		try {
-			const admin = await authenticateAdmin(email);
+			const admin = await authenticateAdmin(normalizedEmail);
 			userId = admin.id;
 			userEmail = admin.email;
 			redirectPath = '/admin/users';
+			role = 'admin';
 		} catch (error) {
 			return {
 				error: 'Accesso negato. Account admin non trovato.'
@@ -46,23 +52,18 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 		}
 	} else {
 		// Authenticate as user (auto-creates if doesn't exist)
-		const user = await authenticateUser(email);
+		const user = await authenticateUser(normalizedEmail);
 		userId = user.id;
 		userEmail = user.email;
 		redirectPath = '/membership/subscription';
+		role = 'user';
 	}
 
-	// Generate session token
-	const sessionToken = generateSessionToken(userId, userEmail);
+	// Generate session token with appropriate role
+	const sessionToken = generateSessionToken(userId, userEmail, role);
 
 	// Set session cookie (HttpOnly, secure in production)
-	cookies.set('session', sessionToken, {
-		path: '/',
-		httpOnly: true,
-		secure: process.env.NODE_ENV === 'production',
-		sameSite: 'lax',
-		maxAge: 60 * 60 * 24 * 7 // 7 days
-	});
+	cookies.set(SESSION_COOKIE_NAME, sessionToken, getCookieOptions());
 
 	// Redirect to appropriate page
 	throw redirect(303, redirectPath);

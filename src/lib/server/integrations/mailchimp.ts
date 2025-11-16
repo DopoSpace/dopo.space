@@ -11,6 +11,9 @@ import {
 	MAILCHIMP_SERVER_PREFIX,
 	MAILCHIMP_AUDIENCE_ID
 } from '$env/static/private';
+import { createLogger } from '$lib/server/utils/logger';
+
+const mailchimpLogger = createLogger({ module: 'mailchimp' });
 
 // Configure Mailchimp client
 mailchimp.setConfig({
@@ -49,7 +52,7 @@ export async function subscribeToNewsletter(
 			subscriberId: response.id
 		};
 	} catch (error) {
-		console.error('Mailchimp subscription error:', error);
+		mailchimpLogger.error('Mailchimp subscription error:', error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
@@ -72,7 +75,7 @@ export async function unsubscribeFromNewsletter(
 
 		return { success: true };
 	} catch (error) {
-		console.error('Mailchimp unsubscribe error:', error);
+		mailchimpLogger.error('Mailchimp unsubscribe error:', error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
@@ -99,7 +102,7 @@ export async function updateSubscriber(
 
 		return { success: true };
 	} catch (error) {
-		console.error('Mailchimp update error:', error);
+		mailchimpLogger.error('Mailchimp update error:', error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
