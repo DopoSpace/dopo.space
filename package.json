@@ -52,6 +52,7 @@
 		"@prisma/client": "^6.19.0",
 		"bcrypt": "^6.0.0",
 		"date-fns": "^4.1.0",
+		"exceljs": "^4.4.0",
 		"jsonwebtoken": "^9.0.2",
 		"nodemailer": "^7.0.10",
 		"pino": "^10.1.0",
