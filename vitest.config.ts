@@ -3,13 +3,19 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
-	resolve: {
-		conditions: ['browser']
-	},
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
-		environment: 'happy-dom',
+		environment: 'jsdom',
 		globals: true,
-		setupFiles: ['./vitest.setup.ts']
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'html'],
+			exclude: [
+				'node_modules/',
+				'src/tests/',
+				'**/*.spec.ts',
+				'**/*.test.ts'
+			]
+		}
 	}
 });

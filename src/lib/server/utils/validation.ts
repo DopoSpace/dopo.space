@@ -23,10 +23,11 @@ export const userProfileSchema = z.object({
 	province: z.string().regex(/^[A-Z]{2}$/i, 'Province must be 2 letters (e.g., MI, RM)'),
 	documentType: z.string().optional().or(z.literal('')),
 	documentNumber: z.string().optional().or(z.literal('')),
-	privacyConsent: z.literal(true).refine((val) => val === true, {
+	// z.literal(true) already ensures the value must be true
+	privacyConsent: z.literal(true, {
 		message: 'You must accept the privacy policy'
 	}),
-	dataConsent: z.literal(true).refine((val) => val === true, {
+	dataConsent: z.literal(true, {
 		message: 'You must consent to data processing'
 	})
 });
