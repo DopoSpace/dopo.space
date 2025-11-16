@@ -1,93 +1,68 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
-import Button from './Button.svelte';
+import { render } from '@testing-library/svelte';
+import ButtonTestWrapper from './ButtonTestWrapper.test.svelte';
 
 describe('Button Component', () => {
 	it('renders button element', () => {
-		render(Button, {
-			props: {
-				children: () => 'Click me'
-			}
-		});
-
-		const button = screen.getByRole('button');
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123' });
+		const button = container.querySelector('button');
 		expect(button).toBeInTheDocument();
 	});
 
 	it('applies primary variant by default', () => {
-		render(Button, {
-			props: {
-				children: () => 'Button'
-			}
-		});
-
-		expect(screen.getByRole('button')).toHaveClass('btn-primary');
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123' });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.trim() === 'UniqueTestButton123'
+		);
+		expect(button).toHaveClass('btn-primary');
 	});
 
 	it('applies secondary variant when specified', () => {
-		render(Button, {
-			props: {
-				variant: 'secondary',
-				children: () => 'Button'
-			}
-		});
-
-		expect(screen.getByRole('button')).toHaveClass('btn-secondary');
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123', variant: 'secondary' });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.trim() === 'UniqueTestButton123'
+		);
+		expect(button).toHaveClass('btn-secondary');
 	});
 
 	it('applies full width class when fullWidth is true', () => {
-		render(Button, {
-			props: {
-				fullWidth: true,
-				children: () => 'Button'
-			}
-		});
-
-		expect(screen.getByRole('button')).toHaveClass('w-full');
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123', fullWidth: true });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.trim() === 'UniqueTestButton123'
+		);
+		expect(button).toHaveClass('w-full');
 	});
 
 	it('disables button when disabled prop is true', () => {
-		render(Button, {
-			props: {
-				disabled: true,
-				children: () => 'Button'
-			}
-		});
-
-		expect(screen.getByRole('button')).toBeDisabled();
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123', disabled: true });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.trim() === 'UniqueTestButton123'
+		);
+		expect(button).toBeDisabled();
 	});
 
 	it('disables button when loading is true', () => {
-		render(Button, {
-			props: {
-				loading: true,
-				children: () => 'Button'
-			}
-		});
-
-		expect(screen.getByRole('button')).toBeDisabled();
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123', loading: true });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.includes('UniqueTestButton123')
+		);
+		expect(button).toBeDisabled();
 	});
 
 	it('applies disabled styling when disabled', () => {
-		render(Button, {
-			props: {
-				disabled: true,
-				children: () => 'Button'
-			}
-		});
-
-		expect(screen.getByRole('button')).toHaveClass('opacity-50');
-		expect(screen.getByRole('button')).toHaveClass('cursor-not-allowed');
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123', disabled: true });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.trim() === 'UniqueTestButton123'
+		);
+		expect(button).toHaveClass('opacity-50');
+		expect(button).toHaveClass('cursor-not-allowed');
 	});
 
 	it('sets correct button type', () => {
-		render(Button, {
-			props: {
-				type: 'submit',
-				children: () => 'Submit'
-			}
-		});
-
-		expect(screen.getByRole('button')).toHaveAttribute('type', 'submit');
+		const { container } = render(ButtonTestWrapper, { text: 'UniqueTestButton123', type: 'submit' });
+		const button = Array.from(container.querySelectorAll('button')).find(
+			btn => btn.textContent?.trim() === 'UniqueTestButton123'
+		);
+		expect(button).toHaveAttribute('type', 'submit');
 	});
 });

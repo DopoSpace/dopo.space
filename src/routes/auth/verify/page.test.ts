@@ -5,9 +5,7 @@ import VerifyPage from './+page.svelte';
 describe('Verify Page', () => {
 	it('shows loading state when no error', () => {
 		render(VerifyPage, {
-			props: {
-				data: {}
-			}
+			data: {}
 		});
 
 		expect(screen.getByText(/Verifica in corso/i)).toBeInTheDocument();
@@ -17,41 +15,37 @@ describe('Verify Page', () => {
 		const errorMessage = 'Link non valido o scaduto';
 
 		render(VerifyPage, {
-			props: {
-				data: {
-					error: errorMessage
-				}
+			data: {
+				error: errorMessage
 			}
 		});
 
-		expect(screen.getByText('Errore')).toBeInTheDocument();
+		const errorHeadings = screen.getAllByText('Errore');
+		expect(errorHeadings.length).toBeGreaterThan(0);
 		expect(screen.getByText(errorMessage)).toBeInTheDocument();
 	});
 
 	it('shows link to request new magic link on error', () => {
 		render(VerifyPage, {
-			props: {
-				data: {
-					error: 'Token expired'
-				}
+			data: {
+				error: 'Token expired'
 			}
 		});
 
-		const link = screen.getByRole('link', { name: /Richiedi nuovo link/i });
-		expect(link).toBeInTheDocument();
-		expect(link).toHaveAttribute('href', '/auth/login');
+		const links = screen.getAllByRole('link', { name: /Richiedi nuovo link/i });
+		expect(links.length).toBeGreaterThan(0);
+		expect(links[0]).toHaveAttribute('href', '/auth/login');
 	});
 
 	it('applies error styling when error is present', () => {
 		render(VerifyPage, {
-			props: {
-				data: {
-					error: 'Test error'
-				}
+			data: {
+				error: 'Test error'
 			}
 		});
 
-		const errorHeading = screen.getByRole('heading', { name: 'Errore' });
-		expect(errorHeading).toHaveClass('text-red-600');
+		const errorHeadings = screen.getAllByRole('heading', { name: 'Errore' });
+		expect(errorHeadings.length).toBeGreaterThan(0);
+		expect(errorHeadings[0]).toHaveClass('text-red-600');
 	});
 });

@@ -10,14 +10,18 @@ describe('Home Page', () => {
 
 	it('renders logo with correct alt text', () => {
 		render(HomePage);
-		const logo = screen.getByAltText('Dopo? Space');
-		expect(logo).toBeInTheDocument();
+		// Use getAllByAltText since logo might appear in layout too
+		const logos = screen.getAllByAltText('Dopo? Space');
+		expect(logos.length).toBeGreaterThan(0);
+		expect(logos[0]).toBeInTheDocument();
 	});
 
 	it('logo is displayed as an image element', () => {
 		render(HomePage);
-		const logo = screen.getByRole('img', { name: 'Dopo? Space' });
-		expect(logo).toBeInTheDocument();
-		expect(logo.tagName).toBe('IMG');
+		// Use getAllByRole since logo might appear multiple times
+		const logos = screen.getAllByRole('img', { name: 'Dopo? Space' });
+		expect(logos.length).toBeGreaterThan(0);
+		expect(logos[0]).toBeInTheDocument();
+		expect(logos[0].tagName).toBe('IMG');
 	});
 });

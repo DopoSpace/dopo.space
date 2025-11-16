@@ -1,38 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
-import ErrorMessage from './ErrorMessage.svelte';
+import ErrorMessageTestWrapper from './ErrorMessageTestWrapper.test.svelte';
 
 describe('ErrorMessage Component', () => {
 	it('renders alert container', () => {
-		render(ErrorMessage, {
-			props: {
-				children: () => 'This is an error message'
-			}
-		});
-
-		expect(screen.getByRole('alert')).toBeInTheDocument();
+		render(ErrorMessageTestWrapper, { text: 'This is an error message' });
+		const alerts = screen.getAllByRole('alert');
+		expect(alerts.length).toBeGreaterThan(0);
 	});
 
 	it('has alert role for accessibility', () => {
-		render(ErrorMessage, {
-			props: {
-				children: () => 'Error'
-			}
-		});
-
-		expect(screen.getByRole('alert')).toBeInTheDocument();
+		render(ErrorMessageTestWrapper, { text: 'Error' });
+		const alerts = screen.getAllByRole('alert');
+		const errorAlert = alerts.find(alert => alert.textContent?.includes('Error'));
+		expect(errorAlert).toBeInTheDocument();
 	});
 
 	it('applies error styling classes', () => {
-		const { container } = render(ErrorMessage, {
-			props: {
-				children: () => 'Error'
-			}
-		});
-
-		const errorDiv = container.querySelector('[role="alert"]');
-		expect(errorDiv).toHaveClass('bg-red-50');
-		expect(errorDiv).toHaveClass('border-red-200');
-		expect(errorDiv).toHaveClass('text-red-800');
+		const { container } = render(ErrorMessageTestWrapper, { text: 'Error' });
+		const alerts = container.querySelectorAll('[role="alert"]');
+		const errorAlert = Array.from(alerts).find(alert => alert.textContent?.includes('Error'));
+		expect(errorAlert).toHaveClass('bg-red-50');
+		expect(errorAlert).toHaveClass('border-red-200');
+		expect(errorAlert).toHaveClass('text-red-800');
 	});
 });

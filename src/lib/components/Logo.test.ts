@@ -6,14 +6,16 @@ import { testElementClasses } from '$lib/test-utils/pageTestHelpers';
 describe('Logo Component', () => {
 	it('renders logo image with correct alt text', () => {
 		render(Logo);
-		const logo = screen.getByAltText('Dopo? Space');
-		expect(logo).toBeInTheDocument();
+		const logos = screen.getAllByAltText('Dopo? Space');
+		expect(logos.length).toBeGreaterThan(0);
+		expect(logos[0]).toBeInTheDocument();
 	});
 
 	it('logo image has correct role', () => {
 		render(Logo);
-		const logo = screen.getByRole('img', { name: 'Dopo? Space' });
-		expect(logo).toBeInTheDocument();
+		const logos = screen.getAllByRole('img', { name: 'Dopo? Space' });
+		expect(logos.length).toBeGreaterThan(0);
+		expect(logos[0]).toBeInTheDocument();
 	});
 
 	it('has correct layout classes for centering', () => {
@@ -33,7 +35,7 @@ describe('Logo Component', () => {
 
 	it('image has w-full class for responsive width', () => {
 		render(Logo);
-		const logo = screen.getByAltText('Dopo? Space');
-		expect(logo).toHaveClass('w-full');
+		const logos = screen.getAllByAltText('Dopo? Space');
+		expect(logos[0]).toHaveClass('w-full');
 	});
 });

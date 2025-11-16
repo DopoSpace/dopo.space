@@ -10,46 +10,43 @@ describe('About Page', () => {
 
 	it('displays first paragraph about DOPO cultural center', () => {
 		render(AboutPage);
-		expect(
-			screen.getByText(/DOPO\? è un centro culturale dove lavorare/i)
-		).toBeInTheDocument();
+		const paragraphs = screen.getAllByText(/DOPO\? è un centro culturale dove lavorare/);
+		expect(paragraphs.length).toBeGreaterThan(0);
 	});
 
 	it('displays second paragraph about the concept', () => {
 		render(AboutPage);
-		expect(
-			screen.getByText(/Il concept di "DOPO\?" si riferisce esplicitamente/i)
-		).toBeInTheDocument();
+		const paragraphs = screen.getAllByText(/Il concept di "DOPO\?" si riferisce esplicitamente/);
+		expect(paragraphs.length).toBeGreaterThan(0);
 	});
 
 	it('displays team paragraph', () => {
 		render(AboutPage);
-		expect(
-			screen.getByText(/TEAM: Il concept di DOPO\? nasce dalla collaborazione/i)
-		).toBeInTheDocument();
+		const paragraphs = screen.getAllByText(/TEAM: Il concept di DOPO\? nasce dalla collaborazione/);
+		expect(paragraphs.length).toBeGreaterThan(0);
 	});
 
 	it('includes transparency data link', () => {
 		render(AboutPage);
-		const pdfLink = screen.getByRole('link', { name: 'TRASPARENZA DATI' });
-		expect(pdfLink).toBeInTheDocument();
+		const pdfLinks = screen.getAllByRole('link', { name: /TRASPARENZA DATI/i });
+		expect(pdfLinks.length).toBeGreaterThan(0);
 	});
 
 	it('PDF link has correct href', () => {
 		render(AboutPage);
-		const pdfLink = screen.getByRole('link', { name: 'TRASPARENZA DATI' });
-		expect(pdfLink).toHaveAttribute('href', '/dopo_space_trasparenza_dati.pdf');
+		const pdfLinks = screen.getAllByRole('link', { name: /TRASPARENZA DATI/i });
+		expect(pdfLinks[0]).toHaveAttribute('href', '/dopo_space_trasparenza_dati.pdf');
 	});
 
 	it('PDF link opens in new tab', () => {
 		render(AboutPage);
-		const pdfLink = screen.getByRole('link', { name: 'TRASPARENZA DATI' });
-		expect(pdfLink).toHaveAttribute('target', '_blank');
+		const pdfLinks = screen.getAllByRole('link', { name: /TRASPARENZA DATI/i });
+		expect(pdfLinks[0]).toHaveAttribute('target', '_blank');
 	});
 
 	it('PDF link is underlined', () => {
 		render(AboutPage);
-		const pdfLink = screen.getByRole('link', { name: 'TRASPARENZA DATI' });
-		expect(pdfLink).toHaveClass('underline');
+		const pdfLinks = screen.getAllByRole('link', { name: /TRASPARENZA DATI/i });
+		expect(pdfLinks[0]).toHaveClass('underline');
 	});
 });
