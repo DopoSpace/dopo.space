@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { SESSION_COOKIE_NAME } from '$lib/server/config/constants';
 
 export const POST: RequestHandler = async ({ cookies }) => {
-	// Delete admin session cookie only
-	cookies.delete('admin_session', {
+	// Delete session cookie
+	cookies.delete(SESSION_COOKIE_NAME, {
 		path: '/'
 	});
 

@@ -8,6 +8,9 @@ import type { Handle } from '@sveltejs/kit';
 import { verifySessionToken } from '$lib/server/auth/magic-link';
 import { prisma } from '$lib/server/db/prisma';
 
+// Validate environment variables at startup (will throw if invalid)
+import '$lib/server/config/env';
+
 export const handle: Handle = async ({ event, resolve }) => {
 	// Get session token from cookie
 	const sessionToken = event.cookies.get('session');
@@ -17,16 +20,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const payload = verifySessionToken(sessionToken);
 
 		if (payload) {
-			// Check if this is an admin
-			const admin = await prisma.admin.findUnique({
-				where: { id: payload.userId }
-			});
+			// Use role from JWT to execute only 1 query instead of 2 (performance optimization)
+			if (payload.role === 'admin') {
+				const admin = await prisma.admin.findUnique({
+					where: { id: payload.userId }
+				});
 
-			if (admin) {
-				// Set admin in locals
-				event.locals.admin = admin;
+				// Check if session was invalidated (for logout from all devices)
+				if (admin) {
+					if (admin.sessionsInvalidatedAt && payload.issuedAt < admin.sessionsInvalidatedAt) {
+						// Session was issued before the invalidation timestamp - reject it
+						event.cookies.delete('session', { path: '/' });
+					} else {
+						event.locals.admin = admin;
+					}
+				}
 			} else {
-				// Try to load as user
+				// role === 'user' (or default)
 				const user = await prisma.user.findUnique({
 					where: { id: payload.userId },
 					include: {
@@ -38,8 +48,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 					}
 				});
 
+				// Check if session was invalidated (for logout from all devices)
 				if (user) {
-					event.locals.user = user;
+					if (user.sessionsInvalidatedAt && payload.issuedAt < user.sessionsInvalidatedAt) {
+						// Session was issued before the invalidation timestamp - reject it
+						event.cookies.delete('session', { path: '/' });
+					} else {
+						event.locals.user = user;
+					}
 				}
 			}
 		}

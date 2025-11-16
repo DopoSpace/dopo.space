@@ -10,8 +10,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw redirect(303, '/auth/login');
 	}
 
-	// Get search query from URL params
-	const search = url.searchParams.get('search') || '';
+	// Get search query from URL params and sanitize
+	const rawSearch = url.searchParams.get('search') || '';
+	// Sanitize: trim, limit length, remove dangerous characters
+	const search = rawSearch.trim().slice(0, 100).replace(/[<>]/g, '');
 
 	// Build where clause for search
 	const whereClause = search

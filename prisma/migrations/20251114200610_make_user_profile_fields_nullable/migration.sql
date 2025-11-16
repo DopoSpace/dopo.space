@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "user_profiles" ALTER COLUMN "birth_date" DROP NOT NULL,
+ALTER COLUMN "address" DROP NOT NULL,
+ALTER COLUMN "city" DROP NOT NULL,
+ALTER COLUMN "postal_code" DROP NOT NULL,
+ALTER COLUMN "province" DROP NOT NULL,
+ALTER COLUMN "privacy_consent" DROP NOT NULL,
+ALTER COLUMN "data_consent" DROP NOT NULL;

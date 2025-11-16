@@ -2,6 +2,9 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db/prisma';
 import { simpleSubscriptionSchema, formatZodErrors } from '$lib/server/utils/validation';
+import { createLogger } from '$lib/server/utils/logger';
+
+const logger = createLogger({ module: 'admin' });
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	// Admin is guaranteed to be authenticated by hooks.server.ts
@@ -90,40 +93,27 @@ export const actions = {
 				});
 			}
 
-			// Update profile
-			if (user.profile) {
-				await prisma.userProfile.update({
-					where: { userId: user.id },
-					data: {
-						firstName: validation.data.firstName,
-						lastName: validation.data.lastName
-					}
-				});
-			} else {
-				// Create profile if doesn't exist
-				await prisma.userProfile.create({
-					data: {
-						userId: user.id,
-						firstName: validation.data.firstName,
-						lastName: validation.data.lastName,
-						// Placeholder values
-						birthDate: new Date('2000-01-01'),
-						address: 'Da completare',
-						city: 'Da completare',
-						postalCode: '00000',
-						province: 'XX',
-						privacyConsent: false,
-						dataConsent: false,
-						profileComplete: false
-					}
-				});
-			}
+			// Use upsert to atomically create or update profile (prevents race conditions)
+			await prisma.userProfile.upsert({
+				where: { userId: user.id },
+				update: {
+					firstName: validation.data.firstName,
+					lastName: validation.data.lastName
+				},
+				create: {
+					userId: user.id,
+					firstName: validation.data.firstName,
+					lastName: validation.data.lastName
+					// All other fields (birthDate, address, consents) are nullable
+					// and will be filled when user completes full profile
+				}
+			});
 
 			return {
 				success: true
 			};
 		} catch (err) {
-			console.error('Error updating user:', err);
+			logger.error('Error updating user:', err);
 			return fail(500, {
 				errors: { _form: 'Errore durante l\'aggiornamento. Riprova più tardi.' },
 				values: { firstName: validation.data.firstName, lastName: validation.data.lastName }

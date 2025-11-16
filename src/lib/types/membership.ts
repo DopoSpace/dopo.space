@@ -36,18 +36,19 @@ export interface MembershipSummary {
 
 /**
  * User profile data
+ * Note: Some fields are nullable until user completes full profile
  */
 export interface UserProfileData {
 	firstName: string;
 	lastName: string;
-	birthDate: Date;
-	taxCode?: string;
-	address: string;
-	city: string;
-	postalCode: string;
-	province: string;
-	documentType?: string;
-	documentNumber?: string;
-	privacyConsent: boolean;
-	dataConsent: boolean;
+	birthDate?: Date | null;
+	taxCode?: string | null;
+	address?: string | null;
+	city?: string | null;
+	postalCode?: string | null;
+	province?: string | null;
+	documentType?: string | null;
+	documentNumber?: string | null;
+	privacyConsent?: boolean | null;
+	dataConsent?: boolean | null;
 }

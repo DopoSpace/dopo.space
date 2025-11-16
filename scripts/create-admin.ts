@@ -20,10 +20,13 @@ async function createAdmin() {
 		process.exit(1);
 	}
 
+	// Normalize email to lowercase
+	const normalizedEmail = email.toLowerCase().trim();
+
 	try {
 		// Check if admin already exists
 		const existing = await prisma.admin.findUnique({
-			where: { email }
+			where: { email: normalizedEmail }
 		});
 
 		if (existing) {
@@ -37,7 +40,7 @@ async function createAdmin() {
 		// Create admin
 		const admin = await prisma.admin.create({
 			data: {
-				email,
+				email: normalizedEmail,
 				name,
 				password: hashedPassword
 			}

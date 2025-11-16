@@ -30,7 +30,9 @@ model Admin {
   email     String   @unique
   name      String?  // Optional display name for audit trails
   password  String   @map("password")
-  authToken String?  @map("auth_token")
+
+  // Session invalidation (for logout from all devices)
+  sessionsInvalidatedAt DateTime? @map("sessions_invalidated_at")
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -43,11 +45,13 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   phone     String?
-  authToken String?  @map("auth_token")
 
   // Newsletter management
   newsletterSubscribed Boolean @default(false) @map("newsletter_subscribed")
   mailchimpSubscriberId String? @map("mailchimp_subscriber_id")
+
+  // Session invalidation (for logout from all devices)
+  sessionsInvalidatedAt DateTime? @map("sessions_invalidated_at")
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -57,6 +61,7 @@ model User {
   profile     UserProfile?
   memberships Membership[]
 
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -65,24 +70,25 @@ model UserProfile {
   userId String @unique @map("user_id")
 
   // Personal information
-  firstName   String  @map("first_name")
-  lastName    String  @map("last_name")
-  birthDate   DateTime @map("birth_date")
-  taxCode     String? @map("tax_code") // Codice Fiscale
+  firstName   String    @map("first_name")
+  lastName    String    @map("last_name")
+  birthDate   DateTime? @map("birth_date") // Optional until profile completion
+  taxCode     String?   @map("tax_code") // Codice Fiscale
 
-  // Address
-  address      String
-  city         String
-  postalCode   String  @map("postal_code")
-  province     String
+  // Address (optional until profile completion)
+  address      String? // Made optional to avoid placeholder values
+  city         String? // Made optional to avoid placeholder values
+  postalCode   String? @map("postal_code") // Made optional to avoid placeholder values
+  province     String? // Made optional to avoid placeholder values
 
   // Document information (optional for digital card)
   documentType   String? @map("document_type")
   documentNumber String? @map("document_number")
 
-  // Consents
-  privacyConsent Boolean @map("privacy_consent")
-  dataConsent    Boolean @map("data_consent")
+  // Consents (nullable - must be explicitly given by user)
+  // NULL means consent not yet given, FALSE means explicitly declined, TRUE means accepted
+  privacyConsent Boolean? @map("privacy_consent")
+  dataConsent    Boolean? @map("data_consent")
 
   // Computed field (can be calculated in application logic)
   profileComplete Boolean @default(false) @map("profile_complete")
@@ -94,6 +100,9 @@ model UserProfile {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([firstName])
+  @@index([lastName])
+  @@index([profileComplete])
   @@map("user_profiles")
 }
 
@@ -175,4 +184,27 @@ model PaymentLog {
 
   @@map("payment_logs")
   @@index([membershipId])
+}
+
+model UsedToken {
+  id String @id @default(cuid())
+
+  // Token identifier (JWT jti claim)
+  tokenId String @unique @map("token_id")
+
+  // Token type for different use cases
+  tokenType String @map("token_type") // 'magic-link', 'password-reset', etc.
+
+  // Associated email for audit trail
+  email String
+
+  // When the token was used
+  usedAt DateTime @default(now()) @map("used_at")
+
+  // When the token expires (for cleanup)
+  expiresAt DateTime @map("expires_at")
+
+  @@map("used_tokens")
+  @@index([tokenId])
+  @@index([expiresAt]) // For cleanup queries
 }
