@@ -75,8 +75,11 @@ export const actions = {
 				}
 			});
 
+			// Return the updated values to prevent form field clearing during invalidateAll
+			// This ensures inputs show correct values until load function completes
 			return {
-				success: true
+				success: true,
+				values: { firstName: validation.data.firstName, lastName: validation.data.lastName }
 			};
 		} catch (error) {
 			logger.error('Error saving profile:', error);

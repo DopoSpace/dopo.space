@@ -53,17 +53,6 @@ describe('Subscription Page', () => {
 		expect(buttons.length).toBeGreaterThan(0);
 	});
 
-	it('shows success message when form is submitted successfully', () => {
-		render(SubscriptionPage, {
-			data: mockData,
-			form: {
-				success: true
-			}
-		});
-
-		expect(screen.getByText(/Dati salvati!/i)).toBeInTheDocument();
-	});
-
 	it('shows field errors when validation fails', () => {
 		render(SubscriptionPage, {
 			data: mockData,

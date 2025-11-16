@@ -37,13 +37,6 @@
 
 	<!-- Main Content -->
 	<main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-		<!-- Success Message -->
-		{#if form?.success}
-			<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6">
-				<p class="font-medium">Dati aggiornati con successo!</p>
-			</div>
-		{/if}
-
 		<!-- User Information Card -->
 		<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
 			<h2 class="text-xl font-bold text-gray-900 mb-4">Informazioni Account</h2>
@@ -100,7 +93,7 @@
 					use:enhance={() => {
 						loading = true;
 						return async ({ update }) => {
-							await update();
+							await update({ invalidateAll: true, reset: false });
 							loading = false;
 						};
 					}}
@@ -173,7 +166,7 @@
 						use:enhance={() => {
 							loading = true;
 							return async ({ update }) => {
-								await update();
+								await update({ invalidateAll: true, reset: false });
 								loading = false;
 							};
 						}}

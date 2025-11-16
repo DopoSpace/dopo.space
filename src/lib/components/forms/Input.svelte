@@ -18,6 +18,16 @@
 		required = false,
 		placeholder
 	}: Props = $props();
+
+	// Use $state to track the internal value, initialized from props
+	// This allows proper two-way binding while respecting prop updates
+	let inputValue = $state(value);
+
+	// Use $effect to sync inputValue when the prop changes
+	// This ensures the input updates when parent data changes (e.g., after form submission)
+	$effect(() => {
+		inputValue = value;
+	});
 </script>
 
 <div class="mb-6">
@@ -31,7 +41,7 @@
 		{type}
 		id={name}
 		{name}
-		{value}
+		bind:value={inputValue}
 		{required}
 		{placeholder}
 		class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"

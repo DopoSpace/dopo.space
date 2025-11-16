@@ -16,13 +16,6 @@
 		<h1 class="text-4xl md:text-5xl font-bold mb-4">Subscription</h1>
 		<p class="text-xl mb-8">Bentornato, {data.user.email}</p>
 
-		{#if form?.success}
-			<div class="bg-white text-gray-900 rounded-lg p-6 mb-6">
-				<h2 class="text-2xl font-bold mb-2 text-green-600">Dati salvati!</h2>
-				<p class="text-lg">I tuoi dati sono stati salvati correttamente.</p>
-			</div>
-		{/if}
-
 		<FormCard title="I tuoi dati">
 			{#if form?.errors?._form}
 				<ErrorMessage>{form.errors._form}</ErrorMessage>
@@ -33,7 +26,7 @@
 				use:enhance={() => {
 					loading = true;
 					return async ({ update }) => {
-						await update();
+						await update({ invalidateAll: true, reset: false });
 						loading = false;
 					};
 				}}

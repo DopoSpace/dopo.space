@@ -109,9 +109,8 @@ export const actions = {
 				}
 			});
 
-			return {
-				success: true
-			};
+			// Don't return anything - SvelteKit will automatically re-run the load function
+			// This ensures the page data is refreshed with the new values
 		} catch (err) {
 			logger.error('Error updating user:', err);
 			return fail(500, {
