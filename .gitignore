@@ -39,3 +39,6 @@ backups/
 .idea/
 *.swp
 *.swo
+
+# Documentation
+docs/

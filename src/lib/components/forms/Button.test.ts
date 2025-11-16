@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/svelte';
-import ButtonTestWrapper from './ButtonTestWrapper.test.svelte';
+import ButtonTestWrapper from '$lib/test-utils/component-wrappers/ButtonWrapper.test.svelte';
 
 describe('Button Component', () => {
 	it('renders button element', () => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import FormCard from './FormCard.svelte';
+	import FormCard from '$lib/components/forms/FormCard.svelte';
 
 	interface Props {
 		title?: string;

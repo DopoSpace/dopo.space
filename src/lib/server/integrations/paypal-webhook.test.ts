@@ -42,8 +42,8 @@ vi.mock('$lib/server/utils/logger', () => ({
 	paymentLogger: mockPaymentLogger
 }));
 
-// Import after mocks
-const { POST } = await import('./+server');
+// Import after mocks - updated path to route
+const { POST } = await import('../../../routes/api/webhooks/paypal/+server');
 
 describe('PayPal Webhook Handler', () => {
 	beforeEach(() => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ErrorMessage from './ErrorMessage.svelte';
+	import ErrorMessage from '$lib/components/forms/ErrorMessage.svelte';
 
 	interface Props {
 		text: string;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
-import ErrorMessageTestWrapper from './ErrorMessageTestWrapper.test.svelte';
+import ErrorMessageTestWrapper from '$lib/test-utils/component-wrappers/ErrorMessageWrapper.test.svelte';
 
 describe('ErrorMessage Component', () => {
 	it('renders alert container', () => {

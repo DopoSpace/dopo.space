@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
-import FormCardTestWrapper from './FormCardTestWrapper.test.svelte';
+import FormCardTestWrapper from '$lib/test-utils/component-wrappers/FormCardWrapper.test.svelte';
 
 describe('FormCard Component', () => {
 	it('renders form card container', () => {
