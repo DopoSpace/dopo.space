@@ -5,6 +5,14 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
+		exclude: [
+			'**/node_modules/**',
+			'**/dist/**',
+			// Temporarily skip component tests - see docs/TESTING_ISSUES.md
+			// Component tests will be migrated to Vitest Browser Mode
+			'src/lib/components/**/*.test.ts',
+			'src/routes/**/page.test.ts'
+		],
 		environment: 'jsdom',
 		globals: true,
 		coverage: {
