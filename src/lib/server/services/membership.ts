@@ -45,8 +45,8 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		!!profile.city &&
 		!!profile.postalCode &&
 		!!profile.province &&
-		profile.privacyConsent &&
-		profile.dataConsent;
+		!!profile.privacyConsent &&
+		!!profile.dataConsent;
 
 	// S0: No membership
 	if (!membership) {

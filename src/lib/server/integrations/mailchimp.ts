@@ -52,7 +52,7 @@ export async function subscribeToNewsletter(
 			subscriberId: response.id
 		};
 	} catch (error) {
-		mailchimpLogger.error('Mailchimp subscription error:', error);
+		mailchimpLogger.error(error, 'Mailchimp subscription error');
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
@@ -75,7 +75,7 @@ export async function unsubscribeFromNewsletter(
 
 		return { success: true };
 	} catch (error) {
-		mailchimpLogger.error('Mailchimp unsubscribe error:', error);
+		mailchimpLogger.error(error, 'Mailchimp unsubscribe error');
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
@@ -102,7 +102,7 @@ export async function updateSubscriber(
 
 		return { success: true };
 	} catch (error) {
-		mailchimpLogger.error('Mailchimp update error:', error);
+		mailchimpLogger.error(error, 'Mailchimp update error');
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
