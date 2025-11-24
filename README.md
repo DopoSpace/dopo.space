@@ -16,7 +16,7 @@ A full-stack membership management system built with SvelteKit, PostgreSQL, and 
 
 - **Frontend & Backend**: SvelteKit 2.x (full-stack framework)
 - **Database**: PostgreSQL 16 with Prisma ORM 6.x
-- **Styling**: Tailwind CSS 4.x
+- **Styling**: Tailwind CSS 3.x
 - **Authentication**: JWT + Magic Links
 - **Payment**: PayPal Server SDK
 - **Email**: Nodemailer (SMTP)
@@ -26,7 +26,9 @@ A full-stack membership management system built with SvelteKit, PostgreSQL, and 
 
 ### Prerequisites
 
-- Node.js 22 LTS or higher
+- Node.js 24.x (see `.node-version` for exact version)
+  - Recommended: Use [fnm](https://github.com/Schniz/fnm) for version management
+  - Alternative: nvm (`nvm install && nvm use`)
 - PostgreSQL 16 or higher
 - npm or pnpm
 
