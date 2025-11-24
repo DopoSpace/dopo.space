@@ -9,6 +9,16 @@ import { SystemState, type MembershipSummary } from '$lib/types/membership';
 import { MembershipStatus, PaymentStatus } from '@prisma/client';
 
 /**
+ * Result of batch membership number assignment
+ */
+export interface BatchAssignResult {
+	assigned: { userId: string; email: string; membershipNumber: string }[];
+	skipped: string[]; // numeri già esistenti nel DB
+	remaining: string[]; // tessere non assegnate (avanzate)
+	usersWithoutCard: { userId: string; email: string }[]; // utenti non assegnati (tessere insufficienti)
+}
+
+/**
  * Get membership summary for a user
  * Determines the current system state (S0-S6) and provides relevant information
  */
@@ -210,5 +220,169 @@ export async function createMembershipForPayment(userId: string) {
 			paymentStatus: PaymentStatus.PENDING,
 			paymentAmount: associationYear.membershipFee
 		}
+	});
+}
+
+/**
+ * Generate sequential membership numbers
+ * @param prefix - Optional prefix (e.g., "DOPO-", "2024/")
+ * @param start - Start number as string (e.g., "001", "10")
+ * @param end - End number as string (e.g., "050", "100")
+ * @returns Array of formatted membership numbers
+ */
+function generateSequentialNumbers(prefix: string, start: string, end: string): string[] {
+	const numbers: string[] = [];
+	const startNum = parseInt(start, 10);
+	const endNum = parseInt(end, 10);
+	const padding = start.length; // Mantiene padding (001 → 3 cifre)
+
+	for (let i = startNum; i <= endNum; i++) {
+		const num = i.toString().padStart(padding, '0');
+		numbers.push(prefix + num);
+	}
+
+	return numbers;
+}
+
+/**
+ * Batch assign membership numbers to multiple users
+ * @param prefix - Optional prefix for membership numbers
+ * @param startNumber - Starting number (as string to preserve padding)
+ * @param endNumber - Ending number (as string)
+ * @param userIds - Array of user IDs to assign numbers to
+ * @returns BatchAssignResult with assigned, skipped, remaining, and usersWithoutCard
+ */
+export async function batchAssignMembershipNumbers(
+	prefix: string,
+	startNumber: string,
+	endNumber: string,
+	userIds: string[]
+): Promise<BatchAssignResult> {
+	// Generate all potential membership numbers
+	const allNumbers = generateSequentialNumbers(prefix, startNumber, endNumber);
+
+	// Find which numbers already exist in the database
+	const existingMemberships = await prisma.membership.findMany({
+		where: {
+			membershipNumber: {
+				in: allNumbers
+			}
+		},
+		select: {
+			membershipNumber: true
+		}
+	});
+
+	const existingNumbers = new Set(existingMemberships.map((m) => m.membershipNumber));
+	const skipped = allNumbers.filter((num) => existingNumbers.has(num));
+	const availableNumbers = allNumbers.filter((num) => !existingNumbers.has(num));
+
+	// Get users with their memberships (only those in S4 state - payment succeeded, no number)
+	const users = await prisma.user.findMany({
+		where: {
+			id: { in: userIds },
+			memberships: {
+				some: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				}
+			}
+		},
+		include: {
+			memberships: {
+				where: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				},
+				orderBy: { createdAt: 'desc' },
+				take: 1
+			}
+		},
+		orderBy: { createdAt: 'asc' } // FIFO order
+	});
+
+	const result: BatchAssignResult = {
+		assigned: [],
+		skipped,
+		remaining: [],
+		usersWithoutCard: []
+	};
+
+	// Assign numbers to users
+	let numberIndex = 0;
+	for (const user of users) {
+		if (numberIndex >= availableNumbers.length) {
+			// No more available numbers
+			result.usersWithoutCard.push({ userId: user.id, email: user.email });
+			continue;
+		}
+
+		const membership = user.memberships[0];
+		if (!membership) {
+			// User doesn't have a valid membership (shouldn't happen due to query filter)
+			result.usersWithoutCard.push({ userId: user.id, email: user.email });
+			continue;
+		}
+
+		const membershipNumber = availableNumbers[numberIndex];
+		numberIndex++;
+
+		// Update membership with number and set status to ACTIVE
+		await prisma.membership.update({
+			where: { id: membership.id },
+			data: {
+				membershipNumber,
+				status: MembershipStatus.ACTIVE
+			}
+		});
+
+		result.assigned.push({
+			userId: user.id,
+			email: user.email,
+			membershipNumber
+		});
+	}
+
+	// Calculate remaining (unused) numbers
+	result.remaining = availableNumbers.slice(numberIndex);
+
+	return result;
+}
+
+/**
+ * Get users awaiting card assignment (S4 state)
+ * These are users with payment succeeded but no membership number assigned
+ */
+export async function getUsersAwaitingCard() {
+	return await prisma.user.findMany({
+		where: {
+			memberships: {
+				some: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				}
+			}
+		},
+		include: {
+			profile: {
+				select: {
+					firstName: true,
+					lastName: true
+				}
+			},
+			memberships: {
+				where: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				},
+				orderBy: { createdAt: 'desc' },
+				take: 1,
+				select: {
+					id: true,
+					createdAt: true
+				}
+			}
+		},
+		orderBy: { createdAt: 'asc' } // FIFO order
 	});
 }

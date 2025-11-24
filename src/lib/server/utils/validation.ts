@@ -54,13 +54,34 @@ export const newsletterSchema = z.object({
 });
 
 /**
- * Admin membership number assignment schema
+ * Admin membership number assignment schema (single user)
  */
 export const assignMembershipNumberSchema = z.object({
 	userIds: z.array(z.string()),
 	startNumber: z.number().int().positive().optional(),
 	specificNumbers: z.record(z.string(), z.string()).optional() // userId -> membershipNumber
 });
+
+/**
+ * Batch card assignment schema
+ * Used for assigning membership numbers to multiple users at once
+ */
+export const batchAssignCardsSchema = z.object({
+	prefix: z.string().max(20, 'Il prefisso non può superare 20 caratteri').optional().default(''),
+	startNumber: z.string().min(1, 'Inserisci il numero iniziale').max(10, 'Numero troppo lungo'),
+	endNumber: z.string().min(1, 'Inserisci il numero finale').max(10, 'Numero troppo lungo'),
+	userIds: z.array(z.string()).min(1, 'Seleziona almeno un utente')
+}).refine(
+	(data) => {
+		const start = parseInt(data.startNumber, 10);
+		const end = parseInt(data.endNumber, 10);
+		return !isNaN(start) && !isNaN(end) && start <= end;
+	},
+	{
+		message: 'Il numero iniziale deve essere minore o uguale al numero finale',
+		path: ['endNumber']
+	}
+);
 
 /**
  * Simple subscription form schema (first name and last name only)
