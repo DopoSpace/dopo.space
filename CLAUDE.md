@@ -10,7 +10,7 @@ Dopo Space is a full-stack membership management system built with SvelteKit 2.x
 
 ### Setup and Installation
 ```bash
-npm install                           # Install dependencies
+pnpm install                          # Install dependencies
 cp .env.example .env                  # Copy environment template
 npx prisma migrate dev                # Run database migrations
 npx prisma db seed                    # Seed database with initial data
@@ -37,7 +37,7 @@ eval "$(fnm env --use-on-cd --version-file-strategy=recursive)"
 
 ### Development
 ```bash
-npm run dev                           # Start dev server (http://localhost:5173)
+pnpm dev                              # Start dev server (http://localhost:5173)
 npx prisma studio                     # Open Prisma Studio for database inspection
 ```
 
@@ -45,13 +45,13 @@ npx prisma studio                     # Open Prisma Studio for database inspecti
 The project uses Vitest with two separate test configurations:
 
 ```bash
-npm test                              # Run all server-side tests (unit tests, API tests)
-npm run test:server                   # Run server-side tests only (vitest.config.ts)
-npm run test:components               # Run component tests only (vitest.browser.config.ts)
-npm run test:all                      # Run both server and component tests
-npm run test:watch                    # Run tests in watch mode
-npm run test:ui                       # Open Vitest UI
-npm run test:coverage                 # Generate coverage report
+pnpm test                             # Run all server-side tests (unit tests, API tests)
+pnpm test:server                      # Run server-side tests only (vitest.config.ts)
+pnpm test:components                  # Run component tests only (vitest.browser.config.ts)
+pnpm test:all                         # Run both server and component tests
+pnpm test:watch                       # Run tests in watch mode
+pnpm test:ui                          # Open Vitest UI
+pnpm test:coverage                    # Generate coverage report
 ```
 
 **Testing Architecture:**
@@ -69,15 +69,15 @@ npx prisma db push                    # Push schema changes without migration (d
 
 ### Build and Production
 ```bash
-npm run build                         # Build for production
-npm run preview                       # Preview production build locally
-npm run check                         # Run svelte-check for type errors
+pnpm build                            # Build for production
+pnpm preview                          # Preview production build locally
+pnpm check                            # Run svelte-check for type errors
 ```
 
 ### Admin Scripts
 ```bash
-npm run create-admin                  # Create admin user interactively
-npm run manage-year                   # Manage association years (create/activate)
+pnpm create-admin                     # Create admin user interactively
+pnpm manage-year                      # Manage association years (create/activate)
 ```
 
 ## Architecture
@@ -202,7 +202,7 @@ Routes automatically protected by `hooks.server.ts` based on path prefix.
 ### Testing Components vs Server Code
 - Component tests MUST go in `vitest.browser.config.ts` (uses Playwright)
 - Server-side tests (services, APIs, utils) go in `vitest.config.ts` (uses jsdom)
-- Run both with `npm run test:all` or separately with `npm run test:server` / `npm run test:components`
+- Run both with `pnpm test:all` or separately with `pnpm test:server` / `pnpm test:components`
 
 **Svelte 5 Note:** Svelte 5 changed its architecture - `mount()` only works client-side, not in Node.js/jsdom. Component tests MUST use Vitest Browser Mode (Playwright). Error if wrong config: `lifecycle_function_unavailable: mount(...) is not available on the server`
 

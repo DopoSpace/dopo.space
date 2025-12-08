@@ -30,7 +30,7 @@ A full-stack membership management system built with SvelteKit, PostgreSQL, and 
   - Recommended: Use [fnm](https://github.com/Schniz/fnm) for version management
   - Alternative: nvm (`nvm install && nvm use`)
 - PostgreSQL 16 or higher
-- npm or pnpm
+- pnpm (recommended) or npm
 
 ### Installation
 
@@ -42,7 +42,7 @@ cd api.dopo.space
 
 2. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 3. Copy environment variables:
@@ -77,7 +77,7 @@ npx prisma db seed
 Start the development server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 The application will be available at `http://localhost:5173`
@@ -139,13 +139,13 @@ prisma/
 Create a production build:
 
 ```bash
-npm run build
+pnpm build
 ```
 
 Preview the production build locally:
 
 ```bash
-npm run preview
+pnpm preview
 ```
 
 ## License

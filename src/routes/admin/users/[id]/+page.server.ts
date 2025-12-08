@@ -14,17 +14,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw redirect(303, '/auth/login');
 	}
 
-	// Fetch user with profile
+	// Fetch user with profile and latest membership
 	const user = await prisma.user.findUnique({
 		where: { id: params.id },
 		include: {
-			profile: true
+			profile: true,
+			memberships: {
+				orderBy: {
+					createdAt: 'desc'
+				},
+				take: 1,
+				include: {
+					associationYear: true
+				}
+			}
 		}
 	});
 
 	if (!user) {
 		throw error(404, 'Utente non trovato');
 	}
+
+	const latestMembership = user.memberships[0];
 
 	return {
 		user: {
@@ -38,13 +49,22 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				? {
 						firstName: user.profile.firstName,
 						lastName: user.profile.lastName,
-						birthDate: user.profile.birthDate.toISOString(),
+						birthDate: user.profile.birthDate?.toISOString() || null,
 						address: user.profile.address,
 						city: user.profile.city,
 						postalCode: user.profile.postalCode,
 						province: user.profile.province,
 						taxCode: user.profile.taxCode,
 						profileComplete: user.profile.profileComplete
+					}
+				: null,
+			membership: latestMembership
+				? {
+						membershipNumber: latestMembership.membershipNumber,
+						status: latestMembership.status,
+						paymentStatus: latestMembership.paymentStatus,
+						startDate: latestMembership.startDate?.toISOString() || null,
+						endDate: latestMembership.endDate?.toISOString() || null
 					}
 				: null
 		},
@@ -112,7 +132,7 @@ export const actions = {
 			// Don't return anything - SvelteKit will automatically re-run the load function
 			// This ensures the page data is refreshed with the new values
 		} catch (err) {
-			logger.error('Error updating user:', err);
+			logger.error({ err }, 'Error updating user');
 			return fail(500, {
 				errors: { _form: 'Errore durante l\'aggiornamento. Riprova più tardi.' },
 				values: { firstName: validation.data.firstName, lastName: validation.data.lastName }

@@ -6,14 +6,17 @@ describe('Subscription Page', () => {
 	const mockData = {
 		user: {
 			email: 'test@example.com',
-			firstName: null,
-			lastName: null
-		}
+			firstName: undefined,
+			lastName: undefined
+		},
+		admin: null,
+		isAdminRoute: false
 	};
 
 	it('renders subscription heading', () => {
 		render(SubscriptionPage, {
-			data: mockData
+			data: mockData,
+			form: null
 		});
 
 		expect(screen.getByRole('heading', { name: 'Subscription' })).toBeInTheDocument();
@@ -21,7 +24,8 @@ describe('Subscription Page', () => {
 
 	it('displays user email', () => {
 		render(SubscriptionPage, {
-			data: mockData
+			data: mockData,
+			form: null
 		});
 
 		const emailElements = screen.getAllByText(/test@example.com/);
@@ -30,7 +34,8 @@ describe('Subscription Page', () => {
 
 	it('renders first name input field', () => {
 		render(SubscriptionPage, {
-			data: mockData
+			data: mockData,
+			form: null
 		});
 
 		expect(screen.getByLabelText(/Nome/)).toBeInTheDocument();
@@ -38,7 +43,8 @@ describe('Subscription Page', () => {
 
 	it('renders last name input field', () => {
 		render(SubscriptionPage, {
-			data: mockData
+			data: mockData,
+			form: null
 		});
 
 		expect(screen.getByLabelText(/Cognome/)).toBeInTheDocument();
@@ -46,7 +52,8 @@ describe('Subscription Page', () => {
 
 	it('renders submit button', () => {
 		render(SubscriptionPage, {
-			data: mockData
+			data: mockData,
+			form: null
 		});
 
 		const buttons = screen.getAllByRole('button', { name: /Salva/i });
@@ -78,11 +85,14 @@ describe('Subscription Page', () => {
 				email: 'test@example.com',
 				firstName: 'Mario',
 				lastName: 'Rossi'
-			}
+			},
+			admin: null,
+			isAdminRoute: false
 		};
 
 		render(SubscriptionPage, {
-			data: dataWithProfile
+			data: dataWithProfile,
+			form: null
 		});
 
 		// In browser mode, just verify the inputs exist and have correct names
@@ -110,7 +120,8 @@ describe('Subscription Page', () => {
 
 	it('renders link to home page', () => {
 		render(SubscriptionPage, {
-			data: mockData
+			data: mockData,
+			form: null
 		});
 
 		const homeLinks = screen.getAllByRole('link', { name: /Torna alla home/i });

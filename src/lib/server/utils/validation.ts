@@ -93,6 +93,38 @@ export const simpleSubscriptionSchema = z.object({
 });
 
 /**
+ * Card number range schema
+ * Used for adding new card number ranges in admin
+ */
+export const addCardRangeSchema = z
+	.object({
+		startNumber: z.coerce
+			.number()
+			.int('Deve essere un numero intero')
+			.positive('Deve essere positivo'),
+		endNumber: z.coerce
+			.number()
+			.int('Deve essere un numero intero')
+			.positive('Deve essere positivo')
+	})
+	.refine((data) => data.startNumber <= data.endNumber, {
+		message: 'Il numero iniziale deve essere minore o uguale al numero finale',
+		path: ['endNumber']
+	})
+	.refine((data) => data.endNumber - data.startNumber + 1 <= 1000, {
+		message: 'Il range non può contenere più di 1000 numeri',
+		path: ['endNumber']
+	});
+
+/**
+ * Auto-assign cards schema
+ * Used for automatic card assignment from configured ranges
+ */
+export const autoAssignCardsSchema = z.object({
+	userIds: z.array(z.string()).min(1, 'Seleziona almeno un utente')
+});
+
+/**
  * Helper function to format Zod validation errors
  */
 export function formatZodErrors(errors: z.ZodError): Record<string, string> {

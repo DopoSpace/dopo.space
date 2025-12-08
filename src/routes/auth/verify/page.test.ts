@@ -2,10 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import VerifyPage from './+page.svelte';
 
+// Base mock data that satisfies the PageData type from root layout
+const baseMockData = {
+	admin: null,
+	user: null,
+	isAdminRoute: false
+};
+
 describe('Verify Page', () => {
 	it('shows loading state when no error', () => {
 		render(VerifyPage, {
-			data: {}
+			data: {
+				...baseMockData,
+				error: ''
+			}
 		});
 
 		expect(screen.getByText(/Verifica in corso/i)).toBeInTheDocument();
@@ -16,6 +26,7 @@ describe('Verify Page', () => {
 
 		render(VerifyPage, {
 			data: {
+				...baseMockData,
 				error: errorMessage
 			}
 		});
@@ -28,6 +39,7 @@ describe('Verify Page', () => {
 	it('shows link to request new magic link on error', () => {
 		render(VerifyPage, {
 			data: {
+				...baseMockData,
 				error: 'Token expired'
 			}
 		});
@@ -40,6 +52,7 @@ describe('Verify Page', () => {
 	it('applies error styling when error is present', () => {
 		render(VerifyPage, {
 			data: {
+				...baseMockData,
 				error: 'Test error'
 			}
 		});

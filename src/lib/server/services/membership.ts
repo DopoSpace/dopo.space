@@ -7,6 +7,7 @@
 import { prisma } from '../db/prisma';
 import { SystemState, type MembershipSummary } from '$lib/types/membership';
 import { MembershipStatus, PaymentStatus } from '@prisma/client';
+import { getAvailableNumbers } from './card-ranges';
 
 /**
  * Result of batch membership number assignment
@@ -385,4 +386,177 @@ export async function getUsersAwaitingCard() {
 		},
 		orderBy: { createdAt: 'asc' } // FIFO order
 	});
+}
+
+/**
+ * Result of automatic card assignment
+ */
+export interface AutoAssignResult {
+	assigned: { userId: string; email: string; membershipNumber: string }[];
+	usersWithoutCard: { userId: string; email: string }[];
+	availableCount: number;
+	requestedCount: number;
+}
+
+/**
+ * Automatically assign membership numbers from configured ranges
+ * Uses FIFO order (first paid = first assigned)
+ */
+export async function autoAssignMembershipNumbers(userIds: string[]): Promise<AutoAssignResult> {
+	// Get active year
+	const activeYear = await prisma.associationYear.findFirst({
+		where: { isActive: true }
+	});
+
+	if (!activeYear) {
+		throw new Error('Nessun anno associativo attivo');
+	}
+
+	// Get available numbers from configured ranges
+	const availableNumbers = await getAvailableNumbers(activeYear.id);
+
+	if (availableNumbers.length === 0) {
+		throw new Error('Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges');
+	}
+
+	// Get users with their memberships (only those in S4 state)
+	const users = await prisma.user.findMany({
+		where: {
+			id: { in: userIds },
+			memberships: {
+				some: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				}
+			}
+		},
+		include: {
+			memberships: {
+				where: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				},
+				orderBy: { createdAt: 'desc' },
+				take: 1
+			}
+		},
+		orderBy: { createdAt: 'asc' } // FIFO order
+	});
+
+	const result: AutoAssignResult = {
+		assigned: [],
+		usersWithoutCard: [],
+		availableCount: availableNumbers.length,
+		requestedCount: userIds.length
+	};
+
+	// Assign numbers to users
+	let numberIndex = 0;
+	for (const user of users) {
+		if (numberIndex >= availableNumbers.length) {
+			result.usersWithoutCard.push({ userId: user.id, email: user.email });
+			continue;
+		}
+
+		const membership = user.memberships[0];
+		if (!membership) {
+			result.usersWithoutCard.push({ userId: user.id, email: user.email });
+			continue;
+		}
+
+		const membershipNumber = availableNumbers[numberIndex];
+		numberIndex++;
+
+		// Update membership with number and set status to ACTIVE
+		await prisma.membership.update({
+			where: { id: membership.id },
+			data: {
+				membershipNumber,
+				status: MembershipStatus.ACTIVE
+			}
+		});
+
+		result.assigned.push({
+			userId: user.id,
+			email: user.email,
+			membershipNumber
+		});
+	}
+
+	return result;
+}
+
+/**
+ * Check if user is renewing (has previous membership with card number)
+ */
+export async function checkUserRenewalStatus(userId: string): Promise<{
+	isRenewal: boolean;
+	previousNumber: string | null;
+}> {
+	const previousMembership = await prisma.membership.findFirst({
+		where: {
+			userId,
+			membershipNumber: { not: null }
+		},
+		orderBy: { createdAt: 'desc' },
+		select: {
+			membershipNumber: true,
+			associationYear: {
+				select: {
+					endDate: true
+				}
+			}
+		}
+	});
+
+	if (!previousMembership) {
+		return { isRenewal: false, previousNumber: null };
+	}
+
+	return {
+		isRenewal: true,
+		previousNumber: previousMembership.membershipNumber
+	};
+}
+
+/**
+ * Create membership for new year with automatic number conservation for renewals
+ */
+export async function createMembershipWithRenewal(
+	userId: string,
+	associationYearId: string
+): Promise<{ membership: unknown; isRenewal: boolean; conservedNumber: string | null }> {
+	// Check if this is a renewal
+	const renewalStatus = await checkUserRenewalStatus(userId);
+
+	// If renewal, use the previous number
+	const membershipNumber = renewalStatus.isRenewal ? renewalStatus.previousNumber : null;
+	const status = membershipNumber ? MembershipStatus.ACTIVE : MembershipStatus.PENDING;
+
+	const associationYear = await prisma.associationYear.findUnique({
+		where: { id: associationYearId }
+	});
+
+	if (!associationYear) {
+		throw new Error('Anno associativo non trovato');
+	}
+
+	const membership = await prisma.membership.create({
+		data: {
+			userId,
+			associationYearId,
+			membershipNumber,
+			status,
+			paymentStatus: PaymentStatus.SUCCEEDED,
+			paymentAmount: associationYear.membershipFee,
+			startDate: new Date(),
+			endDate: associationYear.endDate
+		}
+	});
+
+	return {
+		membership,
+		isRenewal: renewalStatus.isRenewal,
+		conservedNumber: membershipNumber
+	};
 }

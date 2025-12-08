@@ -10,6 +10,8 @@ export default defineConfig({
 			'src/lib/components/**/*.test.ts',
 			'src/routes/**/page.test.ts'
 		],
+		// Setup file for jest-dom matchers
+		setupFiles: ['./src/test/setup-browser.ts'],
 		// Browser mode configuration
 		browser: {
 			enabled: true,

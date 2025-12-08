@@ -124,10 +124,34 @@ model AssociationYear {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  memberships Membership[]
+  memberships      Membership[]
+  cardNumberRanges CardNumberRange[]
 
   @@map("association_years")
   @@index([isActive])
+}
+
+model CardNumberRange {
+  id String @id @default(cuid())
+
+  // Range definition
+  prefix      String @default("")
+  startNumber Int    @map("start_number")
+  endNumber   Int    @map("end_number")
+  padding     Int    @default(3) // Per formattare 001, 002, etc.
+
+  // Association year (per tracciare per anno)
+  associationYearId String @map("association_year_id")
+
+  // Tracking
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by") // Admin ID
+
+  // Relations
+  associationYear AssociationYear @relation(fields: [associationYearId], references: [id])
+
+  @@map("card_number_ranges")
+  @@index([associationYearId])
 }
 
 model Membership {

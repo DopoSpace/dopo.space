@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const dateFrom = url.searchParams.get('dateFrom') || null;
 		const dateTo = url.searchParams.get('dateTo') || null;
 
-		logger.info('Export requested', {
+		logger.info({
 			admin: admin.email,
 			format,
 			search,
@@ -39,7 +39,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			yearFilter,
 			dateFrom,
 			dateTo
-		});
+		}, 'Export requested');
 
 		// Build where clause for users
 		const whereClause: any = {};
@@ -94,7 +94,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					return false;
 				}
 
-				if (yearFilter && latestMembership.associationYear.year !== yearFilter) {
+				if (yearFilter && latestMembership.associationYear.startDate.getFullYear().toString() !== yearFilter) {
 					return false;
 				}
 
@@ -143,7 +143,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				paymentAmount: latestMembership?.paymentAmount
 					? `€${(latestMembership.paymentAmount / 100).toFixed(2)}`
 					: '',
-				associationYear: latestMembership?.associationYear?.year || ''
+				associationYear: latestMembership?.associationYear?.startDate?.getFullYear().toString() || ''
 			};
 		});
 
@@ -153,7 +153,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		// Generate CSV or Excel based on format
 		if (format === 'xlsx') {
 			const buffer = await generateExcel(exportData);
-			return new Response(buffer, {
+			return new Response(new Uint8Array(buffer), {
 				headers: {
 					'Content-Type':
 						'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -170,7 +170,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			});
 		}
 	} catch (error) {
-		logger.error('Export failed', error);
+		logger.error({ error }, 'Export failed');
 		return new Response('Export failed', { status: 500 });
 	}
 };

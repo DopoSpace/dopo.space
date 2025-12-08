@@ -6,7 +6,13 @@
 	let { data, children }: { data: LayoutData; children: any } = $props();
 </script>
 
-<Menu user={data.user} admin={data.admin} />
-<div class="flex flex-col bg-dopoRed min-h-screen">
+{#if data.isAdminRoute}
+	<!-- Admin routes use their own layout - no public menu or red background -->
 	{@render children()}
-</div>
+{:else}
+	<!-- Public routes get the standard menu and styling -->
+	<Menu user={data.user} admin={data.admin} />
+	<div class="flex flex-col bg-dopoRed min-h-screen">
+		{@render children()}
+	</div>
+{/if}

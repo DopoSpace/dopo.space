@@ -62,7 +62,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return json({ success: true });
 	} catch (error) {
-		paymentLogger.error('PayPal webhook error:', error);
+		paymentLogger.error({ err: error }, 'PayPal webhook error');
 		return json({ error: 'Webhook processing failed' }, { status: 500 });
 	}
 };

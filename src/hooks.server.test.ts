@@ -44,7 +44,7 @@ describe('SvelteKit Server Hooks', () => {
 				get: (name: string) => cookies.get(name),
 				delete: vi.fn((name: string) => cookies.delete(name))
 			},
-			locals: {}
+			locals: {} as App.Locals
 		};
 	};
 

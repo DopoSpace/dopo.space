@@ -3,9 +3,22 @@
 	import Input from '$lib/components/forms/Input.svelte';
 	import Button from '$lib/components/forms/Button.svelte';
 	import ErrorMessage from '$lib/components/forms/ErrorMessage.svelte';
-	import type { PageData, ActionData } from './$types';
+	import type { PageData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Explicit type for form action data
+	type UpdateFormData = {
+		errors?: {
+			_form?: string;
+			firstName?: string;
+			lastName?: string;
+		};
+		values?: {
+			firstName?: string;
+			lastName?: string;
+		};
+	} | null;
+
+	let { data, form }: { data: PageData; form: UpdateFormData } = $props();
 	let loading = $state(false);
 
 	function formatDate(isoString: string): string {
@@ -19,24 +32,23 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gray-50">
-	<!-- Header -->
-	<header class="bg-white border-b border-gray-200">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-			<div class="flex justify-between items-center">
-				<div>
-					<h1 class="text-2xl font-bold text-gray-900">Dettaglio Utente</h1>
-					<p class="text-sm text-gray-600">Admin: {data.admin.email}</p>
-				</div>
-				<a href="/admin/users" class="text-blue-600 hover:text-blue-800 underline">
-					Torna alla lista
-				</a>
-			</div>
-		</div>
-	</header>
+<div class="space-y-6 max-w-4xl">
+	<!-- Breadcrumb -->
+	<nav class="flex items-center gap-2 text-sm">
+		<a href="/admin/users" class="text-gray-500 hover:text-gray-700">Utenti</a>
+		<span class="text-gray-400">/</span>
+		<span class="text-gray-900 font-medium">
+			{data.user.profile?.firstName || ''} {data.user.profile?.lastName || data.user.email}
+		</span>
+	</nav>
+
+	<!-- Page Header -->
+	<div>
+		<h1 class="text-2xl font-bold text-gray-900">Dettaglio Utente</h1>
+		<p class="text-sm text-gray-600 mt-1">{data.user.email}</p>
+	</div>
 
 	<!-- Main Content -->
-	<main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		<!-- User Information Card -->
 		<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
 			<h2 class="text-xl font-bold text-gray-900 mb-4">Informazioni Account</h2>
@@ -76,6 +88,92 @@
 					<dd class="mt-1 text-sm text-gray-900">{formatDate(data.user.updatedAt)}</dd>
 				</div>
 			</dl>
+		</div>
+
+		<!-- Membership Card -->
+		<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+			<h2 class="text-xl font-bold text-gray-900 mb-4">Tessera Associativa</h2>
+
+			{#if data.user.membership}
+				<dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<dt class="text-sm font-medium text-gray-500">Numero Tessera</dt>
+						<dd class="mt-1">
+							{#if data.user.membership.membershipNumber}
+								<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+									{data.user.membership.membershipNumber}
+								</span>
+							{:else}
+								<span class="text-sm text-yellow-600">In attesa di assegnazione</span>
+							{/if}
+						</dd>
+					</div>
+
+					<div>
+						<dt class="text-sm font-medium text-gray-500">Stato Membership</dt>
+						<dd class="mt-1">
+							{#if data.user.membership.status === 'ACTIVE'}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+									Attiva
+								</span>
+							{:else if data.user.membership.status === 'PENDING'}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+									In attesa
+								</span>
+							{:else}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+									{data.user.membership.status}
+								</span>
+							{/if}
+						</dd>
+					</div>
+
+					<div>
+						<dt class="text-sm font-medium text-gray-500">Stato Pagamento</dt>
+						<dd class="mt-1">
+							{#if data.user.membership.paymentStatus === 'SUCCEEDED'}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+									Pagato
+								</span>
+							{:else if data.user.membership.paymentStatus === 'PENDING'}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+									In attesa di pagamento
+								</span>
+							{:else if data.user.membership.paymentStatus === 'FAILED'}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+									Fallito
+								</span>
+							{:else}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+									{data.user.membership.paymentStatus}
+								</span>
+							{/if}
+						</dd>
+					</div>
+
+					{#if data.user.membership.startDate || data.user.membership.endDate}
+						<div>
+							<dt class="text-sm font-medium text-gray-500">Validità</dt>
+							<dd class="mt-1 text-sm text-gray-900">
+								{#if data.user.membership.startDate}
+									{new Date(data.user.membership.startDate).toLocaleDateString('it-IT')}
+								{/if}
+								{#if data.user.membership.startDate && data.user.membership.endDate}
+									-
+								{/if}
+								{#if data.user.membership.endDate}
+									{new Date(data.user.membership.endDate).toLocaleDateString('it-IT')}
+								{/if}
+							</dd>
+						</div>
+					{/if}
+				</dl>
+			{:else}
+				<div class="text-center py-6 text-gray-500">
+					<p>Nessuna tessera associativa</p>
+					<p class="text-sm mt-1">L'utente non ha ancora iniziato il processo di iscrizione.</p>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Edit Profile Form -->
@@ -135,7 +233,7 @@
 							<div>
 								<dt class="text-sm font-medium text-gray-500">Data di Nascita</dt>
 								<dd class="mt-1 text-sm text-gray-900">
-									{new Date(data.user.profile.birthDate).toLocaleDateString('it-IT')}
+									{data.user.profile.birthDate ? new Date(data.user.profile.birthDate).toLocaleDateString('it-IT') : '-'}
 								</dd>
 							</div>
 
@@ -196,5 +294,4 @@
 				</div>
 			{/if}
 		</div>
-	</main>
 </div>

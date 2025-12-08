@@ -645,7 +645,7 @@ describe('PayPal Webhook Handler', () => {
 
 			expect(response.status).toBe(500);
 			expect(data).toEqual({ error: 'Webhook processing failed' });
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('PayPal webhook error:', expect.any(Error));
+			expect(mockPaymentLogger.error).toHaveBeenCalledWith({ err: expect.any(Error) }, 'PayPal webhook error');
 		});
 
 		it('should handle database errors', async () => {

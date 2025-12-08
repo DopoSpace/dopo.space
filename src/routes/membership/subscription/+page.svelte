@@ -5,9 +5,23 @@
 	import Input from '$lib/components/forms/Input.svelte';
 	import Button from '$lib/components/forms/Button.svelte';
 	import ErrorMessage from '$lib/components/forms/ErrorMessage.svelte';
-	import type { PageData, ActionData } from './$types';
+	import type { PageData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Explicit type for form action data
+	type SubscriptionFormData = {
+		success?: boolean;
+		errors?: {
+			_form?: string;
+			firstName?: string;
+			lastName?: string;
+		};
+		values?: {
+			firstName?: string;
+			lastName?: string;
+		};
+	} | null;
+
+	let { data, form }: { data: PageData; form: SubscriptionFormData } = $props();
 	let loading = $state(false);
 </script>
 

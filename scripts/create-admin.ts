@@ -1,7 +1,7 @@
 /**
  * Script per creare un admin nel database
  *
- * Uso: npm run create-admin -- email@example.com "password" "Nome Admin"
+ * Uso: pnpm create-admin -- email@example.com "password" "Nome Admin"
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -16,7 +16,7 @@ async function createAdmin() {
 
 	if (!email || !password) {
 		console.error('❌ Errore: Email o password mancante');
-		console.log('Uso: npm run create-admin -- email@example.com "password" "Nome Admin"');
+		console.log('Uso: pnpm create-admin -- email@example.com "password" "Nome Admin"');
 		process.exit(1);
 	}
 

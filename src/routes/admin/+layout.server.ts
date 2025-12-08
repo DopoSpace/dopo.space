@@ -1,9 +1,10 @@
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
+	const isLoginPage = url.pathname === '/admin/login';
+
 	return {
-		user: locals.user || null,
 		admin: locals.admin || null,
-		isAdminRoute: url.pathname.startsWith('/admin')
+		isLoginPage
 	};
 };

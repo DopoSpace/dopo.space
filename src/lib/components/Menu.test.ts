@@ -1,38 +1,48 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import { writable } from 'svelte/store';
+import type { Page } from '@sveltejs/kit';
 import Menu from './Menu.svelte';
 import { testElementClasses } from '$lib/test-utils/pageTestHelpers';
 
-// Mock $app/stores
-vi.mock('$app/stores', () => {
-	const page = writable({
-		url: new URL('http://localhost/'),
-		params: {},
-		route: { id: '/' },
-		status: 200,
-		error: null,
-		data: {},
-		form: null
-	});
-
-	return { page };
-});
-
-describe('Menu Component', () => {
-	beforeEach(async () => {
-		const { page } = await import('$app/stores');
-		// Reset to home page before each test
-		page.set({
+// Create a simple writable store implementation for vi.hoisted
+const { mockPage } = vi.hoisted(() => {
+	// Simple writable store implementation that works without imports
+	function createWritable<T>(initial: T) {
+		let value = initial;
+		const subscribers = new Set<(value: T) => void>();
+		return {
+			subscribe(fn: (value: T) => void) {
+				subscribers.add(fn);
+				fn(value);
+				return () => subscribers.delete(fn);
+			},
+			set(newValue: T) {
+				value = newValue;
+				subscribers.forEach(fn => fn(value));
+			}
+		};
+	}
+	return {
+		mockPage: createWritable({
 			url: new URL('http://localhost/'),
 			params: {},
 			route: { id: '/' },
 			status: 200,
 			error: null,
 			data: {},
-			form: null
-		});
-	});
+			form: null,
+			state: {}
+		})
+	};
+});
+
+// Mock $app/stores
+vi.mock('$app/stores', () => ({
+	page: mockPage
+}));
+
+describe('Menu Component', () => {
 
 	it('renders all three navigation links', () => {
 		render(Menu);

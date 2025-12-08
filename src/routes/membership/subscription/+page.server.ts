@@ -82,7 +82,7 @@ export const actions = {
 				values: { firstName: validation.data.firstName, lastName: validation.data.lastName }
 			};
 		} catch (error) {
-			logger.error('Error saving profile:', error);
+			logger.error({ err: error }, 'Error saving profile');
 			return fail(500, {
 				errors: { _form: 'Errore durante il salvataggio. Riprova più tardi.' },
 				values: { firstName: validation.data.firstName, lastName: validation.data.lastName }

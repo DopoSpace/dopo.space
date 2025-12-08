@@ -91,6 +91,10 @@ describe('parseFormDataOrFail', () => {
 
 		const result = await parseFormDataOrFail(formData, schema);
 
+		// Type guard: if it has 'status', it's an ActionFailure
+		if ('status' in result) {
+			throw new Error('Expected success but got ActionFailure');
+		}
 		expect(result.name).toBe('Test');
 	});
 
@@ -104,8 +108,11 @@ describe('parseFormDataOrFail', () => {
 
 		const result = await parseFormDataOrFail(formData, schema);
 
-		expect(result).toHaveProperty('status');
-		expect(result.status).toBe(400);
+		// Type guard: check if it's an ActionFailure
+		expect('status' in result).toBe(true);
+		if ('status' in result) {
+			expect(result.status).toBe(400);
+		}
 	});
 });
 

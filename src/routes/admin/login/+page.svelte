@@ -1,9 +1,18 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import TextContainer from '$lib/components/TextContainer.svelte';
-	import type { ActionData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	// Explicit type for form action data
+	type LoginFormData = {
+		errors?: {
+			email?: string;
+			password?: string;
+			general?: string;
+		};
+		email?: string;
+	} | null;
+
+	let { form }: { form: LoginFormData } = $props();
 	let loading = $state(false);
 </script>
 

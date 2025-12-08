@@ -3,9 +3,9 @@
  *
  * Handles creation, activation, and deactivation of association years
  * Usage:
- *   npm run manage-year create <start-date> <end-date> <fee>
- *   npm run manage-year activate <year-id>
- *   npm run manage-year list
+ *   pnpm manage-year create <start-date> <end-date> <fee>
+ *   pnpm manage-year activate <year-id>
+ *   pnpm manage-year list
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -89,8 +89,8 @@ async function main() {
 				const fee = parseFloat(process.argv[5]);
 
 				if (!startDate || !endDate || isNaN(fee)) {
-					console.error('❌ Usage: npm run manage-year create <start-date> <end-date> <fee>');
-					console.error('   Example: npm run manage-year create 2026-01-01 2026-12-31 25');
+					console.error('❌ Usage: pnpm manage-year create <start-date> <end-date> <fee>');
+					console.error('   Example: pnpm manage-year create 2026-01-01 2026-12-31 25');
 					process.exit(1);
 				}
 
@@ -101,7 +101,7 @@ async function main() {
 				const yearId = process.argv[3];
 
 				if (!yearId) {
-					console.error('❌ Usage: npm run manage-year activate <year-id>');
+					console.error('❌ Usage: pnpm manage-year activate <year-id>');
 					process.exit(1);
 				}
 
@@ -120,10 +120,10 @@ async function main() {
 				console.log('📖 Association Year Management');
 				console.log('');
 				console.log('Commands:');
-				console.log('  npm run manage-year create <start-date> <end-date> <fee>');
-				console.log('  npm run manage-year activate <year-id>');
-				console.log('  npm run manage-year list');
-				console.log('  npm run manage-year seed  (create initial 2025 year)');
+				console.log('  pnpm manage-year create <start-date> <end-date> <fee>');
+				console.log('  pnpm manage-year activate <year-id>');
+				console.log('  pnpm manage-year list');
+				console.log('  pnpm manage-year seed  (create initial 2025 year)');
 				break;
 		}
 	} catch (error) {
