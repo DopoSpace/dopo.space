@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SystemState } from '$lib/types/membership';
 
-// Mock Prisma
-const mockPrisma = {
+// Mock Prisma with transaction support
+const mockPrisma: any = {
 	user: {
 		findUnique: vi.fn()
 	},
@@ -17,7 +17,9 @@ const mockPrisma = {
 	},
 	associationYear: {
 		findFirst: vi.fn()
-	}
+	},
+	// Transaction support: calls callback with mockPrisma itself
+	$transaction: vi.fn((callback: (tx: any) => Promise<any>) => callback(mockPrisma))
 };
 
 vi.mock('$lib/server/db/prisma', () => ({
@@ -99,6 +101,10 @@ describe('Membership Service', () => {
 		});
 
 		it('should return S5_ACTIVE for active membership with number', async () => {
+			// Use future end date to ensure membership is not expired
+			const futureEndDate = new Date();
+			futureEndDate.setFullYear(futureEndDate.getFullYear() + 1);
+
 			mockPrisma.user.findUnique.mockResolvedValue({
 				id: 'user-1',
 				email: 'test@example.com',
@@ -121,7 +127,7 @@ describe('Membership Service', () => {
 						paymentStatus: 'SUCCEEDED',
 						membershipNumber: 'DS-2025-001',
 						startDate: new Date('2025-01-01'),
-						endDate: new Date('2025-12-31'),
+						endDate: futureEndDate,
 						createdAt: new Date()
 					}
 				]

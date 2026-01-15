@@ -20,10 +20,12 @@ vi.mock('$lib/server/integrations/paypal', () => ({
 const mockPrisma = {
 	membership: {
 		update: vi.fn(),
-		findFirst: vi.fn()
+		findFirst: vi.fn(),
+		findUnique: vi.fn()
 	},
 	paymentLog: {
-		create: vi.fn()
+		create: vi.fn(),
+		findFirst: vi.fn()
 	}
 };
 
@@ -48,6 +50,8 @@ const { POST } = await import('../../../routes/api/webhooks/paypal/+server');
 describe('PayPal Webhook Handler', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Default: no idempotency issues (event not processed yet)
+		mockPrisma.paymentLog.findFirst.mockResolvedValue(null);
 	});
 
 	// Helper to create mock request
@@ -62,7 +66,11 @@ describe('PayPal Webhook Handler', () => {
 	describe('POST Handler - Security', () => {
 		it('should verify webhook signature', async () => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
-			const request = createMockRequest({ event_type: 'UNKNOWN' }, { 'x-paypal-signature': 'test' });
+			mockPrisma.membership.findUnique.mockResolvedValue({ id: 'membership-123' });
+			const request = createMockRequest({
+				event_type: 'CHECKOUT.ORDER.APPROVED',
+				resource: { id: 'ORDER-123', purchase_units: [{ reference_id: 'membership-123' }] }
+			}, { 'x-paypal-signature': 'test' });
 
 			await POST({ request } as any);
 
@@ -97,33 +105,38 @@ describe('PayPal Webhook Handler', () => {
 		});
 	});
 
-	describe('Event Routing', () => {
+	describe('Event Type Whitelist', () => {
 		beforeEach(() => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
-			mockPrisma.membership.update.mockResolvedValue({});
-			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123' });
-			mockPrisma.paymentLog.create.mockResolvedValue({});
 		});
 
-		it('should route CHECKOUT.ORDER.APPROVED event', async () => {
-			const event = {
-				event_type: 'CHECKOUT.ORDER.APPROVED',
-				resource: {
-					id: 'ORDER-123',
-					purchase_units: [{ reference_id: 'membership-123' }]
-				}
-			};
+		it('should reject unexpected event types with 400', async () => {
+			const event = { event_type: 'UNKNOWN.EVENT.TYPE' };
 			const request = createMockRequest(event);
 
 			const response = await POST({ request } as any);
 			const data = await response.json();
 
-			expect(response.status).toBe(200);
-			expect(data).toEqual({ success: true });
-			expect(mockPaymentLogger.info).toHaveBeenCalledWith('Processing PayPal webhook: CHECKOUT.ORDER.APPROVED');
+			expect(response.status).toBe(400);
+			expect(data).toEqual({ error: 'Unexpected event type' });
+			expect(mockPaymentLogger.warn).toHaveBeenCalledWith('Unexpected webhook event type: UNKNOWN.EVENT.TYPE');
 		});
 
-		it('should route PAYMENT.CAPTURE.COMPLETED event', async () => {
+		it('should accept CHECKOUT.ORDER.APPROVED', async () => {
+			mockPrisma.membership.findUnique.mockResolvedValue({ id: 'membership-123' });
+			const event = {
+				event_type: 'CHECKOUT.ORDER.APPROVED',
+				resource: { id: 'ORDER-123', purchase_units: [{ reference_id: 'membership-123' }] }
+			};
+			const request = createMockRequest(event);
+
+			const response = await POST({ request } as any);
+
+			expect(response.status).toBe(200);
+		});
+
+		it('should accept PAYMENT.CAPTURE.COMPLETED', async () => {
+			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123', paymentStatus: 'PENDING' });
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.COMPLETED',
 				resource: {
@@ -137,67 +150,13 @@ describe('PayPal Webhook Handler', () => {
 			const response = await POST({ request } as any);
 
 			expect(response.status).toBe(200);
-			expect(mockPaymentLogger.info).toHaveBeenCalledWith('Processing PayPal webhook: PAYMENT.CAPTURE.COMPLETED');
-		});
-
-		it('should route PAYMENT.CAPTURE.DENIED event', async () => {
-			const event = {
-				event_type: 'PAYMENT.CAPTURE.DENIED',
-				resource: {
-					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
-				}
-			};
-			const request = createMockRequest(event);
-
-			const response = await POST({ request } as any);
-
-			expect(response.status).toBe(200);
-		});
-
-		it('should route PAYMENT.CAPTURE.DECLINED event', async () => {
-			const event = {
-				event_type: 'PAYMENT.CAPTURE.DECLINED',
-				resource: {
-					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
-				}
-			};
-			const request = createMockRequest(event);
-
-			const response = await POST({ request } as any);
-
-			expect(response.status).toBe(200);
-		});
-
-		it('should route PAYMENT.CAPTURE.REFUNDED event', async () => {
-			const event = {
-				event_type: 'PAYMENT.CAPTURE.REFUNDED',
-				resource: {
-					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
-				}
-			};
-			const request = createMockRequest(event);
-
-			const response = await POST({ request } as any);
-
-			expect(response.status).toBe(200);
-		});
-
-		it('should log warning for unknown event types', async () => {
-			const event = { event_type: 'UNKNOWN.EVENT.TYPE' };
-			const request = createMockRequest(event);
-
-			const response = await POST({ request } as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(200);
-			expect(data).toEqual({ success: true });
-			expect(mockPaymentLogger.warn).toHaveBeenCalledWith('Unhandled webhook event type: UNKNOWN.EVENT.TYPE');
 		});
 	});
 
 	describe('handleOrderApproved', () => {
 		beforeEach(() => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
+			mockPrisma.membership.findUnique.mockResolvedValue({ id: 'membership-456' });
 			mockPrisma.membership.update.mockResolvedValue({});
 			mockPrisma.paymentLog.create.mockResolvedValue({});
 		});
@@ -218,6 +177,64 @@ describe('PayPal Webhook Handler', () => {
 				where: { id: 'membership-456' },
 				data: { paymentProviderId: 'ORDER-123' }
 			});
+		});
+
+		it('should validate membership exists before updating', async () => {
+			const event = {
+				event_type: 'CHECKOUT.ORDER.APPROVED',
+				resource: {
+					id: 'ORDER-123',
+					purchase_units: [{ reference_id: 'membership-456' }]
+				}
+			};
+			const request = createMockRequest(event);
+
+			await POST({ request } as any);
+
+			expect(mockPrisma.membership.findUnique).toHaveBeenCalledWith({
+				where: { id: 'membership-456' }
+			});
+		});
+
+		it('should throw error if membership not found', async () => {
+			mockPrisma.membership.findUnique.mockResolvedValue(null);
+			const event = {
+				event_type: 'CHECKOUT.ORDER.APPROVED',
+				resource: {
+					id: 'ORDER-123',
+					purchase_units: [{ reference_id: 'membership-notfound' }]
+				}
+			};
+			const request = createMockRequest(event);
+
+			const response = await POST({ request } as any);
+
+			expect(response.status).toBe(500);
+			expect(mockPaymentLogger.error).toHaveBeenCalledWith(
+				{ membershipId: 'membership-notfound' },
+				'Membership not found for order approval'
+			);
+		});
+
+		it('should skip if event already processed (idempotency)', async () => {
+			mockPrisma.paymentLog.findFirst.mockResolvedValue({ id: 'existing-log' });
+			const event = {
+				event_type: 'CHECKOUT.ORDER.APPROVED',
+				resource: {
+					id: 'ORDER-123',
+					purchase_units: [{ reference_id: 'membership-456' }]
+				}
+			};
+			const request = createMockRequest(event);
+
+			const response = await POST({ request } as any);
+
+			expect(response.status).toBe(200);
+			expect(mockPrisma.membership.update).not.toHaveBeenCalled();
+			expect(mockPaymentLogger.info).toHaveBeenCalledWith(
+				{ membershipId: 'membership-456' },
+				'CHECKOUT.ORDER.APPROVED already processed, skipping'
+			);
 		});
 
 		it('should create payment log entry', async () => {
@@ -260,7 +277,10 @@ describe('PayPal Webhook Handler', () => {
 	describe('handlePaymentCompleted', () => {
 		beforeEach(() => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
-			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123' });
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.PENDING
+			});
 			mockPrisma.membership.update.mockResolvedValue({});
 			mockPrisma.paymentLog.create.mockResolvedValue({});
 		});
@@ -328,30 +348,32 @@ describe('PayPal Webhook Handler', () => {
 			});
 		});
 
-		it('should update membership status to SUCCEEDED and ACTIVE', async () => {
+		it('should skip if payment already succeeded (idempotency)', async () => {
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.SUCCEEDED
+			});
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.COMPLETED',
 				resource: {
 					id: 'CAPTURE-123',
-					amount: { value: '30.00' },
+					amount: { value: '25.00' },
 					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
 				}
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPrisma.membership.update).toHaveBeenCalledWith({
-				where: { id: 'membership-123' },
-				data: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					status: MembershipStatus.ACTIVE,
-					paymentAmount: 3000
-				}
-			});
+			expect(response.status).toBe(200);
+			expect(mockPrisma.membership.update).not.toHaveBeenCalled();
+			expect(mockPaymentLogger.info).toHaveBeenCalledWith(
+				{ membershipId: 'membership-123' },
+				'Payment already marked as succeeded, skipping'
+			);
 		});
 
-		it('should handle missing order ID', async () => {
+		it('should throw error for missing order ID to trigger retry', async () => {
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.COMPLETED',
 				resource: {
@@ -362,13 +384,16 @@ describe('PayPal Webhook Handler', () => {
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('No order ID in payment capture event');
-			expect(mockPrisma.membership.findFirst).not.toHaveBeenCalled();
+			expect(response.status).toBe(500);
+			expect(mockPaymentLogger.error).toHaveBeenCalledWith(
+				{ eventType: 'PAYMENT.CAPTURE.COMPLETED' },
+				'No order ID in webhook event'
+			);
 		});
 
-		it('should handle membership not found', async () => {
+		it('should throw error when membership not found to trigger retry', async () => {
 			mockPrisma.membership.findFirst.mockResolvedValue(null);
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.COMPLETED',
@@ -380,10 +405,13 @@ describe('PayPal Webhook Handler', () => {
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('Membership not found for PayPal order: ORDER-NOTFOUND');
-			expect(mockPrisma.membership.update).not.toHaveBeenCalled();
+			expect(response.status).toBe(500);
+			expect(mockPaymentLogger.error).toHaveBeenCalledWith(
+				{ orderId: 'ORDER-NOTFOUND', eventType: 'PAYMENT.CAPTURE.COMPLETED' },
+				'Membership not found for PayPal order'
+			);
 		});
 
 		it('should create payment log', async () => {
@@ -428,7 +456,10 @@ describe('PayPal Webhook Handler', () => {
 	describe('handlePaymentFailed', () => {
 		beforeEach(() => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
-			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123' });
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.PENDING
+			});
 			mockPrisma.membership.update.mockResolvedValue({});
 			mockPrisma.paymentLog.create.mockResolvedValue({});
 		});
@@ -471,34 +502,23 @@ describe('PayPal Webhook Handler', () => {
 			});
 		});
 
-		it('should handle missing order ID', async () => {
+		it('should skip if payment already failed (idempotency)', async () => {
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.FAILED
+			});
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.DENIED',
 				resource: {
-					supplementary_data: {}
+					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
 				}
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('No order ID in payment failed event');
-			expect(mockPrisma.membership.findFirst).not.toHaveBeenCalled();
-		});
-
-		it('should handle membership not found', async () => {
-			mockPrisma.membership.findFirst.mockResolvedValue(null);
-			const event = {
-				event_type: 'PAYMENT.CAPTURE.DENIED',
-				resource: {
-					supplementary_data: { related_ids: { order_id: 'ORDER-NOTFOUND' } }
-				}
-			};
-			const request = createMockRequest(event);
-
-			await POST({ request } as any);
-
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('Membership not found for PayPal order: ORDER-NOTFOUND');
+			expect(response.status).toBe(200);
+			expect(mockPrisma.membership.update).not.toHaveBeenCalled();
 		});
 
 		it('should create payment log with event type', async () => {
@@ -539,7 +559,10 @@ describe('PayPal Webhook Handler', () => {
 	describe('handlePaymentRefunded', () => {
 		beforeEach(() => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
-			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123' });
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.SUCCEEDED
+			});
 			mockPrisma.membership.update.mockResolvedValue({});
 			mockPrisma.paymentLog.create.mockResolvedValue({});
 		});
@@ -564,34 +587,23 @@ describe('PayPal Webhook Handler', () => {
 			});
 		});
 
-		it('should handle missing order ID', async () => {
+		it('should skip if payment already canceled (idempotency)', async () => {
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.CANCELED
+			});
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.REFUNDED',
 				resource: {
-					supplementary_data: {}
+					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
 				}
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('No order ID in payment refund event');
-			expect(mockPrisma.membership.findFirst).not.toHaveBeenCalled();
-		});
-
-		it('should handle membership not found', async () => {
-			mockPrisma.membership.findFirst.mockResolvedValue(null);
-			const event = {
-				event_type: 'PAYMENT.CAPTURE.REFUNDED',
-				resource: {
-					supplementary_data: { related_ids: { order_id: 'ORDER-NOTFOUND' } }
-				}
-			};
-			const request = createMockRequest(event);
-
-			await POST({ request } as any);
-
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('Membership not found for PayPal order: ORDER-NOTFOUND');
+			expect(response.status).toBe(200);
+			expect(mockPrisma.membership.update).not.toHaveBeenCalled();
 		});
 
 		it('should create payment log', async () => {
@@ -649,7 +661,7 @@ describe('PayPal Webhook Handler', () => {
 		});
 
 		it('should handle database errors', async () => {
-			mockPrisma.membership.update.mockRejectedValue(new Error('DB error'));
+			mockPrisma.membership.findUnique.mockRejectedValue(new Error('DB error'));
 			const event = {
 				event_type: 'CHECKOUT.ORDER.APPROVED',
 				resource: {
@@ -670,7 +682,10 @@ describe('PayPal Webhook Handler', () => {
 	describe('Edge Cases', () => {
 		beforeEach(() => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
-			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123' });
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: PaymentStatus.PENDING
+			});
 			mockPrisma.membership.update.mockResolvedValue({});
 			mockPrisma.paymentLog.create.mockResolvedValue({});
 		});
@@ -686,9 +701,9 @@ describe('PayPal Webhook Handler', () => {
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('No order ID in payment capture event');
+			expect(response.status).toBe(500); // Throws error to trigger retry
 		});
 
 		it('should handle event with null related_ids', async () => {
@@ -702,9 +717,9 @@ describe('PayPal Webhook Handler', () => {
 			};
 			const request = createMockRequest(event);
 
-			await POST({ request } as any);
+			const response = await POST({ request } as any);
 
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith('No order ID in payment capture event');
+			expect(response.status).toBe(500); // Throws error to trigger retry
 		});
 
 		it('should handle very large payment amounts', async () => {

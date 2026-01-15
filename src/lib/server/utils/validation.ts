@@ -13,7 +13,13 @@ export const userProfileSchema = z.object({
 	firstName: z.string().min(2, 'First name must be at least 2 characters').max(50),
 	lastName: z.string().min(2, 'Last name must be at least 2 characters').max(50),
 	birthDate: z.coerce.date().refine((date) => {
-		const age = new Date().getFullYear() - date.getFullYear();
+		const today = new Date();
+		let age = today.getFullYear() - date.getFullYear();
+		const monthDiff = today.getMonth() - date.getMonth();
+		// If birthday hasn't occurred yet this year, subtract 1
+		if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+			age--;
+		}
 		return age >= 16 && age <= 120;
 	}, 'You must be at least 16 years old'),
 	taxCode: z.string().regex(/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i, 'Invalid tax code format').optional().or(z.literal('')),

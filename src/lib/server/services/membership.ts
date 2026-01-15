@@ -87,7 +87,26 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		};
 	}
 
-	// S1: Profile complete, payment pending
+	// S2: Payment in progress (has paymentProviderId but payment not yet succeeded/failed)
+	// This state occurs when user is redirected to PayPal but hasn't completed payment yet
+	if (
+		membership.paymentStatus === PaymentStatus.PENDING &&
+		membership.paymentProviderId &&
+		!membership.membershipNumber
+	) {
+		return {
+			systemState: SystemState.S2_PROCESSING_PAYMENT,
+			hasActiveMembership: false,
+			membershipNumber: null,
+			startDate: null,
+			endDate: null,
+			profileComplete,
+			canPurchase: false,
+			message: 'Payment in progress. Please complete payment on PayPal.'
+		};
+	}
+
+	// S1: Profile complete, payment pending (not yet started)
 	if (membership.paymentStatus === PaymentStatus.PENDING && profileComplete) {
 		return {
 			systemState: SystemState.S1_PROFILE_COMPLETE,
@@ -189,6 +208,7 @@ export async function getActiveAssociationYear() {
 
 /**
  * Create a new membership for payment
+ * Uses transaction to prevent race conditions
  */
 export async function createMembershipForPayment(userId: string) {
 	const associationYear = await getActiveAssociationYear();
@@ -197,30 +217,33 @@ export async function createMembershipForPayment(userId: string) {
 		throw new Error('No active association year found');
 	}
 
-	// Check if user already has a pending or active membership
-	const existingMembership = await prisma.membership.findFirst({
-		where: {
-			userId,
-			OR: [
-				{ status: MembershipStatus.ACTIVE },
-				{ paymentStatus: PaymentStatus.PENDING },
-				{ paymentStatus: PaymentStatus.SUCCEEDED }
-			]
-		}
-	});
+	// Use transaction to atomically check and create
+	return await prisma.$transaction(async (tx) => {
+		// Check if user already has a pending or active membership
+		const existingMembership = await tx.membership.findFirst({
+			where: {
+				userId,
+				OR: [
+					{ status: MembershipStatus.ACTIVE },
+					{ paymentStatus: PaymentStatus.PENDING },
+					{ paymentStatus: PaymentStatus.SUCCEEDED }
+				]
+			}
+		});
 
-	if (existingMembership) {
-		throw new Error('User already has a pending or active membership');
-	}
-
-	return await prisma.membership.create({
-		data: {
-			userId,
-			associationYearId: associationYear.id,
-			status: MembershipStatus.PENDING,
-			paymentStatus: PaymentStatus.PENDING,
-			paymentAmount: associationYear.membershipFee
+		if (existingMembership) {
+			throw new Error('User already has a pending or active membership');
 		}
+
+		return await tx.membership.create({
+			data: {
+				userId,
+				associationYearId: associationYear.id,
+				status: MembershipStatus.PENDING,
+				paymentStatus: PaymentStatus.PENDING,
+				paymentAmount: associationYear.membershipFee
+			}
+		});
 	});
 }
 
@@ -247,6 +270,7 @@ function generateSequentialNumbers(prefix: string, start: string, end: string): 
 
 /**
  * Batch assign membership numbers to multiple users
+ * Uses transaction to ensure atomicity and prevent duplicate assignments
  * @param prefix - Optional prefix for membership numbers
  * @param startNumber - Starting number (as string to preserve padding)
  * @param endNumber - Ending number (as string)
@@ -262,92 +286,95 @@ export async function batchAssignMembershipNumbers(
 	// Generate all potential membership numbers
 	const allNumbers = generateSequentialNumbers(prefix, startNumber, endNumber);
 
-	// Find which numbers already exist in the database
-	const existingMemberships = await prisma.membership.findMany({
-		where: {
-			membershipNumber: {
-				in: allNumbers
-			}
-		},
-		select: {
-			membershipNumber: true
-		}
-	});
-
-	const existingNumbers = new Set(existingMemberships.map((m) => m.membershipNumber));
-	const skipped = allNumbers.filter((num) => existingNumbers.has(num));
-	const availableNumbers = allNumbers.filter((num) => !existingNumbers.has(num));
-
-	// Get users with their memberships (only those in S4 state - payment succeeded, no number)
-	const users = await prisma.user.findMany({
-		where: {
-			id: { in: userIds },
-			memberships: {
-				some: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					membershipNumber: null
+	// Use transaction for atomic operations
+	return await prisma.$transaction(async (tx) => {
+		// Find which numbers already exist in the database
+		const existingMemberships = await tx.membership.findMany({
+			where: {
+				membershipNumber: {
+					in: allNumbers
 				}
+			},
+			select: {
+				membershipNumber: true
 			}
-		},
-		include: {
-			memberships: {
-				where: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					membershipNumber: null
-				},
-				orderBy: { createdAt: 'desc' },
-				take: 1
+		});
+
+		const existingNumbers = new Set(existingMemberships.map((m) => m.membershipNumber));
+		const skipped = allNumbers.filter((num) => existingNumbers.has(num));
+		const availableNumbers = allNumbers.filter((num) => !existingNumbers.has(num));
+
+		// Get users with their memberships (only those in S4 state - payment succeeded, no number)
+		const users = await tx.user.findMany({
+			where: {
+				id: { in: userIds },
+				memberships: {
+					some: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null
+					}
+				}
+			},
+			include: {
+				memberships: {
+					where: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null
+					},
+					orderBy: { createdAt: 'desc' },
+					take: 1
+				}
+			},
+			orderBy: { createdAt: 'asc' } // FIFO order
+		});
+
+		const result: BatchAssignResult = {
+			assigned: [],
+			skipped,
+			remaining: [],
+			usersWithoutCard: []
+		};
+
+		// Assign numbers to users
+		let numberIndex = 0;
+		for (const user of users) {
+			if (numberIndex >= availableNumbers.length) {
+				// No more available numbers
+				result.usersWithoutCard.push({ userId: user.id, email: user.email });
+				continue;
 			}
-		},
-		orderBy: { createdAt: 'asc' } // FIFO order
+
+			const membership = user.memberships[0];
+			if (!membership) {
+				// User doesn't have a valid membership (shouldn't happen due to query filter)
+				result.usersWithoutCard.push({ userId: user.id, email: user.email });
+				continue;
+			}
+
+			const membershipNumber = availableNumbers[numberIndex];
+			numberIndex++;
+
+			// Update membership with number and set status to ACTIVE
+			await tx.membership.update({
+				where: { id: membership.id },
+				data: {
+					membershipNumber,
+					status: MembershipStatus.ACTIVE
+				}
+			});
+
+			result.assigned.push({
+				userId: user.id,
+				email: user.email,
+				membershipNumber
+			});
+		}
+
+		// Calculate remaining (unused) numbers
+		result.remaining = availableNumbers.slice(numberIndex);
+
+		return result;
 	});
-
-	const result: BatchAssignResult = {
-		assigned: [],
-		skipped,
-		remaining: [],
-		usersWithoutCard: []
-	};
-
-	// Assign numbers to users
-	let numberIndex = 0;
-	for (const user of users) {
-		if (numberIndex >= availableNumbers.length) {
-			// No more available numbers
-			result.usersWithoutCard.push({ userId: user.id, email: user.email });
-			continue;
-		}
-
-		const membership = user.memberships[0];
-		if (!membership) {
-			// User doesn't have a valid membership (shouldn't happen due to query filter)
-			result.usersWithoutCard.push({ userId: user.id, email: user.email });
-			continue;
-		}
-
-		const membershipNumber = availableNumbers[numberIndex];
-		numberIndex++;
-
-		// Update membership with number and set status to ACTIVE
-		await prisma.membership.update({
-			where: { id: membership.id },
-			data: {
-				membershipNumber,
-				status: MembershipStatus.ACTIVE
-			}
-		});
-
-		result.assigned.push({
-			userId: user.id,
-			email: user.email,
-			membershipNumber
-		});
-	}
-
-	// Calculate remaining (unused) numbers
-	result.remaining = availableNumbers.slice(numberIndex);
-
-	return result;
 }
 
 /**
@@ -401,6 +428,7 @@ export interface AutoAssignResult {
 /**
  * Automatically assign membership numbers from configured ranges
  * Uses FIFO order (first paid = first assigned)
+ * Uses transaction to ensure atomicity
  */
 export async function autoAssignMembershipNumbers(userIds: string[]): Promise<AutoAssignResult> {
 	// Get active year
@@ -412,78 +440,81 @@ export async function autoAssignMembershipNumbers(userIds: string[]): Promise<Au
 		throw new Error('Nessun anno associativo attivo');
 	}
 
-	// Get available numbers from configured ranges
+	// Get available numbers from configured ranges (outside transaction for read)
 	const availableNumbers = await getAvailableNumbers(activeYear.id);
 
 	if (availableNumbers.length === 0) {
 		throw new Error('Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges');
 	}
 
-	// Get users with their memberships (only those in S4 state)
-	const users = await prisma.user.findMany({
-		where: {
-			id: { in: userIds },
-			memberships: {
-				some: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					membershipNumber: null
+	// Use transaction for atomic assignment
+	return await prisma.$transaction(async (tx) => {
+		// Get users with their memberships (only those in S4 state)
+		const users = await tx.user.findMany({
+			where: {
+				id: { in: userIds },
+				memberships: {
+					some: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null
+					}
 				}
+			},
+			include: {
+				memberships: {
+					where: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null
+					},
+					orderBy: { createdAt: 'desc' },
+					take: 1
+				}
+			},
+			orderBy: { createdAt: 'asc' } // FIFO order
+		});
+
+		const result: AutoAssignResult = {
+			assigned: [],
+			usersWithoutCard: [],
+			availableCount: availableNumbers.length,
+			requestedCount: userIds.length
+		};
+
+		// Assign numbers to users
+		let numberIndex = 0;
+		for (const user of users) {
+			if (numberIndex >= availableNumbers.length) {
+				result.usersWithoutCard.push({ userId: user.id, email: user.email });
+				continue;
 			}
-		},
-		include: {
-			memberships: {
-				where: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					membershipNumber: null
-				},
-				orderBy: { createdAt: 'desc' },
-				take: 1
+
+			const membership = user.memberships[0];
+			if (!membership) {
+				result.usersWithoutCard.push({ userId: user.id, email: user.email });
+				continue;
 			}
-		},
-		orderBy: { createdAt: 'asc' } // FIFO order
+
+			const membershipNumber = availableNumbers[numberIndex];
+			numberIndex++;
+
+			// Update membership with number and set status to ACTIVE
+			await tx.membership.update({
+				where: { id: membership.id },
+				data: {
+					membershipNumber,
+					status: MembershipStatus.ACTIVE
+				}
+			});
+
+			result.assigned.push({
+				userId: user.id,
+				email: user.email,
+				membershipNumber
+			});
+		}
+
+		return result;
 	});
-
-	const result: AutoAssignResult = {
-		assigned: [],
-		usersWithoutCard: [],
-		availableCount: availableNumbers.length,
-		requestedCount: userIds.length
-	};
-
-	// Assign numbers to users
-	let numberIndex = 0;
-	for (const user of users) {
-		if (numberIndex >= availableNumbers.length) {
-			result.usersWithoutCard.push({ userId: user.id, email: user.email });
-			continue;
-		}
-
-		const membership = user.memberships[0];
-		if (!membership) {
-			result.usersWithoutCard.push({ userId: user.id, email: user.email });
-			continue;
-		}
-
-		const membershipNumber = availableNumbers[numberIndex];
-		numberIndex++;
-
-		// Update membership with number and set status to ACTIVE
-		await prisma.membership.update({
-			where: { id: membership.id },
-			data: {
-				membershipNumber,
-				status: MembershipStatus.ACTIVE
-			}
-		});
-
-		result.assigned.push({
-			userId: user.id,
-			email: user.email,
-			membershipNumber
-		});
-	}
-
-	return result;
 }
 
 /**

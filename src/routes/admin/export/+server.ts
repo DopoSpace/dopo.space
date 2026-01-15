@@ -53,14 +53,28 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			];
 		}
 
-		// Date range filter
+		// Date range filter (with validation)
 		if (dateFrom || dateTo) {
 			whereClause.createdAt = {};
 			if (dateFrom) {
-				whereClause.createdAt.gte = new Date(dateFrom);
+				const parsedDateFrom = new Date(dateFrom);
+				if (!isNaN(parsedDateFrom.getTime())) {
+					whereClause.createdAt.gte = parsedDateFrom;
+				} else {
+					logger.warn({ dateFrom }, 'Invalid dateFrom parameter, ignoring');
+				}
 			}
 			if (dateTo) {
-				whereClause.createdAt.lte = new Date(dateTo);
+				const parsedDateTo = new Date(dateTo);
+				if (!isNaN(parsedDateTo.getTime())) {
+					whereClause.createdAt.lte = parsedDateTo;
+				} else {
+					logger.warn({ dateTo }, 'Invalid dateTo parameter, ignoring');
+				}
+			}
+			// Remove empty createdAt if both dates were invalid
+			if (Object.keys(whereClause.createdAt).length === 0) {
+				delete whereClause.createdAt;
 			}
 		}
 

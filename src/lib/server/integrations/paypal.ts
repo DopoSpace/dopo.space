@@ -11,7 +11,6 @@ import {
 	PAYPAL_MODE,
 	APP_URL
 } from '$env/static/private';
-import { paymentLogger } from '$lib/server/utils/logger';
 
 const PAYPAL_API_BASE =
 	PAYPAL_MODE === 'live'
@@ -229,27 +228,4 @@ export async function verifyPayPalWebhook(
 
 	const result = await response.json();
 	return result.verification_status === 'SUCCESS';
-}
-
-/**
- * Process PayPal webhook event
- */
-export async function processPayPalWebhook(event: any): Promise<void> {
-	const eventType = event.event_type;
-
-	switch (eventType) {
-		case 'PAYMENT.CAPTURE.COMPLETED':
-			// Handle successful payment
-			paymentLogger.info('Payment captured:', event.resource.id);
-			break;
-
-		case 'PAYMENT.CAPTURE.DENIED':
-		case 'PAYMENT.CAPTURE.DECLINED':
-			// Handle failed payment
-			paymentLogger.warn('Payment failed:', event.resource.id);
-			break;
-
-		default:
-			paymentLogger.warn('Unhandled webhook event:', eventType);
-	}
 }

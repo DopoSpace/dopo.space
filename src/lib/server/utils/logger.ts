@@ -62,13 +62,3 @@ export const authLogger = createLogger({ module: 'auth' });
  * Log payment-related events
  */
 export const paymentLogger = createLogger({ module: 'payment' });
-
-/**
- * Log database operations
- */
-export const dbLogger = createLogger({ module: 'database' });
-
-/**
- * Log API requests
- */
-export const apiLogger = createLogger({ module: 'api' });

@@ -9,9 +9,20 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { verifyPayPalWebhook } from '$lib/server/integrations/paypal';
 import { prisma } from '$lib/server/db/prisma';
-import { PaymentStatus, MembershipStatus } from '@prisma/client';
+import { PaymentStatus, MembershipStatus, type Membership } from '@prisma/client';
 import { PAYPAL_WEBHOOK_ID } from '$env/static/private';
 import { paymentLogger } from '$lib/server/utils/logger';
+
+/**
+ * Allowed webhook event types (whitelist for security)
+ */
+const ALLOWED_EVENT_TYPES = new Set([
+	'CHECKOUT.ORDER.APPROVED',
+	'PAYMENT.CAPTURE.COMPLETED',
+	'PAYMENT.CAPTURE.DENIED',
+	'PAYMENT.CAPTURE.DECLINED',
+	'PAYMENT.CAPTURE.REFUNDED'
+]);
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -37,6 +48,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		paymentLogger.info(`Processing PayPal webhook: ${eventType}`);
 
+		// Reject unexpected event types after signature verification
+		if (!ALLOWED_EVENT_TYPES.has(eventType)) {
+			paymentLogger.warn(`Unexpected webhook event type: ${eventType}`);
+			return json({ error: 'Unexpected event type' }, { status: 400 });
+		}
+
 		// Handle different webhook events
 		switch (eventType) {
 			case 'CHECKOUT.ORDER.APPROVED':
@@ -55,9 +72,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			case 'PAYMENT.CAPTURE.REFUNDED':
 				await handlePaymentRefunded(event);
 				break;
-
-			default:
-				paymentLogger.warn(`Unhandled webhook event type: ${eventType}`);
 		}
 
 		return json({ success: true });
@@ -68,11 +82,71 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 
 /**
+ * Helper to get membership by PayPal order ID with validation
+ * Returns membership or throws error (to trigger webhook retry)
+ */
+async function getMembershipByOrderId(
+	orderId: string | undefined,
+	eventType: string
+): Promise<Membership | null> {
+	if (!orderId) {
+		paymentLogger.error({ eventType }, 'No order ID in webhook event');
+		return null;
+	}
+
+	const membership = await prisma.membership.findFirst({
+		where: { paymentProviderId: orderId }
+	});
+
+	if (!membership) {
+		paymentLogger.error({ orderId, eventType }, 'Membership not found for PayPal order');
+		return null;
+	}
+
+	return membership;
+}
+
+/**
+ * Check if payment event was already processed (idempotency)
+ */
+async function isEventAlreadyProcessed(membershipId: string, eventType: string): Promise<boolean> {
+	const existingLog = await prisma.paymentLog.findFirst({
+		where: {
+			membershipId,
+			eventType
+		}
+	});
+
+	return !!existingLog;
+}
+
+/**
  * Handle CHECKOUT.ORDER.APPROVED event
  */
 async function handleOrderApproved(event: any) {
-	const orderId = event.resource.id;
-	const membershipId = event.resource.purchase_units[0].reference_id;
+	const orderId = event.resource?.id;
+	const membershipId = event.resource?.purchase_units?.[0]?.reference_id;
+
+	if (!orderId || !membershipId) {
+		paymentLogger.error('Missing orderId or membershipId in CHECKOUT.ORDER.APPROVED');
+		throw new Error('Invalid webhook payload: missing required fields');
+	}
+
+	// Validate membership exists before updating
+	const membership = await prisma.membership.findUnique({
+		where: { id: membershipId }
+	});
+
+	if (!membership) {
+		paymentLogger.error({ membershipId }, 'Membership not found for order approval');
+		throw new Error(`Membership not found: ${membershipId}`);
+	}
+
+	// Check idempotency
+	if (await isEventAlreadyProcessed(membershipId, 'CHECKOUT.ORDER.APPROVED')) {
+		paymentLogger.info({ membershipId }, 'CHECKOUT.ORDER.APPROVED already processed, skipping');
+		return;
+	}
 
 	paymentLogger.info(`Order approved: ${orderId} for membership: ${membershipId}`);
 
@@ -98,23 +172,25 @@ async function handleOrderApproved(event: any) {
  * Handle PAYMENT.CAPTURE.COMPLETED event
  */
 async function handlePaymentCompleted(event: any) {
-	const captureId = event.resource.id;
-	const amount = parseFloat(event.resource.amount.value) * 100; // Convert to cents
+	const captureId = event.resource?.id;
+	const amount = parseFloat(event.resource?.amount?.value || '0') * 100; // Convert to cents
+	const orderId = event.resource?.supplementary_data?.related_ids?.order_id;
 
-	// Find membership by PayPal order ID (stored in custom_id or reference_id)
-	const orderId = event.resource.supplementary_data?.related_ids?.order_id;
+	const membership = await getMembershipByOrderId(orderId, 'PAYMENT.CAPTURE.COMPLETED');
+	if (!membership) {
+		// Return error to trigger PayPal retry
+		throw new Error(`Membership not found for order: ${orderId}`);
+	}
 
-	if (!orderId) {
-		paymentLogger.error('No order ID in payment capture event');
+	// Check idempotency - if already processed successfully, skip
+	if (await isEventAlreadyProcessed(membership.id, 'PAYMENT.CAPTURE.COMPLETED')) {
+		paymentLogger.info({ membershipId: membership.id }, 'PAYMENT.CAPTURE.COMPLETED already processed, skipping');
 		return;
 	}
 
-	const membership = await prisma.membership.findFirst({
-		where: { paymentProviderId: orderId }
-	});
-
-	if (!membership) {
-		paymentLogger.error(`Membership not found for PayPal order: ${orderId}`);
+	// Check if membership is already in a final state (idempotency)
+	if (membership.paymentStatus === PaymentStatus.SUCCEEDED) {
+		paymentLogger.info({ membershipId: membership.id }, 'Payment already marked as succeeded, skipping');
 		return;
 	}
 
@@ -144,19 +220,24 @@ async function handlePaymentCompleted(event: any) {
  * Handle PAYMENT.CAPTURE.DENIED or DECLINED event
  */
 async function handlePaymentFailed(event: any) {
-	const orderId = event.resource.supplementary_data?.related_ids?.order_id;
+	const orderId = event.resource?.supplementary_data?.related_ids?.order_id;
+	const eventType = event.event_type;
 
-	if (!orderId) {
-		paymentLogger.error('No order ID in payment failed event');
+	const membership = await getMembershipByOrderId(orderId, eventType);
+	if (!membership) {
+		// Return error to trigger PayPal retry
+		throw new Error(`Membership not found for order: ${orderId}`);
+	}
+
+	// Check idempotency
+	if (await isEventAlreadyProcessed(membership.id, eventType)) {
+		paymentLogger.info({ membershipId: membership.id, eventType }, 'Payment failed event already processed, skipping');
 		return;
 	}
 
-	const membership = await prisma.membership.findFirst({
-		where: { paymentProviderId: orderId }
-	});
-
-	if (!membership) {
-		paymentLogger.error(`Membership not found for PayPal order: ${orderId}`);
+	// Check if membership is already in a final state
+	if (membership.paymentStatus === PaymentStatus.FAILED) {
+		paymentLogger.info({ membershipId: membership.id }, 'Payment already marked as failed, skipping');
 		return;
 	}
 
@@ -172,7 +253,7 @@ async function handlePaymentFailed(event: any) {
 	await prisma.paymentLog.create({
 		data: {
 			membershipId: membership.id,
-			eventType: event.event_type,
+			eventType,
 			providerResponse: event
 		}
 	});
@@ -184,19 +265,23 @@ async function handlePaymentFailed(event: any) {
  * Handle PAYMENT.CAPTURE.REFUNDED event
  */
 async function handlePaymentRefunded(event: any) {
-	const orderId = event.resource.supplementary_data?.related_ids?.order_id;
+	const orderId = event.resource?.supplementary_data?.related_ids?.order_id;
 
-	if (!orderId) {
-		paymentLogger.error('No order ID in payment refund event');
+	const membership = await getMembershipByOrderId(orderId, 'PAYMENT.CAPTURE.REFUNDED');
+	if (!membership) {
+		// Return error to trigger PayPal retry
+		throw new Error(`Membership not found for order: ${orderId}`);
+	}
+
+	// Check idempotency
+	if (await isEventAlreadyProcessed(membership.id, 'PAYMENT.CAPTURE.REFUNDED')) {
+		paymentLogger.info({ membershipId: membership.id }, 'Refund event already processed, skipping');
 		return;
 	}
 
-	const membership = await prisma.membership.findFirst({
-		where: { paymentProviderId: orderId }
-	});
-
-	if (!membership) {
-		paymentLogger.error(`Membership not found for PayPal order: ${orderId}`);
+	// Check if membership is already canceled
+	if (membership.paymentStatus === PaymentStatus.CANCELED) {
+		paymentLogger.info({ membershipId: membership.id }, 'Payment already marked as canceled, skipping');
 		return;
 	}
 
