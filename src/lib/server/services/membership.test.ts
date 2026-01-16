@@ -15,8 +15,8 @@ const mockPrisma: any = {
 		updateMany: vi.fn(),
 		create: vi.fn()
 	},
-	associationYear: {
-		findFirst: vi.fn()
+	settings: {
+		findUnique: vi.fn()
 	},
 	// Transaction support: calls callback with mockPrisma itself
 	$transaction: vi.fn((callback: (tx: any) => Promise<any>) => callback(mockPrisma))
@@ -27,7 +27,7 @@ vi.mock('$lib/server/db/prisma', () => ({
 }));
 
 // Import after mocking
-const { getMembershipSummary, getActiveAssociationYear, createMembershipForPayment } = await import(
+const { getMembershipSummary, createMembershipForPayment, calculateEndDate } = await import(
 	'./membership'
 );
 
@@ -181,51 +181,39 @@ describe('Membership Service', () => {
 		});
 	});
 
-	describe('getActiveAssociationYear', () => {
-		it('should return active association year', async () => {
-			const mockYear = {
-				id: 'year-1',
-				startDate: new Date('2025-01-01'),
-				endDate: new Date('2025-12-31'),
-				membershipFee: 2500,
-				isActive: true
-			};
+	describe('calculateEndDate', () => {
+		it('should return date 365 days after start date', () => {
+			const startDate = new Date('2025-01-15');
+			const endDate = calculateEndDate(startDate);
 
-			mockPrisma.associationYear.findFirst.mockResolvedValue(mockYear);
-
-			const result = await getActiveAssociationYear();
-
-			expect(result).toEqual(mockYear);
-			expect(mockPrisma.associationYear.findFirst).toHaveBeenCalledWith({
-				where: { isActive: true }
-			});
+			// 365 days after 2025-01-15 is 2026-01-15
+			expect(endDate.getFullYear()).toBe(2026);
+			expect(endDate.getMonth()).toBe(0); // January
+			expect(endDate.getDate()).toBe(15);
 		});
 
-		it('should return null if no active year', async () => {
-			mockPrisma.associationYear.findFirst.mockResolvedValue(null);
+		it('should handle leap years', () => {
+			// 2024 is a leap year
+			const startDate = new Date('2024-02-29');
+			const endDate = calculateEndDate(startDate);
 
-			const result = await getActiveAssociationYear();
-
-			expect(result).toBeNull();
+			// 365 days after 2024-02-29 is 2025-02-28
+			expect(endDate.getFullYear()).toBe(2025);
+			expect(endDate.getMonth()).toBe(1); // February
+			expect(endDate.getDate()).toBe(28);
 		});
 	});
 
 	describe('createMembershipForPayment', () => {
-		it('should create membership with active year', async () => {
-			const mockYear = {
-				id: 'year-1',
-				startDate: new Date('2025-01-01'),
-				endDate: new Date('2025-12-31'),
-				membershipFee: 2500,
-				isActive: true
-			};
-
-			mockPrisma.associationYear.findFirst.mockResolvedValue(mockYear);
+		it('should create membership with fee from settings', async () => {
+			mockPrisma.settings.findUnique.mockResolvedValue({
+				key: 'MEMBERSHIP_FEE',
+				value: '2500'
+			});
 			mockPrisma.membership.findFirst.mockResolvedValue(null);
 			mockPrisma.membership.create.mockResolvedValue({
 				id: 'membership-1',
 				userId: 'user-1',
-				associationYearId: 'year-1',
 				status: 'PENDING',
 				paymentStatus: 'PENDING',
 				paymentAmount: 2500
@@ -237,7 +225,6 @@ describe('Membership Service', () => {
 			expect(mockPrisma.membership.create).toHaveBeenCalledWith({
 				data: {
 					userId: 'user-1',
-					associationYearId: 'year-1',
 					status: 'PENDING',
 					paymentStatus: 'PENDING',
 					paymentAmount: 2500
@@ -245,22 +232,33 @@ describe('Membership Service', () => {
 			});
 		});
 
-		it('should throw error if no active year', async () => {
-			mockPrisma.associationYear.findFirst.mockResolvedValue(null);
+		it('should use default fee if settings not found', async () => {
+			mockPrisma.settings.findUnique.mockResolvedValue(null);
+			mockPrisma.membership.findFirst.mockResolvedValue(null);
+			mockPrisma.membership.create.mockResolvedValue({
+				id: 'membership-1',
+				userId: 'user-1',
+				status: 'PENDING',
+				paymentStatus: 'PENDING',
+				paymentAmount: 2500 // default fee
+			});
 
-			await expect(createMembershipForPayment('user-1')).rejects.toThrow(
-				'No active association year found'
-			);
+			const result = await createMembershipForPayment('user-1');
+
+			expect(result).toBeTruthy();
+			// Should use default 2500 cents (€25.00)
+			expect(mockPrisma.membership.create).toHaveBeenCalledWith({
+				data: expect.objectContaining({
+					paymentAmount: 2500
+				})
+			});
 		});
 
 		it('should throw error if user has existing membership', async () => {
-			const mockYear = {
-				id: 'year-1',
-				membershipFee: 2500,
-				isActive: true
-			};
-
-			mockPrisma.associationYear.findFirst.mockResolvedValue(mockYear);
+			mockPrisma.settings.findUnique.mockResolvedValue({
+				key: 'MEMBERSHIP_FEE',
+				value: '2500'
+			});
 			mockPrisma.membership.findFirst.mockResolvedValue({
 				id: 'existing-membership',
 				status: 'ACTIVE'

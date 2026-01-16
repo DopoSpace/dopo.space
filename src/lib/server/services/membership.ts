@@ -8,6 +8,12 @@ import { prisma } from '../db/prisma';
 import { SystemState, type MembershipSummary } from '$lib/types/membership';
 import { MembershipStatus, PaymentStatus } from '@prisma/client';
 import { getAvailableNumbers } from './card-ranges';
+import { getMembershipFee } from './settings';
+
+/**
+ * Membership duration in days (rolling membership)
+ */
+const MEMBERSHIP_DURATION_DAYS = 365;
 
 /**
  * Result of batch membership number assignment
@@ -30,10 +36,7 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 			profile: true,
 			memberships: {
 				orderBy: { createdAt: 'desc' },
-				take: 1,
-				include: {
-					associationYear: true
-				}
+				take: 1
 			}
 		}
 	});
@@ -198,12 +201,12 @@ export async function updateExpiredMemberships() {
 }
 
 /**
- * Get active association year
+ * Calculate membership end date from start date
  */
-export async function getActiveAssociationYear() {
-	return await prisma.associationYear.findFirst({
-		where: { isActive: true }
-	});
+export function calculateEndDate(startDate: Date): Date {
+	const endDate = new Date(startDate);
+	endDate.setDate(endDate.getDate() + MEMBERSHIP_DURATION_DAYS);
+	return endDate;
 }
 
 /**
@@ -211,11 +214,7 @@ export async function getActiveAssociationYear() {
  * Uses transaction to prevent race conditions
  */
 export async function createMembershipForPayment(userId: string) {
-	const associationYear = await getActiveAssociationYear();
-
-	if (!associationYear) {
-		throw new Error('No active association year found');
-	}
+	const fee = await getMembershipFee();
 
 	// Use transaction to atomically check and create
 	return await prisma.$transaction(async (tx) => {
@@ -238,10 +237,9 @@ export async function createMembershipForPayment(userId: string) {
 		return await tx.membership.create({
 			data: {
 				userId,
-				associationYearId: associationYear.id,
 				status: MembershipStatus.PENDING,
 				paymentStatus: PaymentStatus.PENDING,
-				paymentAmount: associationYear.membershipFee
+				paymentAmount: fee
 			}
 		});
 	});
@@ -354,12 +352,19 @@ export async function batchAssignMembershipNumbers(
 			const membershipNumber = availableNumbers[numberIndex];
 			numberIndex++;
 
-			// Update membership with number and set status to ACTIVE
+			// Calculate dates for rolling 365-day membership
+			const startDate = new Date();
+			const endDate = calculateEndDate(startDate);
+
+			// Update membership with number, dates, and set status to ACTIVE
 			await tx.membership.update({
 				where: { id: membership.id },
 				data: {
 					membershipNumber,
-					status: MembershipStatus.ACTIVE
+					status: MembershipStatus.ACTIVE,
+					startDate,
+					endDate,
+					cardAssignedAt: new Date()
 				}
 			});
 
@@ -431,17 +436,8 @@ export interface AutoAssignResult {
  * Uses transaction to ensure atomicity
  */
 export async function autoAssignMembershipNumbers(userIds: string[]): Promise<AutoAssignResult> {
-	// Get active year
-	const activeYear = await prisma.associationYear.findFirst({
-		where: { isActive: true }
-	});
-
-	if (!activeYear) {
-		throw new Error('Nessun anno associativo attivo');
-	}
-
-	// Get available numbers from configured ranges (outside transaction for read)
-	const availableNumbers = await getAvailableNumbers(activeYear.id);
+	// Get available numbers from global pool (outside transaction for read)
+	const availableNumbers = await getAvailableNumbers();
 
 	if (availableNumbers.length === 0) {
 		throw new Error('Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges');
@@ -497,12 +493,19 @@ export async function autoAssignMembershipNumbers(userIds: string[]): Promise<Au
 			const membershipNumber = availableNumbers[numberIndex];
 			numberIndex++;
 
-			// Update membership with number and set status to ACTIVE
+			// Calculate dates for rolling 365-day membership
+			const startDate = new Date();
+			const endDate = calculateEndDate(startDate);
+
+			// Update membership with number, dates, and set status to ACTIVE
 			await tx.membership.update({
 				where: { id: membership.id },
 				data: {
 					membershipNumber,
-					status: MembershipStatus.ACTIVE
+					status: MembershipStatus.ACTIVE,
+					startDate,
+					endDate,
+					cardAssignedAt: new Date()
 				}
 			});
 
@@ -532,11 +535,7 @@ export async function checkUserRenewalStatus(userId: string): Promise<{
 		orderBy: { createdAt: 'desc' },
 		select: {
 			membershipNumber: true,
-			associationYear: {
-				select: {
-					endDate: true
-				}
-			}
+			endDate: true
 		}
 	});
 
@@ -551,11 +550,11 @@ export async function checkUserRenewalStatus(userId: string): Promise<{
 }
 
 /**
- * Create membership for new year with automatic number conservation for renewals
+ * Create membership with automatic number conservation for renewals
+ * Uses rolling 365-day membership dates
  */
 export async function createMembershipWithRenewal(
-	userId: string,
-	associationYearId: string
+	userId: string
 ): Promise<{ membership: unknown; isRenewal: boolean; conservedNumber: string | null }> {
 	// Check if this is a renewal
 	const renewalStatus = await checkUserRenewalStatus(userId);
@@ -564,24 +563,24 @@ export async function createMembershipWithRenewal(
 	const membershipNumber = renewalStatus.isRenewal ? renewalStatus.previousNumber : null;
 	const status = membershipNumber ? MembershipStatus.ACTIVE : MembershipStatus.PENDING;
 
-	const associationYear = await prisma.associationYear.findUnique({
-		where: { id: associationYearId }
-	});
+	// Get membership fee from settings
+	const fee = await getMembershipFee();
 
-	if (!associationYear) {
-		throw new Error('Anno associativo non trovato');
-	}
+	// Calculate rolling 365-day dates
+	const startDate = new Date();
+	const endDate = calculateEndDate(startDate);
 
 	const membership = await prisma.membership.create({
 		data: {
 			userId,
-			associationYearId,
 			membershipNumber,
 			status,
 			paymentStatus: PaymentStatus.SUCCEEDED,
-			paymentAmount: associationYear.membershipFee,
-			startDate: new Date(),
-			endDate: associationYear.endDate
+			paymentAmount: fee,
+			startDate,
+			endDate,
+			// If renewing with a previous number, set cardAssignedAt to now
+			cardAssignedAt: membershipNumber ? new Date() : null
 		}
 	});
 

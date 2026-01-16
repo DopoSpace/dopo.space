@@ -75,12 +75,11 @@ export async function checkRangeConflicts(
 }
 
 /**
- * Add a new card number range
+ * Add a new card number range (global pool)
  */
 export async function addCardNumberRange(
 	startNumber: number,
 	endNumber: number,
-	associationYearId: string,
 	adminId?: string
 ): Promise<AddRangeResult> {
 	// Validate range
@@ -112,10 +111,9 @@ export async function addCardNumberRange(
 		};
 	}
 
-	// Check for overlapping ranges in the same year
+	// Check for overlapping ranges (global check)
 	const overlappingRanges = await prisma.cardNumberRange.findMany({
 		where: {
-			associationYearId,
 			OR: [
 				// New range starts within existing range
 				{
@@ -149,7 +147,6 @@ export async function addCardNumberRange(
 		data: {
 			startNumber,
 			endNumber,
-			associationYearId,
 			createdBy: adminId
 		}
 	});
@@ -161,13 +158,10 @@ export async function addCardNumberRange(
 }
 
 /**
- * Get all card number ranges for a year with statistics
+ * Get all card number ranges with statistics (global pool)
  */
-export async function getCardNumberRangesWithStats(
-	associationYearId: string
-): Promise<CardNumberRangeWithStats[]> {
+export async function getCardNumberRangesWithStats(): Promise<CardNumberRangeWithStats[]> {
 	const ranges = await prisma.cardNumberRange.findMany({
-		where: { associationYearId },
 		orderBy: { startNumber: 'asc' }
 	});
 
@@ -199,12 +193,11 @@ export async function getCardNumberRangesWithStats(
 }
 
 /**
- * Get all available (unassigned) membership numbers from all ranges for a year
+ * Get all available (unassigned) membership numbers from global pool
  */
-export async function getAvailableNumbers(associationYearId: string): Promise<string[]> {
-	// Get all ranges for this year
+export async function getAvailableNumbers(): Promise<string[]> {
+	// Get all ranges (global pool)
 	const ranges = await prisma.cardNumberRange.findMany({
-		where: { associationYearId },
 		orderBy: { startNumber: 'asc' }
 	});
 
@@ -219,7 +212,7 @@ export async function getAvailableNumbers(associationYearId: string): Promise<st
 		allPossibleNumbers.push(...numbers);
 	}
 
-	// Get all already assigned membership numbers (from ANY year - numbers are globally unique)
+	// Get all already assigned membership numbers
 	const assignedNumbers = await prisma.membership.findMany({
 		where: {
 			membershipNumber: { not: null }
@@ -236,10 +229,10 @@ export async function getAvailableNumbers(associationYearId: string): Promise<st
 }
 
 /**
- * Get count of available numbers for a year
+ * Get count of available numbers from global pool
  */
-export async function getAvailableNumbersCount(associationYearId: string): Promise<number> {
-	const available = await getAvailableNumbers(associationYearId);
+export async function getAvailableNumbersCount(): Promise<number> {
+	const available = await getAvailableNumbers();
 	return available.length;
 }
 
@@ -285,18 +278,11 @@ export async function deleteCardNumberRange(
 /**
  * Get all assigned membership numbers with user info (for display in admin)
  */
-export async function getAssignedNumbers(associationYearId?: string) {
-	const where = associationYearId
-		? {
-				membershipNumber: { not: null },
-				associationYearId
-			}
-		: {
-				membershipNumber: { not: null }
-			};
-
+export async function getAssignedNumbers() {
 	return await prisma.membership.findMany({
-		where,
+		where: {
+			membershipNumber: { not: null }
+		},
 		include: {
 			user: {
 				select: {
