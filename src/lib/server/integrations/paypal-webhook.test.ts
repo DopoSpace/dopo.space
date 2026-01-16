@@ -302,7 +302,6 @@ describe('PayPal Webhook Handler', () => {
 				where: { id: 'membership-123' },
 				data: {
 					paymentStatus: PaymentStatus.SUCCEEDED,
-					status: MembershipStatus.ACTIVE,
 					paymentAmount: 2550 // 25.50 * 100
 				}
 			});

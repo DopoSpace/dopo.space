@@ -72,12 +72,15 @@ npx prisma db push                    # Push schema changes without migration (d
 pnpm build                            # Build for production
 pnpm preview                          # Preview production build locally
 pnpm check                            # Run svelte-check for type errors
+pnpm check:watch                      # Type check with watch mode
 ```
 
 ### Admin Scripts
 ```bash
 pnpm create-admin                     # Create admin user interactively
+pnpm change-password                  # Change admin password
 pnpm manage-year                      # Manage association years (create/activate)
+pnpm seed-users                       # Seed test users (development only)
 ```
 
 ## Architecture
