@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { emailSchema, formatZodErrors } from '$lib/server/utils/validation';
 import { generateSessionToken } from '$lib/server/auth/magic-link';
 import { prisma } from '$lib/server/db/prisma';
@@ -7,6 +7,14 @@ import { ADMIN_SESSION_COOKIE_NAME, getAdminCookieOptions } from '$lib/server/co
 import bcrypt from 'bcrypt';
 import { checkRateLimit, getClientIP, RATE_LIMITS } from '$lib/server/utils/rate-limit';
 import { authLogger } from '$lib/server/utils/logger';
+
+// Redirect to dashboard if already logged in
+export const load: PageServerLoad = async ({ locals }) => {
+	if (locals.admin) {
+		throw redirect(303, '/users');
+	}
+	return {};
+};
 
 export const actions = {
 	default: async ({ request, cookies }) => {
