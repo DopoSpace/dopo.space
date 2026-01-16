@@ -5,37 +5,123 @@
  */
 
 import { z } from 'zod';
+import { validateTaxCode, validateTaxCodeConsistency } from './tax-code';
 
 /**
- * User profile validation schema
+ * Age validation refine function
  */
-export const userProfileSchema = z.object({
-	firstName: z.string().min(2, 'First name must be at least 2 characters').max(50),
-	lastName: z.string().min(2, 'Last name must be at least 2 characters').max(50),
-	birthDate: z.coerce.date().refine((date) => {
-		const today = new Date();
-		let age = today.getFullYear() - date.getFullYear();
-		const monthDiff = today.getMonth() - date.getMonth();
-		// If birthday hasn't occurred yet this year, subtract 1
-		if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-			age--;
-		}
-		return age >= 16 && age <= 120;
-	}, 'You must be at least 16 years old'),
-	taxCode: z.string().regex(/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i, 'Invalid tax code format').optional().or(z.literal('')),
-	address: z.string().min(5, 'Address must be at least 5 characters').max(200),
-	city: z.string().min(2, 'City must be at least 2 characters').max(100),
-	postalCode: z.string().regex(/^\d{5}$/, 'Postal code must be 5 digits'),
-	province: z.string().regex(/^[A-Z]{2}$/i, 'Province must be 2 letters (e.g., MI, RM)'),
+const validateAge = (date: Date) => {
+	const today = new Date();
+	let age = today.getFullYear() - date.getFullYear();
+	const monthDiff = today.getMonth() - date.getMonth();
+	if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+		age--;
+	}
+	return age >= 16 && age <= 120;
+};
+
+/**
+ * Tax code format regex (supports omocodia)
+ * Standard: RSSMRA85M10H501S
+ * Omocodia letters can appear at digit positions: LMNPQRSTUV
+ */
+const TAX_CODE_REGEX = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i;
+
+/**
+ * User profile validation schema (base fields without cross-validation)
+ */
+const userProfileBaseSchema = z.object({
+	firstName: z.string().min(2, 'Il nome deve contenere almeno 2 caratteri').max(50),
+	lastName: z.string().min(2, 'Il cognome deve contenere almeno 2 caratteri').max(50),
+	birthDate: z.coerce.date().refine(validateAge, 'Devi avere almeno 16 anni'),
+
+	// Nationality: IT for Italian, country code for foreigners
+	nationality: z.string().length(2, 'Seleziona la nazionalità').toUpperCase(),
+
+	// Birth place information
+	birthProvince: z.string().length(2, 'La provincia deve essere di 2 lettere').toUpperCase(),
+	birthCity: z.string().min(2, 'Inserisci il comune di nascita').max(100),
+
+	// For foreigners with Italian tax code
+	hasForeignTaxCode: z.coerce.boolean().default(false),
+
+	// Tax code (optional, validated based on nationality)
+	taxCode: z
+		.string()
+		.regex(TAX_CODE_REGEX, 'Formato codice fiscale non valido')
+		.optional()
+		.or(z.literal('')),
+
+	// Residence
+	address: z.string().min(5, "L'indirizzo deve contenere almeno 5 caratteri").max(200),
+	city: z.string().min(2, 'Il comune deve contenere almeno 2 caratteri').max(100),
+	postalCode: z.string().regex(/^\d{5}$/, 'Il CAP deve essere di 5 cifre'),
+	province: z.string().regex(/^[A-Z]{2}$/i, 'La provincia deve essere di 2 lettere'),
+
+	// Contact (phone is optional)
+	phone: z
+		.string()
+		.regex(/^\+?[0-9]{6,15}$/, 'Formato numero di telefono non valido')
+		.optional()
+		.or(z.literal('')),
+
+	// Document info (optional)
 	documentType: z.string().optional().or(z.literal('')),
 	documentNumber: z.string().optional().or(z.literal('')),
-	// z.literal(true) already ensures the value must be true
+
+	// Consents
 	privacyConsent: z.literal(true, {
-		message: 'You must accept the privacy policy'
+		message: 'Devi accettare la privacy policy'
 	}),
 	dataConsent: z.literal(true, {
-		message: 'You must consent to data processing'
+		message: 'Devi acconsentire al trattamento dei dati'
 	})
+});
+
+/**
+ * User profile validation schema with cross-field validation
+ *
+ * Rules:
+ * - If Italian (nationality = IT): taxCode is required
+ * - If foreign without hasForeignTaxCode: taxCode should be empty
+ * - If taxCode provided: validate checksum and consistency with birthDate
+ */
+export const userProfileSchema = userProfileBaseSchema.superRefine((data, ctx) => {
+	const isItalian = data.nationality === 'IT';
+	const hasTaxCode = data.taxCode && data.taxCode.length > 0;
+
+	// Italian citizens must have a tax code
+	if (isItalian && !hasTaxCode) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Il codice fiscale è obbligatorio per i cittadini italiani',
+			path: ['taxCode']
+		});
+		return;
+	}
+
+	// If tax code is provided, validate it
+	if (hasTaxCode && data.taxCode) {
+		const result = validateTaxCode(data.taxCode);
+
+		if (!result.valid) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: result.error || 'Codice fiscale non valido',
+				path: ['taxCode']
+			});
+			return;
+		}
+
+		// Validate consistency with birth date
+		if (!validateTaxCodeConsistency(data.taxCode, data.birthDate)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'La data di nascita non corrisponde al codice fiscale',
+				path: ['taxCode']
+			});
+		}
+	}
 });
 
 /**
@@ -134,12 +220,9 @@ export const autoAssignCardsSchema = z.object({
  * Helper function to format Zod validation errors
  */
 export function formatZodErrors(errors: z.ZodError): Record<string, string> {
-	return errors.issues.reduce(
-		(acc: Record<string, string>, error) => {
-			const path = error.path.join('.');
-			acc[path] = error.message;
-			return acc;
-		},
-		{} as Record<string, string>
-	);
+	const result: Record<string, string> = {};
+	for (const issue of errors.issues) {
+		result[issue.path.join('.')] = issue.message;
+	}
+	return result;
 }

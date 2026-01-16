@@ -18,7 +18,7 @@ export async function parseFormData<T extends ZodSchema>(
 	schema: T
 ): Promise<
 	| { success: true; data: z.infer<T> }
-	| { success: false; errors: Record<string, string>; values: Record<string, any> }
+	| { success: false; errors: Record<string, string>; values: Record<string, unknown> }
 > {
 	// Convert FormData to plain object
 	const data: Record<string, any> = {};
@@ -73,7 +73,7 @@ export async function parseFormData<T extends ZodSchema>(
 export async function parseFormDataOrFail<T extends ZodSchema>(
 	formData: FormData,
 	schema: T
-): Promise<z.infer<T> | ActionFailure> {
+): Promise<z.infer<T> | ActionFailure<{ errors: Record<string, string>; values: Record<string, unknown> }>> {
 	const result = await parseFormData(formData, schema);
 
 	if (!result.success) {
