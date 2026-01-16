@@ -5,10 +5,9 @@ import SubscriptionPage from './+page.svelte';
 describe('Subscription Page', () => {
 	const mockData = {
 		user: {
-			email: 'test@example.com',
-			firstName: undefined,
-			lastName: undefined
+			email: 'test@example.com'
 		},
+		profile: null,
 		admin: null,
 		isAdminRoute: false
 	};
@@ -19,7 +18,7 @@ describe('Subscription Page', () => {
 			form: null
 		});
 
-		expect(screen.getByRole('heading', { name: 'Subscription' })).toBeInTheDocument();
+		expect(screen.getByRole('heading', { name: 'Iscrizione' })).toBeInTheDocument();
 	});
 
 	it('displays user email', () => {
@@ -82,9 +81,24 @@ describe('Subscription Page', () => {
 	it('pre-fills form with existing user data', () => {
 		const dataWithProfile = {
 			user: {
-				email: 'test@example.com',
+				email: 'test@example.com'
+			},
+			profile: {
 				firstName: 'Mario',
-				lastName: 'Rossi'
+				lastName: 'Rossi',
+				birthDate: null,
+				taxCode: null,
+				nationality: null,
+				birthProvince: null,
+				birthCity: null,
+				hasForeignTaxCode: false,
+				address: null,
+				city: null,
+				postalCode: null,
+				province: null,
+				phone: null,
+				privacyConsent: null,
+				dataConsent: null
 			},
 			admin: null,
 			isAdminRoute: false

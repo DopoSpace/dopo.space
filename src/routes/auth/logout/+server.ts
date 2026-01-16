@@ -1,10 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { SESSION_COOKIE_NAME } from '$lib/server/config/constants';
+import { USER_SESSION_COOKIE_NAME } from '$lib/server/config/constants';
 
 export const POST: RequestHandler = async ({ cookies }) => {
-	// Delete session cookie
-	cookies.delete(SESSION_COOKIE_NAME, {
+	// Delete user session cookie
+	cookies.delete(USER_SESSION_COOKIE_NAME, {
 		path: '/'
 	});
 

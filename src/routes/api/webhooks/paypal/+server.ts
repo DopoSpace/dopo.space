@@ -194,12 +194,13 @@ async function handlePaymentCompleted(event: any) {
 		return;
 	}
 
-	// Update membership status
+	// Update membership payment status
+	// Note: status stays PENDING until admin assigns card number (S4 → S5 transition)
+	// startDate and endDate will be set when card is assigned
 	await prisma.membership.update({
 		where: { id: membership.id },
 		data: {
 			paymentStatus: PaymentStatus.SUCCEEDED,
-			status: MembershipStatus.ACTIVE,
 			paymentAmount: Math.round(amount)
 		}
 	});
