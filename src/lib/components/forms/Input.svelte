@@ -7,6 +7,8 @@
 		error?: string;
 		required?: boolean;
 		placeholder?: string;
+		maxlength?: number;
+		disabled?: boolean;
 	}
 
 	let {
@@ -16,7 +18,9 @@
 		value = '',
 		error,
 		required = false,
-		placeholder
+		placeholder,
+		maxlength,
+		disabled = false
 	}: Props = $props();
 </script>
 
@@ -34,7 +38,9 @@
 		{value}
 		{required}
 		{placeholder}
-		class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+		{maxlength}
+		{disabled}
+		class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
 		aria-invalid={error ? 'true' : 'false'}
 		aria-describedby={error ? `${name}-error` : undefined}
 	/>
