@@ -74,7 +74,7 @@
 					{/if}
 				</div>
 				<a
-					href="/admin/card-ranges"
+					href="/card-ranges"
 					class="text-sm text-blue-600 hover:text-blue-800 underline"
 				>
 					Gestisci Range

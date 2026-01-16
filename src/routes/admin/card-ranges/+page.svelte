@@ -90,22 +90,7 @@
 	</div>
 
 	<!-- Main Content -->
-		{#if !data.activeYear}
-			<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-				<p class="text-yellow-800 font-medium">Nessun anno associativo attivo.</p>
-				<p class="text-yellow-600 text-sm mt-1">Configura un anno associativo per gestire i range delle tessere.</p>
-			</div>
-		{:else}
-			<!-- Year Info -->
-			<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-				<p class="text-blue-800">
-					<strong>Anno associativo attivo:</strong>
-					{new Date(data.activeYear.startDate).getFullYear()} -
-					{new Date(data.activeYear.endDate).getFullYear()}
-				</p>
-			</div>
-
-			<!-- Stats Summary -->
+	<!-- Stats Summary -->
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 				<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
 					<p class="text-sm text-gray-600">Range configurati</p>
@@ -405,6 +390,5 @@
 						{/if}
 					</div>
 				{/if}
-			</div>
-		{/if}
+	</div>
 </div>

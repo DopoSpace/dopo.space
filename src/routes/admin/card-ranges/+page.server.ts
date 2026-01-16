@@ -1,6 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { prisma } from '$lib/server/db/prisma';
 import {
 	addCardNumberRange,
 	getCardNumberRangesWithStats,
@@ -16,26 +15,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(303, '/auth/login');
 	}
 
-	// Get active association year
-	const activeYear = await prisma.associationYear.findFirst({
-		where: { isActive: true }
-	});
+	// Get ranges with statistics (global pool)
+	const ranges = await getCardNumberRangesWithStats();
 
-	if (!activeYear) {
-		return {
-			admin: { email: admin.email, name: admin.name },
-			activeYear: null,
-			ranges: [],
-			assignedNumbers: [],
-			error: 'Nessun anno associativo attivo'
-		};
-	}
-
-	// Get ranges with statistics
-	const ranges = await getCardNumberRangesWithStats(activeYear.id);
-
-	// Get assigned numbers for this year
-	const assignedNumbersRaw = await getAssignedNumbers(activeYear.id);
+	// Get all assigned numbers
+	const assignedNumbersRaw = await getAssignedNumbers();
 	const assignedNumbers = assignedNumbersRaw.map((m) => ({
 		membershipNumber: m.membershipNumber,
 		email: m.user.email,
@@ -45,11 +29,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		admin: { email: admin.email, name: admin.name },
-		activeYear: {
-			id: activeYear.id,
-			startDate: activeYear.startDate.toISOString(),
-			endDate: activeYear.endDate.toISOString()
-		},
 		ranges: ranges.map((r) => ({
 			id: r.id,
 			startNumber: r.startNumber,
@@ -89,23 +68,10 @@ export const actions: Actions = {
 			});
 		}
 
-		// Get active year
-		const activeYear = await prisma.associationYear.findFirst({
-			where: { isActive: true }
-		});
-
-		if (!activeYear) {
-			return fail(400, {
-				errors: { _form: 'Nessun anno associativo attivo' },
-				values: { startNumber, endNumber }
-			});
-		}
-
-		// Add range
+		// Add range (global pool)
 		const result = await addCardNumberRange(
 			validation.data.startNumber,
 			validation.data.endNumber,
-			activeYear.id,
 			admin.id
 		);
 

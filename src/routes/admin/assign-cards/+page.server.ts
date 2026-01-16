@@ -1,6 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { prisma } from '$lib/server/db/prisma';
 import {
 	getUsersAwaitingCard,
 	autoAssignMembershipNumbers,
@@ -26,13 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		paymentDate: user.memberships[0]?.createdAt.toISOString() || null
 	}));
 
-	// Get available numbers count from configured ranges
-	const activeYear = await prisma.associationYear.findFirst({
-		where: { isActive: true }
-	});
-	const availableNumbersCount = activeYear
-		? await getAvailableNumbersCount(activeYear.id)
-		: 0;
+	// Get available numbers count from global pool
+	const availableNumbersCount = await getAvailableNumbersCount();
 
 	return {
 		usersAwaitingCard,

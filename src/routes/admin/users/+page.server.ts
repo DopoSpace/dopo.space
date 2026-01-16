@@ -40,7 +40,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				select: {
 					membershipNumber: true,
 					status: true,
-					paymentStatus: true
+					paymentStatus: true,
+					startDate: true,
+					endDate: true
 				},
 				orderBy: {
 					createdAt: 'desc'
@@ -62,6 +64,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			membershipNumber: user.memberships[0]?.membershipNumber || null,
 			membershipStatus: user.memberships[0]?.status || null,
 			paymentStatus: user.memberships[0]?.paymentStatus || null,
+			startDate: user.memberships[0]?.startDate?.toISOString() || null,
+			endDate: user.memberships[0]?.endDate?.toISOString() || null,
 			createdAt: user.createdAt.toISOString()
 		})),
 		search,

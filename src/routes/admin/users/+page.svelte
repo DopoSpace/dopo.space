@@ -4,6 +4,18 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// Selection state
+	let selectedUserIds = $state<Set<string>>(new Set());
+
+	// Derived states
+	let allSelected = $derived(
+		data.users.length > 0 && selectedUserIds.size === data.users.length
+	);
+	let someSelected = $derived(
+		selectedUserIds.size > 0 && selectedUserIds.size < data.users.length
+	);
+	let selectionCount = $derived(selectedUserIds.size);
+
 	function handleSearch(e: Event) {
 		const form = e.target as HTMLFormElement;
 		const formData = new FormData(form);
@@ -14,7 +26,9 @@
 			params.set('search', search);
 		}
 
-		goto(`/admin/users?${params.toString()}`);
+		// Clear selection when searching
+		selectedUserIds = new Set();
+		goto(`/users?${params.toString()}`);
 	}
 
 	function formatDate(isoString: string | null): string {
@@ -26,13 +40,42 @@
 		});
 	}
 
-	function buildExportUrl(format: 'csv' | 'xlsx'): string {
+	function buildExportUrl(format: 'csv' | 'xlsx' | 'aics'): string {
 		const params = new URLSearchParams();
 		params.set('format', format);
-		if (data.search) {
+
+		// If users are selected, export only those
+		if (selectedUserIds.size > 0) {
+			params.set('userIds', Array.from(selectedUserIds).join(','));
+		} else if (data.search) {
+			// Otherwise use search filter
 			params.set('search', data.search);
 		}
-		return `/admin/export?${params.toString()}`;
+
+		return `/export?${params.toString()}`;
+	}
+
+	function toggleSelectAll() {
+		if (allSelected) {
+			selectedUserIds = new Set();
+		} else {
+			selectedUserIds = new Set(data.users.map(u => u.id));
+		}
+	}
+
+	function toggleUserSelection(userId: string, event: Event) {
+		event.stopPropagation();
+		const newSet = new Set(selectedUserIds);
+		if (newSet.has(userId)) {
+			newSet.delete(userId);
+		} else {
+			newSet.add(userId);
+		}
+		selectedUserIds = newSet;
+	}
+
+	function clearSelection() {
+		selectedUserIds = new Set();
 	}
 </script>
 
@@ -60,56 +103,125 @@
 						/>
 						<button type="submit" class="btn-primary"> Cerca </button>
 						{#if data.search}
-							<a href="/admin/users" class="btn-secondary"> Reset </a>
+							<a href="/users" class="btn-secondary"> Reset </a>
 						{/if}
 					</div>
 				</form>
 
-				<!-- Export Buttons -->
-				<div class="flex gap-2 mb-4">
-					<a
-						href={buildExportUrl('csv')}
-						class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-					>
-						<svg
-							class="mr-2 h-4 w-4"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+				<!-- Selection Bar -->
+				{#if selectionCount > 0}
+					<div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="text-sm font-medium text-blue-800">
+								{selectionCount} {selectionCount === 1 ? 'utente selezionato' : 'utenti selezionati'}
+							</span>
+							<button
+								type="button"
+								onclick={clearSelection}
+								class="text-sm text-blue-600 hover:text-blue-800 underline"
+							>
+								Deseleziona tutti
+							</button>
+						</div>
+						<div class="flex gap-2">
+							<a
+								href={buildExportUrl('csv')}
+								class="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-white hover:bg-blue-50"
+							>
+								<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								</svg>
+								CSV
+							</a>
+							<a
+								href={buildExportUrl('xlsx')}
+								class="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-white hover:bg-blue-50"
+							>
+								<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								</svg>
+								Excel
+							</a>
+							<a
+								href={buildExportUrl('aics')}
+								class="inline-flex items-center px-3 py-1.5 border border-green-300 rounded-md text-sm font-medium text-green-700 bg-white hover:bg-green-50"
+							>
+								<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								</svg>
+								AICS
+							</a>
+						</div>
+					</div>
+				{:else}
+					<!-- Export Buttons (when nothing selected) -->
+					<div class="flex gap-2 mb-4">
+						<a
+							href={buildExportUrl('csv')}
+							class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-							/>
-						</svg>
-						Esporta CSV
-					</a>
-					<a
-						href={buildExportUrl('xlsx')}
-						class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-					>
-						<svg
-							class="mr-2 h-4 w-4"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+							<svg
+								class="mr-2 h-4 w-4"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+							Esporta tutti CSV
+						</a>
+						<a
+							href={buildExportUrl('xlsx')}
+							class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-							/>
-						</svg>
-						Esporta Excel
-					</a>
-				</div>
+							<svg
+								class="mr-2 h-4 w-4"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+							Esporta tutti Excel
+						</a>
+						<a
+							href={buildExportUrl('aics')}
+							class="inline-flex items-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+						>
+							<svg
+								class="mr-2 h-4 w-4"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+							Esporta AICS
+						</a>
+					</div>
+				{/if}
 
 				<!-- Results Count -->
 				<p class="text-sm text-gray-600 mb-4">
 					{data.users.length} {data.users.length === 1 ? 'utente trovato' : 'utenti trovati'}
+					{#if selectionCount > 0}
+						<span class="text-blue-600">({selectionCount} selezionati)</span>
+					{/if}
 				</p>
 			</div>
 
@@ -123,6 +235,15 @@
 					<table class="min-w-full divide-y divide-gray-200">
 						<thead class="bg-gray-50">
 							<tr>
+								<th class="px-4 py-3 text-left">
+									<input
+										type="checkbox"
+										checked={allSelected}
+										indeterminate={someSelected}
+										onchange={toggleSelectAll}
+										class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+									/>
+								</th>
 								<th
 									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
 								>
@@ -151,7 +272,12 @@
 								<th
 									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
 								>
-									Data Registrazione
+									Inizio
+								</th>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+								>
+									Scadenza
 								</th>
 								<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
 									Azioni
@@ -160,7 +286,19 @@
 						</thead>
 						<tbody class="bg-white divide-y divide-gray-200">
 							{#each data.users as user (user.id)}
-								<tr class="hover:bg-gray-50 cursor-pointer" onclick={() => goto(`/admin/users/${user.id}`)}>
+								<tr
+									class="hover:bg-gray-50 cursor-pointer {selectedUserIds.has(user.id) ? 'bg-blue-50' : ''}"
+									onclick={() => goto(`/users/${user.id}`)}
+								>
+									<td class="px-4 py-4 whitespace-nowrap">
+										<input
+											type="checkbox"
+											checked={selectedUserIds.has(user.id)}
+											onchange={(e) => toggleUserSelection(user.id, e)}
+											onclick={(e) => e.stopPropagation()}
+											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+										/>
+									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
 										{user.email}
 									</td>
@@ -211,11 +349,14 @@
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-										{formatDate(user.createdAt)}
+										{formatDate(user.startDate)}
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+										{formatDate(user.endDate)}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 										<a
-											href="/admin/users/{user.id}"
+											href="/users/{user.id}"
 											class="text-blue-600 hover:text-blue-900"
 											onclick={(e) => e.stopPropagation()}
 										>

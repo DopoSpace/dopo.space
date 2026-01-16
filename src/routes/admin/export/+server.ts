@@ -1,24 +1,56 @@
 /**
  * Admin Users Export Endpoint
  *
- * Exports user data in CSV or Excel format
- * Supports filtering by search, membership status, association year, and date range
+ * Exports user data in CSV, Excel, or AICS format
+ * Supports filtering by search, membership status, and date range
+ *
+ * Formats:
+ * - csv: Standard CSV export with all user data
+ * - xlsx: Excel export with all user data
+ * - aics: AICS import format for Italian sports association registry
  */
 
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db/prisma';
 import ExcelJS from 'exceljs';
-import { MembershipStatus, PaymentStatus } from '@prisma/client';
+import type { MembershipStatus } from '@prisma/client';
 import { createLogger } from '$lib/server/utils/logger';
+import { extractGenderFromTaxCode } from '$lib/server/utils/tax-code';
 
 const logger = createLogger({ module: 'admin-export' });
+
+/**
+ * Format date as DD/MM/YYYY (Italian format)
+ */
+function formatDateIT(date: Date | null | undefined): string {
+	if (!date) return '';
+	const d = new Date(date);
+	const day = d.getDate().toString().padStart(2, '0');
+	const month = (d.getMonth() + 1).toString().padStart(2, '0');
+	const year = d.getFullYear();
+	return `${day}/${month}/${year}`;
+}
+
+/**
+ * Apply standard header styling to a worksheet
+ */
+function styleHeaderRow(worksheet: ExcelJS.Worksheet): void {
+	const headerRow = worksheet.getRow(1);
+	headerRow.font = { bold: true };
+	headerRow.fill = {
+		type: 'pattern',
+		pattern: 'solid',
+		fgColor: { argb: 'FFE0E0E0' }
+	};
+	headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+}
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	// Verify admin authentication
 	const admin = locals.admin;
 	if (!admin) {
-		throw redirect(303, '/admin/login');
+		throw redirect(303, '/login');
 	}
 
 	try {
@@ -27,25 +59,33 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const rawSearch = url.searchParams.get('search') || '';
 		const search = rawSearch.trim().slice(0, 100).replace(/[<>]/g, '');
 		const statusFilter = url.searchParams.get('status') as MembershipStatus | null;
-		const yearFilter = url.searchParams.get('year') || null;
 		const dateFrom = url.searchParams.get('dateFrom') || null;
 		const dateTo = url.searchParams.get('dateTo') || null;
+
+		// Parse userIds - comma-separated list of user IDs to export
+		const userIdsParam = url.searchParams.get('userIds') || '';
+		const userIds = userIdsParam ? userIdsParam.split(',').filter(id => id.trim()) : [];
 
 		logger.info({
 			admin: admin.email,
 			format,
 			search,
 			statusFilter,
-			yearFilter,
 			dateFrom,
-			dateTo
+			dateTo,
+			userIdsCount: userIds.length
 		}, 'Export requested');
 
 		// Build where clause for users
 		const whereClause: any = {};
 
-		// Text search
-		if (search) {
+		// If specific userIds provided, filter by those
+		if (userIds.length > 0) {
+			whereClause.id = { in: userIds };
+		}
+
+		// Text search (only if no specific userIds)
+		if (search && userIds.length === 0) {
 			whereClause.OR = [
 				{ email: { contains: search, mode: 'insensitive' as const } },
 				{ profile: { firstName: { contains: search, mode: 'insensitive' as const } } },
@@ -53,8 +93,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			];
 		}
 
-		// Date range filter (with validation)
-		if (dateFrom || dateTo) {
+		// Date range filter (with validation, only if no specific userIds)
+		if ((dateFrom || dateTo) && userIds.length === 0) {
 			whereClause.createdAt = {};
 			if (dateFrom) {
 				const parsedDateFrom = new Date(dateFrom);
@@ -84,9 +124,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			include: {
 				profile: true,
 				memberships: {
-					include: {
-						associationYear: true
-					},
 					orderBy: {
 						createdAt: 'desc'
 					}
@@ -99,16 +136,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		// Apply membership filters if specified
 		let filteredUsers = users;
-		if (statusFilter || yearFilter) {
+		if (statusFilter) {
 			filteredUsers = users.filter((user) => {
 				const latestMembership = user.memberships[0];
 				if (!latestMembership) return false;
 
 				if (statusFilter && latestMembership.status !== statusFilter) {
-					return false;
-				}
-
-				if (yearFilter && latestMembership.associationYear.startDate.getFullYear().toString() !== yearFilter) {
 					return false;
 				}
 
@@ -156,16 +189,26 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					: '',
 				paymentAmount: latestMembership?.paymentAmount
 					? `€${(latestMembership.paymentAmount / 100).toFixed(2)}`
-					: '',
-				associationYear: latestMembership?.associationYear?.startDate?.getFullYear().toString() || ''
+					: ''
 			};
 		});
 
 		const timestamp = new Date().toISOString().split('T')[0];
 		const filename = `users-export-${timestamp}`;
 
-		// Generate CSV or Excel based on format
-		if (format === 'xlsx') {
+		// Generate output based on format
+		if (format === 'aics') {
+			// AICS format for Italian sports association import
+			const aicsData = generateAICSData(filteredUsers);
+			const buffer = await generateAICSExcel(aicsData);
+			return new Response(new Uint8Array(buffer), {
+				headers: {
+					'Content-Type':
+						'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					'Content-Disposition': `attachment; filename="aics-export-${timestamp}.xlsx"`
+				}
+			});
+		} else if (format === 'xlsx') {
 			const buffer = await generateExcel(exportData);
 			return new Response(new Uint8Array(buffer), {
 				headers: {
@@ -222,8 +265,7 @@ function generateCSV(data: any[]): string {
 		'Payment Status',
 		'Membership Start Date',
 		'Membership End Date',
-		'Payment Amount',
-		'Association Year'
+		'Payment Amount'
 	];
 
 	// Build CSV rows
@@ -252,8 +294,7 @@ function generateCSV(data: any[]): string {
 			escapeCsvValue(row.paymentStatus),
 			escapeCsvValue(row.membershipStartDate),
 			escapeCsvValue(row.membershipEndDate),
-			escapeCsvValue(row.paymentAmount),
-			escapeCsvValue(row.associationYear)
+			escapeCsvValue(row.paymentAmount)
 		].join(',');
 	});
 
@@ -307,35 +348,171 @@ async function generateExcel(data: any[]): Promise<Buffer> {
 		{ header: 'Payment Status', key: 'paymentStatus', width: 18 },
 		{ header: 'Membership Start Date', key: 'membershipStartDate', width: 20 },
 		{ header: 'Membership End Date', key: 'membershipEndDate', width: 20 },
-		{ header: 'Payment Amount', key: 'paymentAmount', width: 15 },
-		{ header: 'Association Year', key: 'associationYear', width: 18 }
+		{ header: 'Payment Amount', key: 'paymentAmount', width: 15 }
 	];
 
-	// Style the header row
-	const headerRow = worksheet.getRow(1);
-	headerRow.font = { bold: true };
-	headerRow.fill = {
-		type: 'pattern',
-		pattern: 'solid',
-		fgColor: { argb: 'FFE0E0E0' }
-	};
-	headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+	styleHeaderRow(worksheet);
+	data.forEach((row) => worksheet.addRow(row));
 
-	// Add data rows
-	data.forEach((row) => {
-		worksheet.addRow(row);
-	});
-
-	// Auto-filter
-	worksheet.autoFilter = {
-		from: 'A1',
-		to: `Y${data.length + 1}`
-	};
-
-	// Freeze header row
+	worksheet.autoFilter = { from: 'A1', to: `X${data.length + 1}` };
 	worksheet.views = [{ state: 'frozen', ySplit: 1 }];
 
-	// Generate buffer
+	const buffer = await workbook.xlsx.writeBuffer();
+	return Buffer.from(buffer);
+}
+
+/**
+ * AICS export data structure
+ */
+interface AICSRow {
+	cognome: string;
+	nome: string;
+	sesso: string;
+	dataNascita: string;
+	provinciaNascita: string;
+	comuneNascita: string;
+	codiceFiscale: string;
+	indirizzo: string;
+	cap: string;
+	provincia: string;
+	comune: string;
+	telefonoAbitazione: string;
+	faxAbitazione: string;
+	telefonoUfficio: string;
+	faxUfficio: string;
+	cellulare: string;
+	email: string;
+	qualificaSociale: string;
+	attivitaSociale: string;
+	qualificaSportiva: string;
+	attivitaSportiva: string;
+	tipoCertificato: string;
+	dataRilascioCert: string;
+	dataScadenzaCert: string;
+	numeroTessera: string;
+	dataRilascioTessera: string;
+}
+
+/**
+ * Transform user data to AICS format
+ *
+ * AICS column mapping:
+ * - COGNOME: Last name
+ * - NOME: First name
+ * - SESSO: Gender (deduced from tax code, M/F)
+ * - DATA NASCITA: Birth date (DD/MM/YYYY)
+ * - PROVINCIA NASCITA: Birth province (2 letters or EE for foreign)
+ * - COMUNE NASCITA: Birth city
+ * - CODICE FISCALE: Tax code or 16 zeros for foreigners without CF
+ * - INDIRIZZO: Address
+ * - CAP: Postal code
+ * - PROVINCIA: Province (residence)
+ * - COMUNE: City (residence)
+ * - TELEFONO ABITAZIONE: Empty
+ * - FAX ABITAZIONE: Empty
+ * - TELEFONO UFFICIO: Empty
+ * - FAX UFFICIO: Empty
+ * - CELLULARE: Mobile phone
+ * - EMAIL: Email
+ * - QUALIFICA SOCIALE: "SOCIO" (fixed)
+ * - ATTIVITÀ SOCIALE: "C0001" (fixed)
+ * - QUALIFICA SPORTIVA: Empty
+ * - ATTIVITÀ SPORTIVA: Empty
+ * - TIPO CERTIFICATO: Empty
+ * - DATA RILASCIO CERT: Empty
+ * - DATA SCADENZA CERT: Empty
+ * - NUMERO TESSERA: Membership number
+ * - DATA RILASCIO TESSERA: Card assignment date (DD/MM/YYYY)
+ */
+function generateAICSData(users: any[]): AICSRow[] {
+	return users
+		.filter((user) => {
+			// Only export users with active membership and membership number
+			const membership = user.memberships[0];
+			return membership?.membershipNumber && membership?.status === 'ACTIVE';
+		})
+		.map((user) => {
+			const profile = user.profile;
+			const membership = user.memberships[0];
+			const taxCode = profile?.taxCode || '';
+
+			return {
+				cognome: profile?.lastName || '',
+				nome: profile?.firstName || '',
+				sesso: taxCode ? extractGenderFromTaxCode(taxCode) || '' : '',
+				dataNascita: formatDateIT(profile?.birthDate),
+				provinciaNascita: profile?.birthProvince || '',
+				comuneNascita: profile?.birthCity || '',
+				codiceFiscale: taxCode || '0000000000000000',
+				indirizzo: profile?.address || '',
+				cap: profile?.postalCode || '',
+				provincia: profile?.province || '',
+				comune: profile?.city || '',
+				telefonoAbitazione: '',
+				faxAbitazione: '',
+				telefonoUfficio: '',
+				faxUfficio: '',
+				cellulare: profile?.phone || '',
+				email: user.email || '',
+				qualificaSociale: 'SOCIO',
+				attivitaSociale: 'C0001',
+				qualificaSportiva: '',
+				attivitaSportiva: '',
+				tipoCertificato: '',
+				dataRilascioCert: '',
+				dataScadenzaCert: '',
+				numeroTessera: membership?.membershipNumber || '',
+				dataRilascioTessera: formatDateIT(membership?.cardAssignedAt)
+			};
+		});
+}
+
+/**
+ * Generate AICS Excel file
+ * Columns follow the exact AICS import template structure
+ */
+async function generateAICSExcel(data: AICSRow[]): Promise<Buffer> {
+	const workbook = new ExcelJS.Workbook();
+	const worksheet = workbook.addWorksheet('Soci AICS');
+
+	// AICS column headers (exact order required for import)
+	worksheet.columns = [
+		{ header: 'COGNOME', key: 'cognome', width: 20 },
+		{ header: 'NOME', key: 'nome', width: 20 },
+		{ header: 'SESSO', key: 'sesso', width: 8 },
+		{ header: 'DATA NASCITA', key: 'dataNascita', width: 15 },
+		{ header: 'PROVINCIA NASCITA', key: 'provinciaNascita', width: 18 },
+		{ header: 'COMUNE NASCITA', key: 'comuneNascita', width: 25 },
+		{ header: 'CODICE FISCALE', key: 'codiceFiscale', width: 20 },
+		{ header: 'INDIRIZZO', key: 'indirizzo', width: 30 },
+		{ header: 'CAP', key: 'cap', width: 10 },
+		{ header: 'PROVINCIA', key: 'provincia', width: 12 },
+		{ header: 'COMUNE', key: 'comune', width: 20 },
+		{ header: 'TELEFONO ABITAZIONE', key: 'telefonoAbitazione', width: 18 },
+		{ header: 'FAX ABITAZIONE', key: 'faxAbitazione', width: 15 },
+		{ header: 'TELEFONO UFFICIO', key: 'telefonoUfficio', width: 18 },
+		{ header: 'FAX UFFICIO', key: 'faxUfficio', width: 15 },
+		{ header: 'CELLULARE', key: 'cellulare', width: 15 },
+		{ header: 'EMAIL', key: 'email', width: 30 },
+		{ header: 'QUALIFICA SOCIALE', key: 'qualificaSociale', width: 18 },
+		{ header: 'ATTIVITA SOCIALE', key: 'attivitaSociale', width: 18 },
+		{ header: 'QUALIFICA SPORTIVA', key: 'qualificaSportiva', width: 18 },
+		{ header: 'ATTIVITA SPORTIVA', key: 'attivitaSportiva', width: 18 },
+		{ header: 'TIPO CERTIFICATO', key: 'tipoCertificato', width: 18 },
+		{ header: 'DATA RILASCIO CERT', key: 'dataRilascioCert', width: 18 },
+		{ header: 'DATA SCADENZA CERT', key: 'dataScadenzaCert', width: 18 },
+		{ header: 'NUMERO TESSERA', key: 'numeroTessera', width: 18 },
+		{ header: 'DATA RILASCIO TESSERA', key: 'dataRilascioTessera', width: 20 }
+	];
+
+	styleHeaderRow(worksheet);
+	data.forEach((row) => worksheet.addRow(row));
+
+	if (data.length > 0) {
+		worksheet.autoFilter = { from: 'A1', to: `Z${data.length + 1}` };
+	}
+	worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
 	const buffer = await workbook.xlsx.writeBuffer();
 	return Buffer.from(buffer);
 }
