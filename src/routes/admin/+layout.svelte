@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import AdminSidebar from '$lib/components/admin/AdminSidebar.svelte';
 	import type { LayoutData } from './$types';
 
@@ -10,6 +11,19 @@
 	// Mobile sidebar state
 	let sidebarOpen = $state(false);
 
+	// Desktop collapsed state (persisted in localStorage)
+	let sidebarCollapsed = $state(false);
+
+	// Load collapsed state from localStorage on mount
+	$effect(() => {
+		if (browser) {
+			const stored = localStorage.getItem('adminSidebarCollapsed');
+			if (stored !== null) {
+				sidebarCollapsed = stored === 'true';
+			}
+		}
+	});
+
 	function toggleSidebar() {
 		sidebarOpen = !sidebarOpen;
 	}
@@ -17,10 +31,17 @@
 	function closeSidebar() {
 		sidebarOpen = false;
 	}
+
+	function toggleCollapse() {
+		sidebarCollapsed = !sidebarCollapsed;
+		if (browser) {
+			localStorage.setItem('adminSidebarCollapsed', String(sidebarCollapsed));
+		}
+	}
 </script>
 
 {#if showSidebar && data.admin}
-	<div class="admin-layout">
+	<div class="admin-layout {sidebarCollapsed ? 'sidebar-collapsed' : ''}">
 		<!-- Mobile Header -->
 		<header class="admin-mobile-header">
 			<button
@@ -50,7 +71,13 @@
 			aria-label="Close menu"
 		></div>
 
-		<AdminSidebar admin={data.admin} isOpen={sidebarOpen} onClose={closeSidebar} />
+		<AdminSidebar
+			admin={data.admin}
+			isOpen={sidebarOpen}
+			isCollapsed={sidebarCollapsed}
+			onClose={closeSidebar}
+			onToggleCollapse={toggleCollapse}
+		/>
 		<main class="admin-content">
 			{@render children()}
 		</main>

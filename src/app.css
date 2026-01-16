@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Custom theme configuration */
+@theme {
+  --color-dopoRed: #FF0000;
+}
 
 /* Dopolavoro Custom Font */
 @font-face {
@@ -63,8 +66,94 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: width 0.3s ease;
 }
 
+.admin-sidebar > nav {
+  overflow-y: auto;
+}
+
+/* Collapsed sidebar */
+.admin-sidebar.collapsed {
+  width: 4.5rem;
+}
+
+/* Sidebar header */
+.sidebar-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #374151; /* gray-700 */
+  min-height: 4.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.admin-sidebar.collapsed .sidebar-header {
+  padding: 1.25rem 1rem;
+  align-items: center;
+}
+
+/* Collapse toggle button */
+.collapse-toggle {
+  display: none;
+  position: absolute;
+  top: 4.6rem;
+  right: -0.875rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  color: white;
+  border: 3px solid #f3f4f6;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background-color 0.2s, transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.collapse-toggle:hover {
+  background-color: #2563eb;
+  transform: scale(1.1);
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+  border-top: 1px solid #374151; /* gray-700 */
+  padding: 1rem;
+}
+
+.admin-sidebar.collapsed .sidebar-footer {
+  padding: 0.75rem;
+}
+
+/* Logout button */
+.logout-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #d1d5db;
+  background-color: #374151;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.logout-button:hover {
+  background-color: #4b5563;
+  color: white;
+}
+
+.logout-button.collapsed {
+  padding: 0.5rem;
+}
+
+/* Nav items */
 .admin-sidebar-nav-item {
   @apply flex items-center gap-3 px-4 py-3 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white;
 }
@@ -73,11 +162,30 @@
   @apply bg-gray-700 text-white border-l-4 border-blue-500;
 }
 
+.admin-sidebar-nav-item.collapsed {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.admin-sidebar-nav-item.collapsed.active {
+  border-left-width: 0;
+  border-bottom: 2px solid #3b82f6;
+}
+
+/* Content area */
 .admin-content {
   margin-left: 16rem;
   flex: 1;
   padding: 2rem;
   max-width: calc(100vw - 16rem);
+  transition: margin-left 0.3s ease, max-width 0.3s ease;
+}
+
+/* Collapsed content area */
+.admin-layout.sidebar-collapsed .admin-content {
+  margin-left: 4.5rem;
+  max-width: calc(100vw - 4.5rem);
 }
 
 /* Mobile Header for Admin */
@@ -114,21 +222,43 @@
   display: block;
 }
 
+/* Desktop: show collapse toggle */
+@media (min-width: 769px) {
+  .collapse-toggle {
+    display: flex;
+  }
+}
+
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
   .admin-sidebar {
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     z-index: 50;
+    width: 16rem !important; /* Always full width on mobile */
   }
 
   .admin-sidebar.open {
     transform: translateX(0);
   }
 
+  .admin-sidebar.collapsed {
+    width: 16rem !important; /* Don't collapse on mobile */
+  }
+
+  .admin-sidebar-nav-item.collapsed {
+    justify-content: flex-start;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .collapse-toggle {
+    display: none !important;
+  }
+
   .admin-content {
-    margin-left: 0;
-    max-width: 100vw;
+    margin-left: 0 !important;
+    max-width: 100vw !important;
     padding: 1rem;
     padding-top: 4.5rem; /* Space for mobile header */
   }

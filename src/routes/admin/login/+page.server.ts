@@ -3,7 +3,7 @@ import type { Actions } from './$types';
 import { emailSchema, formatZodErrors } from '$lib/server/utils/validation';
 import { generateSessionToken } from '$lib/server/auth/magic-link';
 import { prisma } from '$lib/server/db/prisma';
-import { SESSION_COOKIE_NAME, getCookieOptions } from '$lib/server/config/constants';
+import { ADMIN_SESSION_COOKIE_NAME, getAdminCookieOptions } from '$lib/server/config/constants';
 import bcrypt from 'bcrypt';
 import { checkRateLimit, getClientIP, RATE_LIMITS } from '$lib/server/utils/rate-limit';
 import { authLogger } from '$lib/server/utils/logger';
@@ -84,8 +84,8 @@ export const actions = {
 		// Generate session token with admin role
 		const sessionToken = generateSessionToken(admin.id, admin.email, 'admin');
 
-		// Set session cookie (HttpOnly, secure in production)
-		cookies.set(SESSION_COOKIE_NAME, sessionToken, getCookieOptions());
+		// Set admin session cookie (HttpOnly, secure in production)
+		cookies.set(ADMIN_SESSION_COOKIE_NAME, sessionToken, getAdminCookieOptions());
 
 		authLogger.info({
 			event: 'admin_login_success',
