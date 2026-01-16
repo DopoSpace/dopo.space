@@ -10,6 +10,8 @@ import {
 	JWT_SECRET,
 	DATABASE_URL,
 	APP_URL,
+	MAIN_DOMAIN,
+	ADMIN_SUBDOMAIN,
 	SMTP_HOST,
 	SMTP_PORT,
 	SMTP_USER,
@@ -40,6 +42,10 @@ const envSchema = z.object({
 
 	// Application
 	APP_URL: z.string().url('APP_URL must be a valid URL'),
+
+	// Domain Configuration (for subdomain separation)
+	MAIN_DOMAIN: z.string().min(1, 'MAIN_DOMAIN is required (e.g., dopo.space or dopo.local:5173)'),
+	ADMIN_SUBDOMAIN: z.string().min(1, 'ADMIN_SUBDOMAIN is required (e.g., admin)'),
 
 	// SMTP Configuration (optional in development)
 	SMTP_HOST: z.string().optional(),
@@ -76,6 +82,8 @@ export const env = envSchema.parse({
 	JWT_SECRET,
 	DATABASE_URL,
 	APP_URL,
+	MAIN_DOMAIN,
+	ADMIN_SUBDOMAIN,
 	SMTP_HOST,
 	SMTP_PORT,
 	SMTP_USER,
@@ -101,6 +109,18 @@ export function getDatabaseUrl(): string {
 
 export function getAppUrl(): string {
 	return env.APP_URL;
+}
+
+export function getMainDomain(): string {
+	return env.MAIN_DOMAIN;
+}
+
+export function getAdminSubdomain(): string {
+	return env.ADMIN_SUBDOMAIN;
+}
+
+export function getAdminDomain(): string {
+	return `${env.ADMIN_SUBDOMAIN}.${env.MAIN_DOMAIN}`;
 }
 
 export function getSmtpPort(): number {
