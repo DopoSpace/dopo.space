@@ -13,9 +13,12 @@ import {
 	USER_SESSION_COOKIE_NAME,
 	ADMIN_SESSION_COOKIE_NAME
 } from '$lib/server/config/constants';
+import pino from 'pino';
 
 // Validate environment variables at startup (will throw if invalid)
 import '$lib/server/config/env';
+
+const logger = pino({ name: 'hooks' });
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
@@ -57,17 +60,22 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const payload = verifySessionToken(adminToken);
 
 			if (payload && payload.role === 'admin') {
-				const admin = await prisma.admin.findUnique({
-					where: { id: payload.userId }
-				});
+				try {
+					const admin = await prisma.admin.findUnique({
+						where: { id: payload.userId }
+					});
 
-				if (admin) {
-					if (admin.sessionsInvalidatedAt && payload.issuedAt < admin.sessionsInvalidatedAt) {
-						// Session was issued before the invalidation timestamp - reject it
-						event.cookies.delete(ADMIN_SESSION_COOKIE_NAME, { path: '/' });
-					} else {
-						event.locals.admin = admin;
+					if (admin) {
+						if (admin.sessionsInvalidatedAt && payload.issuedAt < admin.sessionsInvalidatedAt) {
+							// Session was issued before the invalidation timestamp - reject it
+							event.cookies.delete(ADMIN_SESSION_COOKIE_NAME, { path: '/' });
+						} else {
+							event.locals.admin = admin;
+						}
 					}
+				} catch (error) {
+					logger.error({ err: error, userId: payload.userId }, 'Database error during admin session validation');
+					event.cookies.delete(ADMIN_SESSION_COOKIE_NAME, { path: '/' });
 				}
 			}
 		}
@@ -89,24 +97,39 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const payload = verifySessionToken(userToken);
 
 			if (payload && payload.role === 'user') {
-				const user = await prisma.user.findUnique({
-					where: { id: payload.userId },
-					include: {
-						profile: true,
-						memberships: {
-							orderBy: { createdAt: 'desc' },
-							take: 1
+				try {
+					// Fetch minimal data for session validation
+					// Routes that need profile/membership should load them explicitly
+					const user = await prisma.user.findUnique({
+						where: { id: payload.userId },
+						select: {
+							id: true,
+							email: true,
+							phone: true,
+							newsletterSubscribed: true,
+							sessionsInvalidatedAt: true,
+							createdAt: true,
+							updatedAt: true,
+							mailchimpSubscriberId: true,
+							profile: true,
+							memberships: {
+								orderBy: { createdAt: 'desc' },
+								take: 1
+							}
+						}
+					});
+
+					if (user) {
+						if (user.sessionsInvalidatedAt && payload.issuedAt < user.sessionsInvalidatedAt) {
+							// Session was issued before the invalidation timestamp - reject it
+							event.cookies.delete(USER_SESSION_COOKIE_NAME, { path: '/' });
+						} else {
+							event.locals.user = user;
 						}
 					}
-				});
-
-				if (user) {
-					if (user.sessionsInvalidatedAt && payload.issuedAt < user.sessionsInvalidatedAt) {
-						// Session was issued before the invalidation timestamp - reject it
-						event.cookies.delete(USER_SESSION_COOKIE_NAME, { path: '/' });
-					} else {
-						event.locals.user = user;
-					}
+				} catch (error) {
+					logger.error({ err: error, userId: payload.userId }, 'Database error during user session validation');
+					event.cookies.delete(USER_SESSION_COOKIE_NAME, { path: '/' });
 				}
 			}
 		}

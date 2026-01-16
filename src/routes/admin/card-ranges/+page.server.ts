@@ -1,4 +1,4 @@
-import { redirect, fail } from '@sveltejs/kit';
+import { redirect, fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	addCardNumberRange,
@@ -7,40 +7,48 @@ import {
 	getAssignedNumbers
 } from '$lib/server/services/card-ranges';
 import { addCardRangeSchema, formatZodErrors } from '$lib/server/utils/validation';
+import pino from 'pino';
+
+const logger = pino({ name: 'admin-card-ranges' });
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const admin = locals.admin;
 
 	if (!admin) {
-		throw redirect(303, '/auth/login');
+		throw redirect(303, '/login');
 	}
 
-	// Get ranges with statistics (global pool)
-	const ranges = await getCardNumberRangesWithStats();
+	try {
+		// Get ranges with statistics (global pool)
+		const ranges = await getCardNumberRangesWithStats();
 
-	// Get all assigned numbers
-	const assignedNumbersRaw = await getAssignedNumbers();
-	const assignedNumbers = assignedNumbersRaw.map((m) => ({
-		membershipNumber: m.membershipNumber,
-		email: m.user.email,
-		firstName: m.user.profile?.firstName || '-',
-		lastName: m.user.profile?.lastName || '-'
-	}));
+		// Get all assigned numbers
+		const assignedNumbersRaw = await getAssignedNumbers();
+		const assignedNumbers = assignedNumbersRaw.map((m) => ({
+			membershipNumber: m.membershipNumber,
+			email: m.user.email,
+			firstName: m.user.profile?.firstName || '-',
+			lastName: m.user.profile?.lastName || '-'
+		}));
 
-	return {
-		admin: { email: admin.email, name: admin.name },
-		ranges: ranges.map((r) => ({
-			id: r.id,
-			startNumber: r.startNumber,
-			endNumber: r.endNumber,
-			totalNumbers: r.totalNumbers,
-			usedNumbers: r.usedNumbers,
-			availableNumbers: r.availableNumbers,
-			createdAt: r.createdAt.toISOString(),
-			createdBy: r.createdBy
-		})),
-		assignedNumbers
-	};
+		return {
+			admin: { email: admin.email, name: admin.name },
+			ranges: ranges.map((r) => ({
+				id: r.id,
+				startNumber: r.startNumber,
+				endNumber: r.endNumber,
+				totalNumbers: r.totalNumbers,
+				usedNumbers: r.usedNumbers,
+				availableNumbers: r.availableNumbers,
+				createdAt: r.createdAt.toISOString(),
+				createdBy: r.createdBy
+			})),
+			assignedNumbers
+		};
+	} catch (err) {
+		logger.error({ err }, 'Failed to load card ranges');
+		throw error(500, 'Impossibile caricare i range tessere. Riprova più tardi.');
+	}
 };
 
 export const actions: Actions = {
@@ -68,22 +76,30 @@ export const actions: Actions = {
 			});
 		}
 
-		// Add range (global pool)
-		const result = await addCardNumberRange(
-			validation.data.startNumber,
-			validation.data.endNumber,
-			admin.id
-		);
+		try {
+			// Add range (global pool)
+			const result = await addCardNumberRange(
+				validation.data.startNumber,
+				validation.data.endNumber,
+				admin.id
+			);
 
-		if (!result.success) {
-			return fail(400, {
-				errors: { _form: result.error || 'Errore durante la creazione del range' },
-				conflicts: result.conflicts,
+			if (!result.success) {
+				return fail(400, {
+					errors: { _form: result.error || 'Errore durante la creazione del range' },
+					conflicts: result.conflicts,
+					values: { startNumber, endNumber }
+				});
+			}
+
+			return { success: true, range: result.range };
+		} catch (err) {
+			logger.error({ err, startNumber, endNumber }, 'Database error adding card range');
+			return fail(500, {
+				errors: { _form: 'Errore del database durante la creazione del range.' },
 				values: { startNumber, endNumber }
 			});
 		}
-
-		return { success: true, range: result.range };
 	},
 
 	deleteRange: async ({ request, locals }) => {
@@ -99,12 +115,19 @@ export const actions: Actions = {
 			return fail(400, { errors: { _form: 'Range ID mancante' } });
 		}
 
-		const result = await deleteCardNumberRange(rangeId);
+		try {
+			const result = await deleteCardNumberRange(rangeId);
 
-		if (!result.success) {
-			return fail(400, { errors: { _form: result.error || 'Errore durante l\'eliminazione' } });
+			if (!result.success) {
+				return fail(400, { errors: { _form: result.error || 'Errore durante l\'eliminazione' } });
+			}
+
+			return { success: true, deleted: true };
+		} catch (err) {
+			logger.error({ err, rangeId }, 'Database error deleting card range');
+			return fail(500, {
+				errors: { _form: 'Errore del database durante l\'eliminazione del range.' }
+			});
 		}
-
-		return { success: true, deleted: true };
 	}
 };

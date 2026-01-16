@@ -277,8 +277,19 @@ export function extractGenderFromTaxCode(cf: string): 'M' | 'F' | null {
  * Extract birth date components from tax code
  *
  * Note: Year is only 2 digits, so we need to infer the century.
- * We assume years 00-30 are 2000s, 31-99 are 1900s.
- * This heuristic may need adjustment over time.
+ * The algorithm uses a sliding window based on current year:
+ * - If year <= currentYear%100 + 10: assume current century (2000s)
+ * - Otherwise: assume previous century (1900s)
+ *
+ * KNOWN LIMITATION: This heuristic may incorrectly infer the century for:
+ * - Users born more than ~90 years ago (e.g., in 2026, someone born in 1930
+ *   has year code "30" which would be interpreted as 2030)
+ * - This is acceptable for a membership system where users >90 years old
+ *   are rare, but should be documented for support staff
+ *
+ * If accurate dates for very old users are needed, consider:
+ * 1. Adding a "birth century" field for manual override
+ * 2. Validating against the provided birthDate field (already done in validation)
  *
  * @param cf - The tax code
  * @returns Object with day, month, year or null if invalid
@@ -300,7 +311,8 @@ export function extractBirthDateFromTaxCode(
 		return null;
 	}
 
-	// Infer century: 00-30 → 2000s, 31-99 → 1900s
+	// Infer century using sliding window algorithm
+	// See KNOWN LIMITATION in function docstring above
 	const currentYear = new Date().getFullYear();
 	const currentCentury = Math.floor(currentYear / 100) * 100;
 	const twoDigitCurrentYear = currentYear % 100;

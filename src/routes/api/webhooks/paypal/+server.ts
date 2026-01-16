@@ -24,8 +24,24 @@ const ALLOWED_EVENT_TYPES = new Set([
 	'PAYMENT.CAPTURE.REFUNDED'
 ]);
 
+/**
+ * Maximum allowed body size for webhook payloads (1MB)
+ * Prevents denial-of-service attacks via oversized payloads
+ */
+const MAX_BODY_SIZE = 1024 * 1024; // 1MB
+
 export const POST: RequestHandler = async ({ request }) => {
 	try {
+		// Check Content-Length to prevent oversized payloads
+		const contentLength = request.headers.get('content-length');
+		if (contentLength) {
+			const size = parseInt(contentLength, 10);
+			if (!isNaN(size) && size > MAX_BODY_SIZE) {
+				paymentLogger.warn({ contentLength: size, maxAllowed: MAX_BODY_SIZE }, 'Webhook payload too large');
+				return json({ error: 'Payload too large' }, { status: 413 });
+			}
+		}
+
 		// Get webhook headers and body
 		const headers: Record<string, string> = {};
 		request.headers.forEach((value, key) => {
@@ -33,6 +49,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 
 		const body = await request.text();
+
+		// Double-check actual body size (Content-Length can be spoofed)
+		if (body.length > MAX_BODY_SIZE) {
+			paymentLogger.warn({ actualSize: body.length, maxAllowed: MAX_BODY_SIZE }, 'Webhook payload too large (actual)');
+			return json({ error: 'Payload too large' }, { status: 413 });
+		}
 
 		// Verify webhook signature for security
 		const isValid = await verifyPayPalWebhook(PAYPAL_WEBHOOK_ID, headers, body);

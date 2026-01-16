@@ -30,13 +30,24 @@ function getSubscriberHash(email: string): string {
 }
 
 /**
+ * Custom error class for Mailchimp operations
+ */
+export class MailchimpError extends Error {
+	constructor(message: string, public readonly cause?: unknown) {
+		super(message);
+		this.name = 'MailchimpError';
+	}
+}
+
+/**
  * Subscribe a user to the newsletter
+ * @throws MailchimpError if subscription fails
  */
 export async function subscribeToNewsletter(
 	email: string,
 	firstName: string,
 	lastName: string
-): Promise<{ success: boolean; subscriberId?: string; error?: string }> {
+): Promise<{ subscriberId: string }> {
 	try {
 		const response = await mailchimp.lists.addListMember(MAILCHIMP_AUDIENCE_ID, {
 			email_address: email,
@@ -47,25 +58,25 @@ export async function subscribeToNewsletter(
 			}
 		});
 
+		mailchimpLogger.info({ email, subscriberId: response.id }, 'User subscribed to newsletter');
+
 		return {
-			success: true,
-			subscriberId: response.id
+			subscriberId: response.id as string
 		};
 	} catch (error) {
-		mailchimpLogger.error(error, 'Mailchimp subscription error');
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : 'Unknown error'
-		};
+		mailchimpLogger.error({ err: error, email }, 'Mailchimp subscription error');
+		throw new MailchimpError(
+			'Failed to subscribe to newsletter',
+			error
+		);
 	}
 }
 
 /**
  * Unsubscribe a user from the newsletter
+ * @throws MailchimpError if unsubscription fails
  */
-export async function unsubscribeFromNewsletter(
-	email: string
-): Promise<{ success: boolean; error?: string }> {
+export async function unsubscribeFromNewsletter(email: string): Promise<void> {
 	try {
 		const subscriberHash = getSubscriberHash(email);
 
@@ -73,23 +84,21 @@ export async function unsubscribeFromNewsletter(
 			status: 'unsubscribed'
 		});
 
-		return { success: true };
+		mailchimpLogger.info({ email }, 'User unsubscribed from newsletter');
 	} catch (error) {
-		mailchimpLogger.error(error, 'Mailchimp unsubscribe error');
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : 'Unknown error'
-		};
+		mailchimpLogger.error({ err: error, email }, 'Mailchimp unsubscribe error');
+		throw new MailchimpError('Failed to unsubscribe from newsletter', error);
 	}
 }
 
 /**
  * Update subscriber information
+ * @throws MailchimpError if update fails
  */
 export async function updateSubscriber(
 	email: string,
 	data: { firstName?: string; lastName?: string }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<void> {
 	try {
 		const subscriberHash = getSubscriberHash(email);
 
@@ -100,12 +109,9 @@ export async function updateSubscriber(
 			}
 		});
 
-		return { success: true };
+		mailchimpLogger.info({ email }, 'Subscriber info updated');
 	} catch (error) {
-		mailchimpLogger.error(error, 'Mailchimp update error');
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : 'Unknown error'
-		};
+		mailchimpLogger.error({ err: error, email }, 'Mailchimp update error');
+		throw new MailchimpError('Failed to update subscriber information', error);
 	}
 }

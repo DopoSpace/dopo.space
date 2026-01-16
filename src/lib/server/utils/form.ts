@@ -7,6 +7,12 @@
 import { type ZodSchema, z } from 'zod';
 import { fail, type ActionFailure } from '@sveltejs/kit';
 
+/** Represents a value from FormData (string or File) */
+type FormDataValue = FormDataEntryValue;
+
+/** Represents parsed form data with proper typing */
+type ParsedFormData = Record<string, FormDataValue | FormDataValue[]>;
+
 /**
  * Parse and validate FormData with Zod schema
  * @param formData - The FormData to parse
@@ -21,8 +27,8 @@ export async function parseFormData<T extends ZodSchema>(
 	| { success: false; errors: Record<string, string>; values: Record<string, unknown> }
 > {
 	// Convert FormData to plain object
-	const data: Record<string, any> = {};
-	const values: Record<string, any> = {};
+	const data: ParsedFormData = {};
+	const values: Record<string, FormDataValue> = {};
 
 	formData.forEach((value, key) => {
 		// Store raw values for error response
@@ -127,4 +133,75 @@ export function getFormNumber(
 
 	const parsed = Number(value);
 	return isNaN(parsed) ? defaultValue : parsed;
+}
+
+/**
+ * Custom error class for strict form parsing
+ */
+export class FormParseError extends Error {
+	constructor(
+		message: string,
+		public readonly field: string
+	) {
+		super(message);
+		this.name = 'FormParseError';
+	}
+}
+
+/**
+ * Get a number value from FormData with strict validation
+ * Unlike getFormNumber, this throws an error for invalid/missing values
+ * @param formData - The FormData object
+ * @param key - The key to get
+ * @throws FormParseError if value is missing or not a valid number
+ * @returns The parsed number
+ */
+export function getFormNumberStrict(formData: FormData, key: string): number {
+	const value = formData.get(key);
+
+	if (value === null || value === undefined) {
+		throw new FormParseError(`Missing required field: ${key}`, key);
+	}
+
+	if (typeof value !== 'string') {
+		throw new FormParseError(`Field ${key} must be a string value, got ${typeof value}`, key);
+	}
+
+	if (value.trim() === '') {
+		throw new FormParseError(`Field ${key} cannot be empty`, key);
+	}
+
+	const parsed = Number(value);
+
+	if (isNaN(parsed)) {
+		throw new FormParseError(`Field ${key} must be a valid number, got "${value}"`, key);
+	}
+
+	return parsed;
+}
+
+/**
+ * Get a string value from FormData with strict validation
+ * Unlike getFormValue, this throws an error for missing values
+ * @param formData - The FormData object
+ * @param key - The key to get
+ * @throws FormParseError if value is missing or empty
+ * @returns The string value
+ */
+export function getFormValueStrict(formData: FormData, key: string): string {
+	const value = formData.get(key);
+
+	if (value === null || value === undefined) {
+		throw new FormParseError(`Missing required field: ${key}`, key);
+	}
+
+	if (typeof value !== 'string') {
+		throw new FormParseError(`Field ${key} must be a string value, got ${typeof value}`, key);
+	}
+
+	if (value.trim() === '') {
+		throw new FormParseError(`Field ${key} cannot be empty`, key);
+	}
+
+	return value;
 }

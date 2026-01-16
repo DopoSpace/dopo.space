@@ -11,6 +11,9 @@ import {
 	PAYPAL_MODE,
 	APP_URL
 } from '$env/static/private';
+import pino from 'pino';
+
+const paymentLogger = pino({ name: 'paypal' });
 
 const PAYPAL_API_BASE =
 	PAYPAL_MODE === 'live'
@@ -138,8 +141,14 @@ export async function capturePayPalOrder(orderId: string): Promise<{
 	});
 
 	if (!response.ok) {
-		const error = await response.text();
-		throw new Error(`Failed to capture PayPal order: ${error}`);
+		const errorBody = await response.text();
+		paymentLogger.error({
+			orderId,
+			statusCode: response.status,
+			errorBody
+		}, 'PayPal capture request failed');
+		// Don't expose internal PayPal error details to user
+		throw new Error('Payment capture failed. Please try again or contact support.');
 	}
 
 	const captureData = await response.json();
@@ -223,9 +232,27 @@ export async function verifyPayPalWebhook(
 	});
 
 	if (!response.ok) {
+		const errorBody = await response.text().catch(() => 'Unable to read response body');
+		paymentLogger.error({
+			webhookId,
+			statusCode: response.status,
+			statusText: response.statusText,
+			errorBody,
+			transmissionId: headers['paypal-transmission-id']
+		}, 'PayPal webhook signature verification API call failed');
 		return false;
 	}
 
 	const result = await response.json();
-	return result.verification_status === 'SUCCESS';
+	const isValid = result.verification_status === 'SUCCESS';
+
+	if (!isValid) {
+		paymentLogger.warn({
+			webhookId,
+			verificationStatus: result.verification_status,
+			transmissionId: headers['paypal-transmission-id']
+		}, 'PayPal webhook signature verification returned non-SUCCESS status');
+	}
+
+	return isValid;
 }

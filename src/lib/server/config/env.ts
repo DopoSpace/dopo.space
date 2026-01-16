@@ -33,8 +33,15 @@ const envSchema = z.object({
 		.string()
 		.min(32, 'JWT_SECRET must be at least 32 characters for security')
 		.refine(
-			(val) => val !== 'your-super-secret-jwt-key-change-this-in-production',
-			'JWT_SECRET must not be the default value. Please set a secure random string.'
+			(val) => {
+				// Blacklist of insecure default/placeholder values
+				const blacklistedSecrets = [
+					'your-super-secret-jwt-key-change-this-in-production',
+					'your-secret-key-here-change-in-production' // From .env.example
+				];
+				return !blacklistedSecrets.includes(val);
+			},
+			'JWT_SECRET must not be a default/placeholder value. Please set a secure random string (e.g., openssl rand -base64 48).'
 		),
 
 	// Database

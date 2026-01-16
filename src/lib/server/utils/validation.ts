@@ -149,9 +149,9 @@ export const newsletterSchema = z.object({
  * Admin membership number assignment schema (single user)
  */
 export const assignMembershipNumberSchema = z.object({
-	userIds: z.array(z.string()),
+	userIds: z.array(z.string().uuid('ID utente non valido')),
 	startNumber: z.number().int().positive().optional(),
-	specificNumbers: z.record(z.string(), z.string()).optional() // userId -> membershipNumber
+	specificNumbers: z.record(z.string().uuid(), z.string()).optional() // userId -> membershipNumber
 });
 
 /**
@@ -162,7 +162,7 @@ export const batchAssignCardsSchema = z.object({
 	prefix: z.string().max(20, 'Il prefisso non può superare 20 caratteri').optional().default(''),
 	startNumber: z.string().min(1, 'Inserisci il numero iniziale').max(10, 'Numero troppo lungo'),
 	endNumber: z.string().min(1, 'Inserisci il numero finale').max(10, 'Numero troppo lungo'),
-	userIds: z.array(z.string()).min(1, 'Seleziona almeno un utente')
+	userIds: z.array(z.string().uuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
 }).refine(
 	(data) => {
 		const start = parseInt(data.startNumber, 10);
@@ -213,7 +213,9 @@ export const addCardRangeSchema = z
  * Used for automatic card assignment from configured ranges
  */
 export const autoAssignCardsSchema = z.object({
-	userIds: z.array(z.string()).min(1, 'Seleziona almeno un utente')
+	userIds: z
+		.array(z.string().uuid('ID utente non valido'))
+		.min(1, 'Seleziona almeno un utente')
 });
 
 /**

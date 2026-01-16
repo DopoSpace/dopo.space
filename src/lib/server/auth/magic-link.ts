@@ -8,6 +8,9 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '$env/static/private';
 import { prisma } from '../db/prisma';
 import crypto from 'crypto';
+import pino from 'pino';
+
+const logger = pino({ name: 'magic-link' });
 
 const MAGIC_LINK_EXPIRY = '15m'; // 15 minutes
 const SESSION_EXPIRY = '7d'; // 7 days
@@ -82,7 +85,13 @@ export async function verifyMagicLinkToken(token: string): Promise<{ email: stri
 		});
 
 		return { email: payload.email };
-	} catch {
+	} catch (error) {
+		// Log at debug level to avoid flooding logs while preserving context for debugging
+		logger.debug({
+			errorType: error instanceof Error ? error.name : 'Unknown',
+			message: error instanceof Error ? error.message : String(error),
+			tokenLength: token?.length
+		}, 'Magic link token verification failed');
 		return null;
 	}
 }
@@ -94,7 +103,9 @@ export async function verifyMagicLinkToken(token: string): Promise<{ email: stri
  * @param role - 'user' or 'admin' (defaults to 'user' for backward compatibility)
  */
 export function generateSessionToken(userId: string, email: string, role: 'user' | 'admin' = 'user'): string {
-	return jwt.sign({ userId, email, role, type: 'session' }, JWT_SECRET, {
+	// Explicitly include iat for consistency and session invalidation checks
+	const issuedAt = Math.floor(Date.now() / 1000);
+	return jwt.sign({ userId, email, role, type: 'session', iat: issuedAt }, JWT_SECRET, {
 		expiresIn: SESSION_EXPIRY
 	});
 }
@@ -126,7 +137,13 @@ export function verifySessionToken(token: string): {
 			role: payload.role || 'user',
 			issuedAt: new Date(payload.iat * 1000) // Convert to milliseconds
 		};
-	} catch {
+	} catch (error) {
+		// Log at debug level to avoid flooding logs while preserving context for debugging
+		logger.debug({
+			errorType: error instanceof Error ? error.name : 'Unknown',
+			message: error instanceof Error ? error.message : String(error),
+			tokenLength: token?.length
+		}, 'Session token verification failed');
 		return null;
 	}
 }

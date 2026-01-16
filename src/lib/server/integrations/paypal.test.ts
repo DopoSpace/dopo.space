@@ -193,8 +193,9 @@ describe('PayPal Integration', () => {
 				text: async () => 'Capture failed'
 			});
 
+			// Error message sanitized to not expose PayPal internals
 			await expect(capturePayPalOrder('ORDER-123')).rejects.toThrow(
-				'Failed to capture PayPal order'
+				'Payment capture failed. Please try again or contact support.'
 			);
 		});
 	});

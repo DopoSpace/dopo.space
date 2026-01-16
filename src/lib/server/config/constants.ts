@@ -16,10 +16,19 @@ export const MAGIC_LINK_EXPIRY_MINUTES = 15;
 export const BCRYPT_SALT_ROUNDS = 10;
 
 /**
+ * Check if running in production environment
+ * Accepts multiple production-like values for safety
+ */
+function isProductionEnvironment(): boolean {
+	const env = process.env.NODE_ENV?.toLowerCase();
+	return env === 'production' || env === 'prod';
+}
+
+/**
  * Get cookie options for user sessions (main domain)
  */
 export function getUserCookieOptions(secure?: boolean) {
-	const isProduction = process.env.NODE_ENV === 'production';
+	const isProduction = isProductionEnvironment();
 	const mainDomain = getMainDomain();
 
 	// Extract domain without port for cookie domain
@@ -40,7 +49,7 @@ export function getUserCookieOptions(secure?: boolean) {
  * Get cookie options for admin sessions (admin subdomain)
  */
 export function getAdminCookieOptions(secure?: boolean) {
-	const isProduction = process.env.NODE_ENV === 'production';
+	const isProduction = isProductionEnvironment();
 	const adminDomain = getAdminDomain();
 
 	// Extract domain without port for cookie domain
@@ -57,22 +66,3 @@ export function getAdminCookieOptions(secure?: boolean) {
 	};
 }
 
-// Deprecated: kept for backward compatibility during migration
-/** @deprecated Use getUserCookieOptions() or getAdminCookieOptions() instead */
-export const SESSION_COOKIE_NAME = 'session';
-
-/** @deprecated Use getUserCookieOptions() or getAdminCookieOptions() instead */
-export const COOKIE_OPTIONS = {
-	path: '/',
-	httpOnly: true,
-	sameSite: 'lax' as const,
-	maxAge: SESSION_MAX_AGE_SECONDS
-};
-
-/** @deprecated Use getUserCookieOptions() or getAdminCookieOptions() instead */
-export function getCookieOptions(secure?: boolean) {
-	return {
-		...COOKIE_OPTIONS,
-		secure: secure ?? process.env.NODE_ENV === 'production'
-	};
-}

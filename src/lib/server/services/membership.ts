@@ -5,10 +5,14 @@
  */
 
 import { prisma } from '../db/prisma';
+import type { Prisma } from '@prisma/client';
 import { SystemState, type MembershipSummary } from '$lib/types/membership';
 import { MembershipStatus, PaymentStatus } from '@prisma/client';
-import { getAvailableNumbers } from './card-ranges';
+import { getAvailableNumbers, getAvailableNumbersWithTx } from './card-ranges';
 import { getMembershipFee } from './settings';
+import pino from 'pino';
+
+const logger = pino({ name: 'membership' });
 
 /**
  * Membership duration in days (rolling membership)
@@ -123,6 +127,20 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		};
 	}
 
+	// Profile incomplete with pending membership - user needs to complete profile first
+	if (membership.paymentStatus === PaymentStatus.PENDING && !profileComplete) {
+		return {
+			systemState: SystemState.S0_NO_MEMBERSHIP,
+			hasActiveMembership: false,
+			membershipNumber: null,
+			startDate: null,
+			endDate: null,
+			profileComplete: false,
+			canPurchase: false, // Already has pending membership
+			message: 'Complete your profile to proceed with payment.'
+		};
+	}
+
 	// S4: Payment succeeded, awaiting number assignment
 	if (membership.paymentStatus === PaymentStatus.SUCCEEDED && !membership.membershipNumber) {
 		return {
@@ -137,22 +155,14 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		};
 	}
 
-	// S6: Expired membership
-	if (membership.endDate && membership.endDate < new Date()) {
-		return {
-			systemState: SystemState.S6_EXPIRED,
-			hasActiveMembership: false,
-			membershipNumber: membership.membershipNumber,
-			startDate: membership.startDate,
-			endDate: membership.endDate,
-			profileComplete,
-			canPurchase: true,
-			message: 'Your membership has expired. Purchase a new membership to continue.'
-		};
-	}
-
-	// S5: Active membership with number
-	if (membership.membershipNumber && membership.status === MembershipStatus.ACTIVE) {
+	// S5: Active membership with number and not expired
+	// Must check both status and expiry date to properly distinguish from S6
+	const isExpired = membership.endDate && membership.endDate < new Date();
+	if (
+		membership.membershipNumber &&
+		membership.status === MembershipStatus.ACTIVE &&
+		!isExpired
+	) {
 		return {
 			systemState: SystemState.S5_ACTIVE,
 			hasActiveMembership: true,
@@ -165,15 +175,40 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		};
 	}
 
-	// Default fallback
+	// S6: Expired membership (must have had membershipNumber assigned - was previously active)
+	if (membership.membershipNumber && membership.endDate && membership.endDate < new Date()) {
+		return {
+			systemState: SystemState.S6_EXPIRED,
+			hasActiveMembership: false,
+			membershipNumber: membership.membershipNumber,
+			startDate: membership.startDate,
+			endDate: membership.endDate,
+			profileComplete,
+			canPurchase: true,
+			message: 'Your membership has expired. Purchase a new membership to continue.'
+		};
+	}
+
+	// Default fallback - this should NEVER happen in normal operation
+	// Log as error for investigation
+	logger.error({
+		userId,
+		membershipId: membership.id,
+		membershipStatus: membership.status,
+		paymentStatus: membership.paymentStatus,
+		membershipNumber: membership.membershipNumber,
+		startDate: membership.startDate,
+		endDate: membership.endDate
+	}, 'CRITICAL: Membership reached unknown state - state machine logic error');
+
 	return {
 		systemState: SystemState.S0_NO_MEMBERSHIP,
 		hasActiveMembership: false,
-		membershipNumber: null,
-		startDate: null,
-		endDate: null,
+		membershipNumber: membership.membershipNumber || null,
+		startDate: membership.startDate,
+		endDate: membership.endDate,
 		profileComplete,
-		canPurchase: true,
+		canPurchase: false, // Do NOT allow purchase in unknown state
 		message: 'Status unknown. Please contact support.'
 	};
 }
@@ -256,7 +291,7 @@ function generateSequentialNumbers(prefix: string, start: string, end: string): 
 	const numbers: string[] = [];
 	const startNum = parseInt(start, 10);
 	const endNum = parseInt(end, 10);
-	const padding = start.length; // Mantiene padding (001 → 3 cifre)
+	const padding = start.length;
 
 	for (let i = startNum; i <= endNum; i++) {
 		const num = i.toString().padStart(padding, '0');
@@ -264,6 +299,101 @@ function generateSequentialNumbers(prefix: string, start: string, end: string): 
 	}
 
 	return numbers;
+}
+
+/** Transaction client type for Prisma */
+type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** User with membership for assignment */
+interface UserWithMembership {
+	id: string;
+	email: string;
+	memberships: { id: string }[];
+}
+
+/**
+ * Fetch users in S4 state (payment succeeded, awaiting card assignment)
+ */
+async function fetchUsersInS4State(tx: TransactionClient, userIds: string[]) {
+	return tx.user.findMany({
+		where: {
+			id: { in: userIds },
+			memberships: {
+				some: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				}
+			}
+		},
+		include: {
+			memberships: {
+				where: {
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					membershipNumber: null
+				},
+				orderBy: { createdAt: 'desc' },
+				take: 1
+			}
+		},
+		orderBy: { createdAt: 'asc' }
+	});
+}
+
+/**
+ * Core logic for assigning membership numbers to users
+ * Shared between batch and auto assignment functions
+ */
+async function assignNumbersToUsers(
+	tx: TransactionClient,
+	users: UserWithMembership[],
+	availableNumbers: string[],
+	logContext: string
+): Promise<{
+	assigned: { userId: string; email: string; membershipNumber: string }[];
+	usersWithoutCard: { userId: string; email: string }[];
+	numberIndex: number;
+}> {
+	const assigned: { userId: string; email: string; membershipNumber: string }[] = [];
+	const usersWithoutCard: { userId: string; email: string }[] = [];
+	let numberIndex = 0;
+
+	for (const user of users) {
+		if (numberIndex >= availableNumbers.length) {
+			usersWithoutCard.push({ userId: user.id, email: user.email });
+			continue;
+		}
+
+		const membership = user.memberships[0];
+		if (!membership) {
+			logger.warn(
+				{ userId: user.id, email: user.email },
+				`User matched S4 query but has no membership in ${logContext} - possible race condition`
+			);
+			usersWithoutCard.push({ userId: user.id, email: user.email });
+			continue;
+		}
+
+		const membershipNumber = availableNumbers[numberIndex];
+		numberIndex++;
+
+		const startDate = new Date();
+		const endDate = calculateEndDate(startDate);
+
+		await tx.membership.update({
+			where: { id: membership.id },
+			data: {
+				membershipNumber,
+				status: MembershipStatus.ACTIVE,
+				startDate,
+				endDate,
+				cardAssignedAt: new Date()
+			}
+		});
+
+		assigned.push({ userId: user.id, email: user.email, membershipNumber });
+	}
+
+	return { assigned, usersWithoutCard, numberIndex };
 }
 
 /**
@@ -281,104 +411,33 @@ export async function batchAssignMembershipNumbers(
 	endNumber: string,
 	userIds: string[]
 ): Promise<BatchAssignResult> {
-	// Generate all potential membership numbers
 	const allNumbers = generateSequentialNumbers(prefix, startNumber, endNumber);
 
-	// Use transaction for atomic operations
 	return await prisma.$transaction(async (tx) => {
 		// Find which numbers already exist in the database
 		const existingMemberships = await tx.membership.findMany({
-			where: {
-				membershipNumber: {
-					in: allNumbers
-				}
-			},
-			select: {
-				membershipNumber: true
-			}
+			where: { membershipNumber: { in: allNumbers } },
+			select: { membershipNumber: true }
 		});
 
 		const existingNumbers = new Set(existingMemberships.map((m) => m.membershipNumber));
 		const skipped = allNumbers.filter((num) => existingNumbers.has(num));
 		const availableNumbers = allNumbers.filter((num) => !existingNumbers.has(num));
 
-		// Get users with their memberships (only those in S4 state - payment succeeded, no number)
-		const users = await tx.user.findMany({
-			where: {
-				id: { in: userIds },
-				memberships: {
-					some: {
-						paymentStatus: PaymentStatus.SUCCEEDED,
-						membershipNumber: null
-					}
-				}
-			},
-			include: {
-				memberships: {
-					where: {
-						paymentStatus: PaymentStatus.SUCCEEDED,
-						membershipNumber: null
-					},
-					orderBy: { createdAt: 'desc' },
-					take: 1
-				}
-			},
-			orderBy: { createdAt: 'asc' } // FIFO order
-		});
+		const users = await fetchUsersInS4State(tx, userIds);
+		const { assigned, usersWithoutCard, numberIndex } = await assignNumbersToUsers(
+			tx,
+			users,
+			availableNumbers,
+			'batchAssign'
+		);
 
-		const result: BatchAssignResult = {
-			assigned: [],
+		return {
+			assigned,
 			skipped,
-			remaining: [],
-			usersWithoutCard: []
+			remaining: availableNumbers.slice(numberIndex),
+			usersWithoutCard
 		};
-
-		// Assign numbers to users
-		let numberIndex = 0;
-		for (const user of users) {
-			if (numberIndex >= availableNumbers.length) {
-				// No more available numbers
-				result.usersWithoutCard.push({ userId: user.id, email: user.email });
-				continue;
-			}
-
-			const membership = user.memberships[0];
-			if (!membership) {
-				// User doesn't have a valid membership (shouldn't happen due to query filter)
-				result.usersWithoutCard.push({ userId: user.id, email: user.email });
-				continue;
-			}
-
-			const membershipNumber = availableNumbers[numberIndex];
-			numberIndex++;
-
-			// Calculate dates for rolling 365-day membership
-			const startDate = new Date();
-			const endDate = calculateEndDate(startDate);
-
-			// Update membership with number, dates, and set status to ACTIVE
-			await tx.membership.update({
-				where: { id: membership.id },
-				data: {
-					membershipNumber,
-					status: MembershipStatus.ACTIVE,
-					startDate,
-					endDate,
-					cardAssignedAt: new Date()
-				}
-			});
-
-			result.assigned.push({
-				userId: user.id,
-				email: user.email,
-				membershipNumber
-			});
-		}
-
-		// Calculate remaining (unused) numbers
-		result.remaining = availableNumbers.slice(numberIndex);
-
-		return result;
 	});
 }
 
@@ -387,37 +446,42 @@ export async function batchAssignMembershipNumbers(
  * These are users with payment succeeded but no membership number assigned
  */
 export async function getUsersAwaitingCard() {
-	return await prisma.user.findMany({
-		where: {
-			memberships: {
-				some: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					membershipNumber: null
-				}
-			}
-		},
-		include: {
-			profile: {
-				select: {
-					firstName: true,
-					lastName: true
+	try {
+		return await prisma.user.findMany({
+			where: {
+				memberships: {
+					some: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null
+					}
 				}
 			},
-			memberships: {
-				where: {
-					paymentStatus: PaymentStatus.SUCCEEDED,
-					membershipNumber: null
+			include: {
+				profile: {
+					select: {
+						firstName: true,
+						lastName: true
+					}
 				},
-				orderBy: { createdAt: 'desc' },
-				take: 1,
-				select: {
-					id: true,
-					createdAt: true
+				memberships: {
+					where: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null
+					},
+					orderBy: { createdAt: 'desc' },
+					take: 1,
+					select: {
+						id: true,
+						createdAt: true
+					}
 				}
-			}
-		},
-		orderBy: { createdAt: 'asc' } // FIFO order
-	});
+			},
+			orderBy: { createdAt: 'asc' } // FIFO order
+		});
+	} catch (error) {
+		logger.error({ err: error }, 'Failed to fetch users awaiting card assignment');
+		throw new Error('Database error fetching pending card assignments');
+	}
 }
 
 /**
@@ -433,90 +497,30 @@ export interface AutoAssignResult {
 /**
  * Automatically assign membership numbers from configured ranges
  * Uses FIFO order (first paid = first assigned)
- * Uses transaction to ensure atomicity
+ * Uses transaction to ensure atomicity and prevent race conditions
  */
 export async function autoAssignMembershipNumbers(userIds: string[]): Promise<AutoAssignResult> {
-	// Get available numbers from global pool (outside transaction for read)
-	const availableNumbers = await getAvailableNumbers();
-
-	if (availableNumbers.length === 0) {
-		throw new Error('Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges');
-	}
-
-	// Use transaction for atomic assignment
 	return await prisma.$transaction(async (tx) => {
-		// Get users with their memberships (only those in S4 state)
-		const users = await tx.user.findMany({
-			where: {
-				id: { in: userIds },
-				memberships: {
-					some: {
-						paymentStatus: PaymentStatus.SUCCEEDED,
-						membershipNumber: null
-					}
-				}
-			},
-			include: {
-				memberships: {
-					where: {
-						paymentStatus: PaymentStatus.SUCCEEDED,
-						membershipNumber: null
-					},
-					orderBy: { createdAt: 'desc' },
-					take: 1
-				}
-			},
-			orderBy: { createdAt: 'asc' } // FIFO order
-		});
+		const availableNumbers = await getAvailableNumbersWithTx(tx);
 
-		const result: AutoAssignResult = {
-			assigned: [],
-			usersWithoutCard: [],
+		if (availableNumbers.length === 0) {
+			throw new Error('Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges');
+		}
+
+		const users = await fetchUsersInS4State(tx, userIds);
+		const { assigned, usersWithoutCard } = await assignNumbersToUsers(
+			tx,
+			users,
+			availableNumbers,
+			'autoAssign'
+		);
+
+		return {
+			assigned,
+			usersWithoutCard,
 			availableCount: availableNumbers.length,
 			requestedCount: userIds.length
 		};
-
-		// Assign numbers to users
-		let numberIndex = 0;
-		for (const user of users) {
-			if (numberIndex >= availableNumbers.length) {
-				result.usersWithoutCard.push({ userId: user.id, email: user.email });
-				continue;
-			}
-
-			const membership = user.memberships[0];
-			if (!membership) {
-				result.usersWithoutCard.push({ userId: user.id, email: user.email });
-				continue;
-			}
-
-			const membershipNumber = availableNumbers[numberIndex];
-			numberIndex++;
-
-			// Calculate dates for rolling 365-day membership
-			const startDate = new Date();
-			const endDate = calculateEndDate(startDate);
-
-			// Update membership with number, dates, and set status to ACTIVE
-			await tx.membership.update({
-				where: { id: membership.id },
-				data: {
-					membershipNumber,
-					status: MembershipStatus.ACTIVE,
-					startDate,
-					endDate,
-					cardAssignedAt: new Date()
-				}
-			});
-
-			result.assigned.push({
-				userId: user.id,
-				email: user.email,
-				membershipNumber
-			});
-		}
-
-		return result;
 	});
 }
 

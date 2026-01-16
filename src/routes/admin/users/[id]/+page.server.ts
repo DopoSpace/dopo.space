@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
 import { z } from 'zod';
+import { formatZodErrors } from '$lib/server/utils/validation';
 import { validateTaxCode, validateTaxCodeConsistency } from '$lib/server/utils/tax-code';
 
 const logger = createLogger({ module: 'admin' });
@@ -29,19 +30,11 @@ const adminProfileSchema = z.object({
 	dataConsent: z.coerce.boolean().default(false)
 });
 
-function formatZodErrors(error: z.ZodError): Record<string, string> {
-	const result: Record<string, string> = {};
-	for (const issue of error.issues) {
-		result[issue.path.join('.')] = issue.message;
-	}
-	return result;
-}
-
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const admin = locals.admin;
 
 	if (!admin) {
-		throw redirect(303, '/auth/login');
+		throw redirect(303, '/login');
 	}
 
 	const user = await prisma.user.findUnique({
@@ -210,6 +203,8 @@ export const actions = {
 			});
 
 			logger.info({ userId: user.id, adminEmail: admin.email }, 'Admin updated user profile');
+
+			return { success: true };
 		} catch (err) {
 			logger.error({ err }, 'Error updating user');
 			return fail(500, {

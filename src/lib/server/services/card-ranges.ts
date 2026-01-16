@@ -6,7 +6,13 @@
  */
 
 import { prisma } from '../db/prisma';
-import type { CardNumberRange } from '@prisma/client';
+import type { CardNumberRange, Prisma } from '@prisma/client';
+import pino from 'pino';
+
+const logger = pino({ name: 'card-ranges' });
+
+// Type for transaction client
+type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 /**
  * Result of adding a new card number range
@@ -193,11 +199,11 @@ export async function getCardNumberRangesWithStats(): Promise<CardNumberRangeWit
 }
 
 /**
- * Get all available (unassigned) membership numbers from global pool
+ * Core implementation for getting available membership numbers
+ * @param client - Prisma client or transaction client
  */
-export async function getAvailableNumbers(): Promise<string[]> {
-	// Get all ranges (global pool)
-	const ranges = await prisma.cardNumberRange.findMany({
+async function getAvailableNumbersImpl(client: TransactionClient): Promise<string[]> {
+	const ranges = await client.cardNumberRange.findMany({
 		orderBy: { startNumber: 'asc' }
 	});
 
@@ -205,35 +211,69 @@ export async function getAvailableNumbers(): Promise<string[]> {
 		return [];
 	}
 
-	// Generate all possible numbers from all ranges
 	const allPossibleNumbers: string[] = [];
 	for (const range of ranges) {
-		const numbers = generateNumbersFromRange(range.startNumber, range.endNumber);
-		allPossibleNumbers.push(...numbers);
+		allPossibleNumbers.push(...generateNumbersFromRange(range.startNumber, range.endNumber));
 	}
 
-	// Get all already assigned membership numbers
-	const assignedNumbers = await prisma.membership.findMany({
-		where: {
-			membershipNumber: { not: null }
-		},
-		select: {
-			membershipNumber: true
-		}
+	const assignedNumbers = await client.membership.findMany({
+		where: { membershipNumber: { not: null } },
+		select: { membershipNumber: true }
 	});
 
 	const assignedSet = new Set(assignedNumbers.map((m) => m.membershipNumber));
 
-	// Return only available numbers
 	return allPossibleNumbers.filter((n) => !assignedSet.has(n));
 }
 
 /**
+ * Get all available (unassigned) membership numbers from global pool
+ */
+export async function getAvailableNumbers(): Promise<string[]> {
+	return getAvailableNumbersImpl(prisma);
+}
+
+/**
+ * Get all available (unassigned) membership numbers from global pool
+ * Transaction-safe version that uses provided client
+ * @param tx - Transaction client
+ */
+export async function getAvailableNumbersWithTx(tx: TransactionClient): Promise<string[]> {
+	return getAvailableNumbersImpl(tx);
+}
+
+/**
  * Get count of available numbers from global pool
+ * Optimized version that calculates count without materializing full array
  */
 export async function getAvailableNumbersCount(): Promise<number> {
-	const available = await getAvailableNumbers();
-	return available.length;
+	// Get all ranges
+	const ranges = await prisma.cardNumberRange.findMany();
+
+	if (ranges.length === 0) {
+		return 0;
+	}
+
+	// Calculate total possible numbers
+	const totalPossible = ranges.reduce(
+		(sum, range) => sum + (range.endNumber - range.startNumber + 1),
+		0
+	);
+
+	// Generate all possible numbers (needed for the IN clause)
+	const allPossibleNumbers: string[] = [];
+	for (const range of ranges) {
+		allPossibleNumbers.push(...generateNumbersFromRange(range.startNumber, range.endNumber));
+	}
+
+	// Count assigned numbers that fall within any range
+	const assignedCount = await prisma.membership.count({
+		where: {
+			membershipNumber: { in: allPossibleNumbers }
+		}
+	});
+
+	return totalPossible - assignedCount;
 }
 
 /**
