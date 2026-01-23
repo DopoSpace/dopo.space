@@ -1,16 +1,17 @@
 /**
  * Script per creare utenti di test nel database
  *
- * Crea 47 utenti con diversi stati di membership:
+ * Crea 50 utenti con diversi stati di membership:
  * - S0: 5 utenti registrati senza membership
  * - S1: 8 utenti con profilo completo, pagamento pending
  * - S2: 3 utenti con pagamento in corso
  * - S3: 4 utenti con pagamento fallito/cancellato
  * - S4: 12 utenti pagati, in attesa tessera
  * - S5: 10 utenti attivi con tessera
- * - S6: 5 utenti con membership scaduta
+ * - S6: 5 utenti con membership scaduta (numero in previousMembershipNumber)
+ * - S7: 3 utenti con membership cancellata (numero in previousMembershipNumber)
  *
- * Include 4 utenti stranieri (DE, FR, ES, UK) distribuiti tra gli stati.
+ * Include 5 utenti stranieri (DE, FR, ES, UK) distribuiti tra gli stati.
  *
  * Uso: pnpm seed-users
  */
@@ -189,7 +190,7 @@ async function seedTestUsers() {
 	};
 
 	// Indici per utenti stranieri (distribuiti tra vari stati)
-	const foreignIndices = [7, 18, 30, 42]; // S1, S4, S5, S6
+	const foreignIndices = [7, 18, 30, 42, 48]; // S1, S4, S5, S6, S7
 
 	// Helper per creare un utente
 	async function createUser(isFemale: boolean, isForeign: boolean = false) {
@@ -371,32 +372,57 @@ async function seedTestUsers() {
 		}
 
 		// ==================== S6: 5 utenti con membership scaduta ====================
+		// Nota: Quando una membership scade, il numero viene spostato in previousMembershipNumber
+		// e membershipNumber, startDate, endDate vengono svuotati
 		console.log('👥 Creazione 5 utenti in stato S6 (membership scaduta)...');
 		for (let i = 0; i < 5; i++) {
 			const isFemale = i % 2 === 1;
 			const isForeign = shouldBeForeign(userIndex, foreignIndices);
 			const { user, firstName, lastName, email, nationality } = await createUser(isFemale, isForeign);
-			const membershipNumber = String(membershipNumberCounter++);
-
-			// Expired: started 400 days ago, ended 35 days ago
-			const startDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000);
-			const endDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
+			const previousNumber = String(membershipNumberCounter++);
 
 			await prisma.membership.create({
 				data: {
 					userId: user.id,
-					membershipNumber,
+					membershipNumber: null, // Svuotato alla scadenza
+					previousMembershipNumber: previousNumber, // Numero precedente salvato
 					status: MembershipStatus.EXPIRED,
 					paymentStatus: PaymentStatus.SUCCEEDED,
 					paymentProviderId: `PAYPAL-ORDER-EXPIRED-${i}`,
 					paymentAmount: membershipFee,
-					startDate,
-					endDate,
-					cardAssignedAt: new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000) // 14 giorni dopo startDate
+					startDate: null, // Svuotato alla scadenza
+					endDate: null, // Svuotato alla scadenza
+					cardAssignedAt: null
 				}
 			});
 
-			createdUsers.push({ type: 'S6', email, name: `${firstName} ${lastName}`, membershipNumber, nationality });
+			createdUsers.push({ type: 'S6', email, name: `${firstName} ${lastName}`, membershipNumber: previousNumber, nationality });
+		}
+
+		// ==================== S7: 3 utenti con membership cancellata ====================
+		// Nota: Quando una membership viene cancellata dall'admin, il numero viene spostato in previousMembershipNumber
+		console.log('👥 Creazione 3 utenti in stato S7 (membership cancellata)...');
+		for (let i = 0; i < 3; i++) {
+			const isFemale = i % 2 === 1;
+			const { user, firstName, lastName, email, nationality } = await createUser(isFemale);
+			const previousNumber = String(membershipNumberCounter++);
+
+			await prisma.membership.create({
+				data: {
+					userId: user.id,
+					membershipNumber: null, // Svuotato alla cancellazione
+					previousMembershipNumber: previousNumber, // Numero precedente salvato
+					status: MembershipStatus.CANCELED,
+					paymentStatus: PaymentStatus.SUCCEEDED,
+					paymentProviderId: `PAYPAL-ORDER-CANCELED-${i}`,
+					paymentAmount: membershipFee,
+					startDate: null, // Svuotato alla cancellazione
+					endDate: null, // Svuotato alla cancellazione
+					cardAssignedAt: null
+				}
+			});
+
+			createdUsers.push({ type: 'S7', email, name: `${firstName} ${lastName}`, membershipNumber: previousNumber, nationality });
 		}
 
 		// ==================== RIEPILOGO ====================
@@ -404,7 +430,7 @@ async function seedTestUsers() {
 		console.log('📊 Riepilogo:');
 		console.log('─'.repeat(80));
 
-		const states = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'];
+		const states = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'];
 		const stateDescriptions: Record<string, string> = {
 			'S0': 'Registrato, senza membership',
 			'S1': 'Profilo completo, pagamento pending',
@@ -412,10 +438,11 @@ async function seedTestUsers() {
 			'S3': 'Pagamento fallito/cancellato',
 			'S4': 'Pagato, in attesa tessera',
 			'S5': 'Attivo con tessera',
-			'S6': 'Membership scaduta'
+			'S6': 'Membership scaduta',
+			'S7': 'Membership cancellata'
 		};
 		const stateEmojis: Record<string, string> = {
-			'S0': '⚫', 'S1': '⚪', 'S2': '🔵', 'S3': '🔴', 'S4': '🟡', 'S5': '🟢', 'S6': '🟤'
+			'S0': '⚫', 'S1': '⚪', 'S2': '🔵', 'S3': '🔴', 'S4': '🟡', 'S5': '🟢', 'S6': '🟤', 'S7': '⛔'
 		};
 
 		for (const state of states) {
@@ -435,6 +462,7 @@ async function seedTestUsers() {
 		console.log('\n💡 Test disponibili:');
 		console.log('   - /admin/users → Gestisci utenti');
 		console.log('   - /admin/card-ranges → Gestisci range tessere');
+		console.log('   - /admin/maintenance → Manutenzione (controllo scadenze)');
 		console.log('   - /admin/export?format=aics → Export AICS');
 
 	} catch (error) {

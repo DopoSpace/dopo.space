@@ -25,12 +25,51 @@ export interface AddRangeResult {
 }
 
 /**
+ * Represents a contiguous sub-range of available numbers
+ */
+export interface AvailableSubRange {
+	start: number;
+	end: number;
+}
+
+/**
  * Range with calculated statistics
  */
 export interface CardNumberRangeWithStats extends CardNumberRange {
 	totalNumbers: number;
 	usedNumbers: number;
 	availableNumbers: number;
+	/** Contiguous sub-ranges of available (unassigned) numbers */
+	availableSubRanges: AvailableSubRange[];
+}
+
+/**
+ * Group a sorted array of numbers into contiguous sub-ranges
+ * Example: [1,2,3,5,6,10] => [{start:1,end:3}, {start:5,end:6}, {start:10,end:10}]
+ */
+function groupIntoContiguousRanges(numbers: number[]): AvailableSubRange[] {
+	if (numbers.length === 0) return [];
+
+	const ranges: AvailableSubRange[] = [];
+	let start = numbers[0];
+	let end = numbers[0];
+
+	for (let i = 1; i < numbers.length; i++) {
+		if (numbers[i] === end + 1) {
+			// Contiguous, extend the current range
+			end = numbers[i];
+		} else {
+			// Gap found, save current range and start new one
+			ranges.push({ start, end });
+			start = numbers[i];
+			end = numbers[i];
+		}
+	}
+
+	// Don't forget the last range
+	ranges.push({ start, end });
+
+	return ranges;
 }
 
 /**
@@ -189,11 +228,19 @@ export async function getCardNumberRangesWithStats(): Promise<CardNumberRangeWit
 		const rangeNumbers = generateNumbersFromRange(range.startNumber, range.endNumber);
 		const usedNumbers = rangeNumbers.filter((n) => assignedSet.has(n)).length;
 
+		// Calculate available numbers and group into contiguous sub-ranges
+		const availableNumbersList = rangeNumbers
+			.filter((n) => !assignedSet.has(n))
+			.map((n) => parseInt(n, 10))
+			.sort((a, b) => a - b);
+		const availableSubRanges = groupIntoContiguousRanges(availableNumbersList);
+
 		return {
 			...range,
 			totalNumbers,
 			usedNumbers,
-			availableNumbers: totalNumbers - usedNumbers
+			availableNumbers: totalNumbers - usedNumbers,
+			availableSubRanges
 		};
 	});
 }
@@ -240,6 +287,74 @@ export async function getAvailableNumbers(): Promise<string[]> {
  */
 export async function getAvailableNumbersWithTx(tx: TransactionClient): Promise<string[]> {
 	return getAvailableNumbersImpl(tx);
+}
+
+/**
+ * Check if a number falls within any configured card range
+ * Transaction-safe version that uses provided client
+ * @param tx - Transaction client
+ * @param membershipNumber - The number to check (can be string with prefix or plain number)
+ */
+export async function isNumberInConfiguredRangesWithTx(
+	tx: TransactionClient,
+	membershipNumber: string | number
+): Promise<boolean> {
+	// Extract numeric part from the membership number (handles prefixes like "DOPO-123")
+	const numStr = typeof membershipNumber === 'string' ? membershipNumber : membershipNumber.toString();
+	const numericMatch = numStr.match(/\d+/);
+	if (!numericMatch) return false;
+
+	const num = parseInt(numericMatch[0], 10);
+	if (isNaN(num)) return false;
+
+	const range = await tx.cardNumberRange.findFirst({
+		where: {
+			startNumber: { lte: num },
+			endNumber: { gte: num }
+		}
+	});
+
+	return range !== null;
+}
+
+/**
+ * Check if ALL numbers in a range are within configured card ranges
+ * Returns validation result with list of invalid numbers
+ * @param tx - Transaction client
+ * @param startNumber - Start of range to validate
+ * @param endNumber - End of range to validate
+ */
+export async function validateRangeAgainstConfigured(
+	tx: TransactionClient,
+	startNumber: number,
+	endNumber: number
+): Promise<{ valid: boolean; invalidNumbers: number[] }> {
+	const ranges = await tx.cardNumberRange.findMany({
+		orderBy: { startNumber: 'asc' }
+	});
+
+	if (ranges.length === 0) {
+		// No ranges configured - all numbers are invalid
+		const invalidNumbers: number[] = [];
+		for (let num = startNumber; num <= endNumber; num++) {
+			invalidNumbers.push(num);
+		}
+		return { valid: false, invalidNumbers };
+	}
+
+	const invalidNumbers: number[] = [];
+
+	for (let num = startNumber; num <= endNumber; num++) {
+		const isInRange = ranges.some((r) => num >= r.startNumber && num <= r.endNumber);
+		if (!isInRange) {
+			invalidNumbers.push(num);
+		}
+	}
+
+	return {
+		valid: invalidNumbers.length === 0,
+		invalidNumbers
+	};
 }
 
 /**

@@ -18,6 +18,15 @@ import pino from 'pino';
 // Validate environment variables at startup (will throw if invalid)
 import '$lib/server/config/env';
 
+// Initialize scheduled jobs in production
+import { initializeScheduler } from '$lib/server/jobs/scheduler';
+import { building } from '$app/environment';
+
+// Only initialize scheduler in production and not during build
+if (!building && process.env.NODE_ENV === 'production') {
+	initializeScheduler();
+}
+
 const logger = pino({ name: 'hooks' });
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -32,7 +41,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (subdomainContext === 'admin' && pathname === '/') {
 		return new Response(null, {
 			status: 302,
-			headers: { location: '/login' }
+			headers: { location: '/admin/login' }
 		});
 	}
 
@@ -85,7 +94,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			if (!event.locals.admin) {
 				return new Response(null, {
 					status: 302,
-					headers: { location: '/login' }
+					headers: { location: '/admin/login' }
 				});
 			}
 		}

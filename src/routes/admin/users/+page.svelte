@@ -7,6 +7,30 @@
 	// Selection state
 	let selectedUserIds = $state<Set<string>>(new Set());
 
+	// Filter panel visibility
+	let showFilters = $state(data.hasActiveFilters);
+
+	// Filter state - initialized from server data
+	let filterStatus = $state(data.filters.status);
+	let filterRegisteredFrom = $state(data.filters.registeredFrom);
+	let filterRegisteredTo = $state(data.filters.registeredTo);
+	let filterStartDateFrom = $state(data.filters.startDateFrom);
+	let filterStartDateTo = $state(data.filters.startDateTo);
+	let filterEndDateFrom = $state(data.filters.endDateFrom);
+	let filterEndDateTo = $state(data.filters.endDateTo);
+
+	// Status options for dropdown
+	const statusOptions = [
+		{ value: '', label: 'Tutti gli stati' },
+		{ value: 'active', label: 'Attivo' },
+		{ value: 'awaiting_card', label: 'Pagato - In attesa tessera' },
+		{ value: 'awaiting_payment', label: 'In attesa di pagamento' },
+		{ value: 'payment_failed', label: 'Pagamento fallito' },
+		{ value: 'expired', label: 'Scaduto' },
+		{ value: 'canceled', label: 'Cancellato' },
+		{ value: 'not_member', label: 'Non iscritto' }
+	];
+
 	// Derived states
 	let allSelected = $derived(
 		data.users.length > 0 && selectedUserIds.size === data.users.length
@@ -16,19 +40,71 @@
 	);
 	let selectionCount = $derived(selectedUserIds.size);
 
+	// Count active filters for badge
+	let activeFilterCount = $derived(() => {
+		let count = 0;
+		if (filterStatus) count++;
+		if (filterRegisteredFrom || filterRegisteredTo) count++;
+		if (filterStartDateFrom || filterStartDateTo) count++;
+		if (filterEndDateFrom || filterEndDateTo) count++;
+		return count;
+	});
+
+	function applyFilters() {
+		const params = new URLSearchParams();
+
+		// Keep search if present
+		if (data.search) params.set('search', data.search);
+
+		// Add filters
+		if (filterStatus) params.set('status', filterStatus);
+		if (filterRegisteredFrom) params.set('registeredFrom', filterRegisteredFrom);
+		if (filterRegisteredTo) params.set('registeredTo', filterRegisteredTo);
+		if (filterStartDateFrom) params.set('startDateFrom', filterStartDateFrom);
+		if (filterStartDateTo) params.set('startDateTo', filterStartDateTo);
+		if (filterEndDateFrom) params.set('endDateFrom', filterEndDateFrom);
+		if (filterEndDateTo) params.set('endDateTo', filterEndDateTo);
+
+		selectedUserIds = new Set();
+		goto(`/admin/users?${params.toString()}`);
+	}
+
+	function clearFilters() {
+		filterStatus = '';
+		filterRegisteredFrom = '';
+		filterRegisteredTo = '';
+		filterStartDateFrom = '';
+		filterStartDateTo = '';
+		filterEndDateFrom = '';
+		filterEndDateTo = '';
+
+		const params = new URLSearchParams();
+		if (data.search) params.set('search', data.search);
+
+		selectedUserIds = new Set();
+		goto(`/admin/users?${params.toString()}`);
+	}
+
 	function handleSearch(e: Event) {
 		const form = e.target as HTMLFormElement;
 		const formData = new FormData(form);
 		const search = formData.get('search') as string;
 
 		const params = new URLSearchParams();
-		if (search) {
-			params.set('search', search);
-		}
+		if (search) params.set('search', search);
+
+		// Preserve active filters
+		if (filterStatus) params.set('status', filterStatus);
+		if (filterRegisteredFrom) params.set('registeredFrom', filterRegisteredFrom);
+		if (filterRegisteredTo) params.set('registeredTo', filterRegisteredTo);
+		if (filterStartDateFrom) params.set('startDateFrom', filterStartDateFrom);
+		if (filterStartDateTo) params.set('startDateTo', filterStartDateTo);
+		if (filterEndDateFrom) params.set('endDateFrom', filterEndDateFrom);
+		if (filterEndDateTo) params.set('endDateTo', filterEndDateTo);
 
 		// Clear selection when searching
 		selectedUserIds = new Set();
-		goto(`/users?${params.toString()}`);
+		goto(`/admin/users?${params.toString()}`);
 	}
 
 	function formatDate(isoString: string | null): string {
@@ -47,12 +123,19 @@
 		// If users are selected, export only those
 		if (selectedUserIds.size > 0) {
 			params.set('userIds', Array.from(selectedUserIds).join(','));
-		} else if (data.search) {
-			// Otherwise use search filter
-			params.set('search', data.search);
+		} else {
+			// Otherwise use search and filter criteria
+			if (data.search) params.set('search', data.search);
+			if (data.filters.status) params.set('status', data.filters.status);
+			if (data.filters.registeredFrom) params.set('registeredFrom', data.filters.registeredFrom);
+			if (data.filters.registeredTo) params.set('registeredTo', data.filters.registeredTo);
+			if (data.filters.startDateFrom) params.set('startDateFrom', data.filters.startDateFrom);
+			if (data.filters.startDateTo) params.set('startDateTo', data.filters.startDateTo);
+			if (data.filters.endDateFrom) params.set('endDateFrom', data.filters.endDateFrom);
+			if (data.filters.endDateTo) params.set('endDateTo', data.filters.endDateTo);
 		}
 
-		return `/export?${params.toString()}`;
+		return `/admin/export?${params.toString()}`;
 	}
 
 	function toggleSelectAll() {
@@ -102,11 +185,179 @@
 							class="input text-gray-900 flex-1"
 						/>
 						<button type="submit" class="btn-primary"> Cerca </button>
-						{#if data.search}
-							<a href="/users" class="btn-secondary"> Reset </a>
+						<button
+							type="button"
+							onclick={() => showFilters = !showFilters}
+							class="btn-secondary relative"
+						>
+							<svg class="h-4 w-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+							</svg>
+							Filtri
+							{#if activeFilterCount() > 0}
+								<span class="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+									{activeFilterCount()}
+								</span>
+							{/if}
+						</button>
+						{#if data.search || data.hasActiveFilters}
+							<a href="/admin/users" class="btn-secondary"> Reset tutto </a>
 						{/if}
 					</div>
 				</form>
+
+				<!-- Filter Panel -->
+				{#if showFilters}
+					<div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+						<!-- Row 1: Status -->
+						<div class="mb-4">
+							<label for="filterStatus" class="block text-sm font-medium text-gray-700 mb-1">
+								Stato
+							</label>
+							<select
+								id="filterStatus"
+								bind:value={filterStatus}
+								class="input text-gray-900 w-full max-w-xs"
+							>
+								{#each statusOptions as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+						</div>
+
+						<!-- Row 2: Date Filters -->
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+							<!-- Registration Date Range -->
+							<div class="p-3 bg-white border border-gray-200 rounded-lg">
+								<label class="block text-sm font-medium text-gray-700 mb-2">
+									Data registrazione
+								</label>
+								<div class="space-y-2">
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-gray-500 w-6">Da</span>
+										<input
+											type="date"
+											bind:value={filterRegisteredFrom}
+											class="input text-gray-900 flex-1 text-sm"
+										/>
+									</div>
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-gray-500 w-6">A</span>
+										<input
+											type="date"
+											bind:value={filterRegisteredTo}
+											class="input text-gray-900 flex-1 text-sm"
+										/>
+									</div>
+								</div>
+							</div>
+
+							<!-- Start Date Range -->
+							<div class="p-3 bg-white border border-gray-200 rounded-lg">
+								<label class="block text-sm font-medium text-gray-700 mb-2">
+									Data inizio tessera
+								</label>
+								<div class="space-y-2">
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-gray-500 w-6">Da</span>
+										<input
+											type="date"
+											bind:value={filterStartDateFrom}
+											class="input text-gray-900 flex-1 text-sm"
+										/>
+									</div>
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-gray-500 w-6">A</span>
+										<input
+											type="date"
+											bind:value={filterStartDateTo}
+											class="input text-gray-900 flex-1 text-sm"
+										/>
+									</div>
+								</div>
+							</div>
+
+							<!-- End Date Range -->
+							<div class="p-3 bg-white border border-gray-200 rounded-lg">
+								<label class="block text-sm font-medium text-gray-700 mb-2">
+									Data scadenza tessera
+								</label>
+								<div class="space-y-2">
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-gray-500 w-6">Da</span>
+										<input
+											type="date"
+											bind:value={filterEndDateFrom}
+											class="input text-gray-900 flex-1 text-sm"
+										/>
+									</div>
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-gray-500 w-6">A</span>
+										<input
+											type="date"
+											bind:value={filterEndDateTo}
+											class="input text-gray-900 flex-1 text-sm"
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Filter Actions -->
+						<div class="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-200">
+							{#if data.hasActiveFilters}
+								<button
+									type="button"
+									onclick={clearFilters}
+									class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+								>
+									Cancella filtri
+								</button>
+							{/if}
+							<button
+								type="button"
+								onclick={applyFilters}
+								class="btn-primary text-sm"
+							>
+								Applica filtri
+							</button>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Active Filters Summary -->
+				{#if data.hasActiveFilters && !showFilters}
+					<div class="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 flex-wrap">
+						<span class="text-sm text-blue-800 font-medium">Filtri attivi:</span>
+						{#if data.filters.status}
+							<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+								{statusOptions.find(o => o.value === data.filters.status)?.label || data.filters.status}
+							</span>
+						{/if}
+						{#if data.filters.registeredFrom || data.filters.registeredTo}
+							<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+								Registrazione: {data.filters.registeredFrom || '...'} - {data.filters.registeredTo || '...'}
+							</span>
+						{/if}
+						{#if data.filters.startDateFrom || data.filters.startDateTo}
+							<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+								Inizio: {data.filters.startDateFrom || '...'} - {data.filters.startDateTo || '...'}
+							</span>
+						{/if}
+						{#if data.filters.endDateFrom || data.filters.endDateTo}
+							<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+								Scadenza: {data.filters.endDateFrom || '...'} - {data.filters.endDateTo || '...'}
+							</span>
+						{/if}
+						<button
+							type="button"
+							onclick={() => showFilters = true}
+							class="text-xs text-blue-600 hover:text-blue-800 underline ml-auto"
+						>
+							Modifica
+						</button>
+					</div>
+				{/if}
 
 				<!-- Selection Bar -->
 				{#if selectionCount > 0}
@@ -231,7 +482,7 @@
 					<p class="text-gray-500 text-lg">Nessun utente trovato</p>
 				</div>
 			{:else}
-				<div class="overflow-x-auto">
+				<div class="table-container">
 					<table class="min-w-full divide-y divide-gray-200">
 						<thead class="bg-gray-50">
 							<tr>
@@ -288,7 +539,7 @@
 							{#each data.users as user (user.id)}
 								<tr
 									class="hover:bg-gray-50 cursor-pointer {selectedUserIds.has(user.id) ? 'bg-blue-50' : ''}"
-									onclick={() => goto(`/users/${user.id}`)}
+									onclick={() => goto(`/admin/users/${user.id}`)}
 								>
 									<td class="px-4 py-4 whitespace-nowrap">
 										<input
@@ -319,31 +570,66 @@
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm">
 										{#if !user.membershipStatus}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+											<span
+												class="status-badge bg-gray-100 text-gray-600"
+												data-tooltip="L'utente si è registrato ma non ha ancora iniziato la procedura di iscrizione"
+											>
 												Non iscritto
 											</span>
+										{:else if user.membershipStatus === 'EXPIRED'}
+											<span
+												class="status-badge bg-orange-100 text-orange-800"
+												data-tooltip="La tessera è scaduta. Il numero tessera è stato archiviato."
+											>
+												Scaduto
+											</span>
+										{:else if user.membershipStatus === 'CANCELED'}
+											<span
+												class="status-badge bg-red-100 text-red-800"
+												data-tooltip="La tessera è stata annullata da un amministratore"
+											>
+												Cancellato
+											</span>
 										{:else if user.paymentStatus === 'SUCCEEDED' && user.membershipNumber}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+											<span
+												class="status-badge bg-green-100 text-green-800"
+												data-tooltip="Tessera attiva e regolare. L'utente è un membro a tutti gli effetti."
+											>
 												Attivo
 											</span>
 										{:else if user.paymentStatus === 'SUCCEEDED'}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+											<span
+												class="status-badge bg-yellow-100 text-yellow-800"
+												data-tooltip="Pagamento ricevuto. In attesa che un admin assegni il numero tessera."
+											>
 												Pagato - In attesa tessera
 											</span>
 										{:else if user.paymentStatus === 'PENDING'}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+											<span
+												class="status-badge bg-blue-100 text-blue-800"
+												data-tooltip="L'utente ha completato il profilo e deve ancora effettuare il pagamento"
+											>
 												In attesa di pagamento
 											</span>
 										{:else if user.paymentStatus === 'FAILED'}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+											<span
+												class="status-badge bg-red-100 text-red-800"
+												data-tooltip="Il pagamento non è andato a buon fine. L'utente può riprovare."
+											>
 												Pagamento fallito
 											</span>
 										{:else if user.paymentStatus === 'CANCELED'}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+											<span
+												class="status-badge bg-gray-100 text-gray-600"
+												data-tooltip="L'utente ha annullato il pagamento"
+											>
 												Annullato
 											</span>
 										{:else}
-											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+											<span
+												class="status-badge bg-gray-100 text-gray-600"
+												data-tooltip="Stato membership: {user.membershipStatus}"
+											>
 												{user.membershipStatus}
 											</span>
 										{/if}
@@ -356,7 +642,7 @@
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 										<a
-											href="/users/{user.id}"
+											href="/admin/users/{user.id}"
 											class="text-blue-600 hover:text-blue-900"
 											onclick={(e) => e.stopPropagation()}
 										>
@@ -371,3 +657,71 @@
 			{/if}
 		</div>
 </div>
+
+<style>
+	.table-container {
+		overflow-x: auto;
+		overflow-y: visible;
+		padding-top: 60px;
+		margin-top: -60px;
+	}
+
+	.status-badge {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		padding: 0.125rem 0.625rem;
+		border-radius: 9999px;
+		font-size: 0.75rem;
+		font-weight: 500;
+		cursor: help;
+	}
+
+	/* Custom tooltip styling */
+	.status-badge[data-tooltip]::after {
+		content: attr(data-tooltip);
+		position: absolute;
+		bottom: calc(100% + 8px);
+		left: 50%;
+		transform: translateX(-50%);
+		padding: 0.625rem 0.875rem;
+		background-color: #1f2937;
+		color: white;
+		font-size: 0.8125rem;
+		font-weight: 400;
+		line-height: 1.5;
+		border-radius: 0.5rem;
+		width: 300px;
+		white-space: normal;
+		word-wrap: break-word;
+		text-align: center;
+		opacity: 0;
+		visibility: hidden;
+		transition: opacity 0.15s ease, visibility 0.15s ease;
+		z-index: 9999;
+		box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+		pointer-events: none;
+	}
+
+	/* Tooltip arrow */
+	.status-badge[data-tooltip]::before {
+		content: '';
+		position: absolute;
+		bottom: calc(100% + 2px);
+		left: 50%;
+		transform: translateX(-50%);
+		border: 6px solid transparent;
+		border-top-color: #1f2937;
+		opacity: 0;
+		visibility: hidden;
+		transition: opacity 0.15s ease, visibility 0.15s ease;
+		z-index: 9999;
+		pointer-events: none;
+	}
+
+	.status-badge[data-tooltip]:hover::after,
+	.status-badge[data-tooltip]:hover::before {
+		opacity: 1;
+		visibility: visible;
+	}
+</style>

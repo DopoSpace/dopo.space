@@ -4,7 +4,10 @@ import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
 import { z } from 'zod';
 import { formatZodErrors } from '$lib/server/utils/validation';
-import { validateTaxCode, validateTaxCodeConsistency } from '$lib/server/utils/tax-code';
+import { validateTaxCode, validateTaxCodeConsistency, extractGenderFromTaxCode } from '$lib/server/utils/tax-code';
+import { getGooglePlacesApiKey } from '$lib/server/config/env';
+import { cancelMembership } from '$lib/server/services/membership';
+import { MembershipStatus } from '@prisma/client';
 
 const logger = createLogger({ module: 'admin' });
 
@@ -20,10 +23,12 @@ const adminProfileSchema = z.object({
 	birthProvince: z.string().max(2).toUpperCase().optional().or(z.literal('')),
 	birthCity: z.string().max(100).optional().or(z.literal('')),
 	hasForeignTaxCode: z.coerce.boolean().default(false),
+	gender: z.enum(['M', 'F']).optional().or(z.literal('')),
 	taxCode: z.string().max(16).toUpperCase().optional().or(z.literal('')),
+	residenceCountry: z.string().length(2).toUpperCase().optional().or(z.literal('')).default('IT'),
 	address: z.string().max(200).optional().or(z.literal('')),
 	city: z.string().max(100).optional().or(z.literal('')),
-	postalCode: z.string().max(5).optional().or(z.literal('')),
+	postalCode: z.string().max(20).optional().or(z.literal('')), // Allow longer postal codes for foreign addresses
 	province: z.string().max(2).toUpperCase().optional().or(z.literal('')),
 	phone: z.string().max(20).optional().or(z.literal('')),
 	privacyConsent: z.coerce.boolean().default(false),
@@ -71,7 +76,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 						birthProvince: user.profile.birthProvince,
 						birthCity: user.profile.birthCity,
 						hasForeignTaxCode: user.profile.hasForeignTaxCode,
+						gender: user.profile.gender,
 						taxCode: user.profile.taxCode,
+						residenceCountry: user.profile.residenceCountry,
 						address: user.profile.address,
 						city: user.profile.city,
 						postalCode: user.profile.postalCode,
@@ -84,15 +91,24 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				: null,
 			membership: latestMembership
 				? {
+						id: latestMembership.id,
 						membershipNumber: latestMembership.membershipNumber,
+						previousMembershipNumber: latestMembership.previousMembershipNumber,
+						cardAssignedAt: latestMembership.cardAssignedAt?.toISOString() || null,
 						status: latestMembership.status,
 						paymentStatus: latestMembership.paymentStatus,
+						paymentProviderId: latestMembership.paymentProviderId,
+						paymentAmount: latestMembership.paymentAmount,
 						startDate: latestMembership.startDate?.toISOString() || null,
-						endDate: latestMembership.endDate?.toISOString() || null
+						endDate: latestMembership.endDate?.toISOString() || null,
+						createdAt: latestMembership.createdAt.toISOString(),
+						updatedAt: latestMembership.updatedAt.toISOString(),
+						updatedBy: latestMembership.updatedBy
 					}
 				: null
 		},
-		admin: { email: admin.email }
+		admin: { email: admin.email },
+		googlePlacesApiKey: getGooglePlacesApiKey()
 	};
 };
 
@@ -114,7 +130,9 @@ export const actions = {
 			birthProvince: formData.get('birthProvince') || '',
 			birthCity: formData.get('birthCity') || '',
 			hasForeignTaxCode: formData.get('hasForeignTaxCode') === 'true',
+			gender: formData.get('gender') || '',
 			taxCode: formData.get('taxCode') || '',
+			residenceCountry: formData.get('residenceCountry') || 'IT',
 			address: formData.get('address') || '',
 			city: formData.get('city') || '',
 			postalCode: formData.get('postalCode') || '',
@@ -177,6 +195,10 @@ export const actions = {
 				d.privacyConsent === true &&
 				d.dataConsent === true;
 
+			// Derive gender from tax code if present, otherwise use form value
+			const derivedGender = d.taxCode ? extractGenderFromTaxCode(d.taxCode) : null;
+			const finalGender = derivedGender || d.gender || null;
+
 			const profileData = {
 				firstName: d.firstName,
 				lastName: d.lastName,
@@ -185,7 +207,9 @@ export const actions = {
 				birthProvince: d.birthProvince || null,
 				birthCity: d.birthCity || null,
 				hasForeignTaxCode: d.hasForeignTaxCode,
+				gender: finalGender,
 				taxCode: d.taxCode || null,
+				residenceCountry: d.residenceCountry || 'IT',
 				address: d.address || null,
 				city: d.city || null,
 				postalCode: d.postalCode || null,
@@ -211,6 +235,103 @@ export const actions = {
 				errors: { _form: "Errore durante l'aggiornamento. Riprova più tardi." },
 				values: rawData
 			});
+		}
+	},
+
+	cancel: async ({ request, params, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { cancelError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const membershipId = formData.get('membershipId');
+
+		if (!membershipId || typeof membershipId !== 'string') {
+			return fail(400, { cancelError: 'ID membership mancante' });
+		}
+
+		try {
+			const result = await cancelMembership(membershipId, admin.id);
+
+			logger.info(
+				{ userId: params.id, membershipId, adminEmail: admin.email, previousNumber: result.previousNumber },
+				'Admin canceled membership'
+			);
+
+			return { cancelSuccess: true, previousNumber: result.previousNumber };
+		} catch (err) {
+			logger.error({ err, membershipId }, 'Error canceling membership');
+
+			const message = err instanceof Error ? err.message : 'Errore durante la cancellazione';
+			return fail(500, { cancelError: message });
+		}
+	},
+
+	updateStatus: async ({ request, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { statusError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const membershipId = formData.get('membershipId');
+		const newStatus = formData.get('status');
+		const newPaymentStatus = formData.get('paymentStatus');
+
+		if (!membershipId || typeof membershipId !== 'string') {
+			return fail(400, { statusError: 'ID membership mancante' });
+		}
+
+		// Validate status values
+		const validStatuses = ['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELED'];
+		const validPaymentStatuses = ['PENDING', 'SUCCEEDED', 'FAILED'];
+
+		if (newStatus && !validStatuses.includes(newStatus as string)) {
+			return fail(400, { statusError: 'Stato non valido' });
+		}
+
+		if (newPaymentStatus && !validPaymentStatuses.includes(newPaymentStatus as string)) {
+			return fail(400, { statusError: 'Stato pagamento non valido' });
+		}
+
+		try {
+			const membership = await prisma.membership.findUnique({
+				where: { id: membershipId }
+			});
+
+			if (!membership) {
+				return fail(404, { statusError: 'Membership non trovata' });
+			}
+
+			const updateData: Record<string, unknown> = {
+				updatedBy: admin.id
+			};
+
+			if (newStatus) {
+				updateData.status = newStatus as MembershipStatus;
+			}
+
+			if (newPaymentStatus) {
+				updateData.paymentStatus = newPaymentStatus;
+			}
+
+			await prisma.membership.update({
+				where: { id: membershipId },
+				data: updateData
+			});
+
+			logger.info(
+				{ membershipId, adminEmail: admin.email, newStatus, newPaymentStatus },
+				'Admin updated membership status'
+			);
+
+			return { statusSuccess: true };
+		} catch (err) {
+			logger.error({ err, membershipId }, 'Error updating membership status');
+			return fail(500, { statusError: 'Errore durante l\'aggiornamento dello stato' });
 		}
 	}
 } satisfies Actions;

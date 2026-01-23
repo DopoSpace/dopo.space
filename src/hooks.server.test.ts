@@ -99,13 +99,13 @@ describe('SvelteKit Server Hooks', () => {
 	});
 
 	describe('Route Protection', () => {
-		it('should redirect root path to /login on admin subdomain', async () => {
+		it('should redirect root path to /admin/login on admin subdomain', async () => {
 			const event = createMockEvent('/', { hostname: 'admin.lvh.me' });
 
 			const response = await handle({ event, resolve: mockResolve } as any);
 
 			expect(response.status).toBe(302);
-			expect(response.headers.get('location')).toBe('/login');
+			expect(response.headers.get('location')).toBe('/admin/login');
 		});
 
 		it('should redirect /admin/* to admin subdomain when accessed from main domain', async () => {
@@ -125,13 +125,13 @@ describe('SvelteKit Server Hooks', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should redirect /admin to /login on admin subdomain when not authenticated', async () => {
+		it('should redirect /admin to /admin/login on admin subdomain when not authenticated', async () => {
 			const event = createMockEvent('/admin/users', { hostname: 'admin.lvh.me' });
 
 			const response = await handle({ event, resolve: mockResolve } as any);
 
 			expect(response.status).toBe(302);
-			expect(response.headers.get('location')).toBe('/login');
+			expect(response.headers.get('location')).toBe('/admin/login');
 		});
 	});
 
