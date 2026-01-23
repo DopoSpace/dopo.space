@@ -6,19 +6,7 @@
 
 import { z } from 'zod';
 import { validateTaxCode, validateTaxCodeConsistency } from './tax-code';
-
-/**
- * Age validation refine function
- */
-const validateAge = (date: Date) => {
-	const today = new Date();
-	let age = today.getFullYear() - date.getFullYear();
-	const monthDiff = today.getMonth() - date.getMonth();
-	if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-		age--;
-	}
-	return age >= 16 && age <= 120;
-};
+import { isValidAge } from '$lib/utils/date';
 
 /**
  * Tax code format regex (supports omocodia)
@@ -33,7 +21,7 @@ const TAX_CODE_REGEX = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][
 const userProfileBaseSchema = z.object({
 	firstName: z.string().min(2, 'Il nome deve contenere almeno 2 caratteri').max(50),
 	lastName: z.string().min(2, 'Il cognome deve contenere almeno 2 caratteri').max(50),
-	birthDate: z.coerce.date().refine(validateAge, 'Devi avere almeno 16 anni'),
+	birthDate: z.coerce.date().refine(isValidAge, 'Devi avere almeno 16 anni per iscriverti. Il tesseramento dei minori non è al momento supportato.'),
 
 	// Nationality: IT for Italian, country code for foreigners
 	nationality: z.string().length(2, 'Seleziona la nazionalità').toUpperCase(),
@@ -45,6 +33,9 @@ const userProfileBaseSchema = z.object({
 	// For foreigners with Italian tax code
 	hasForeignTaxCode: z.coerce.boolean().default(false),
 
+	// Gender (required for foreigners without tax code)
+	gender: z.enum(['M', 'F'], { message: 'Seleziona il sesso' }).optional().or(z.literal('')),
+
 	// Tax code (optional, validated based on nationality)
 	taxCode: z
 		.string()
@@ -52,16 +43,19 @@ const userProfileBaseSchema = z.object({
 		.optional()
 		.or(z.literal('')),
 
-	// Residence
+	// Residence country (ISO 2-letter code)
+	residenceCountry: z.string().length(2, 'Seleziona il paese di residenza').toUpperCase().default('IT'),
+
+	// Residence - postalCode validation depends on residence country (handled in superRefine)
 	address: z.string().min(5, "L'indirizzo deve contenere almeno 5 caratteri").max(200),
 	city: z.string().min(2, 'Il comune deve contenere almeno 2 caratteri').max(100),
-	postalCode: z.string().regex(/^\d{5}$/, 'Il CAP deve essere di 5 cifre'),
+	postalCode: z.string().min(1, 'Inserisci il codice postale').max(20),
 	province: z.string().regex(/^[A-Z]{2}$/i, 'La provincia deve essere di 2 lettere'),
 
-	// Contact (phone is optional)
+	// Contact (phone is optional, format: +[prefix][number])
 	phone: z
 		.string()
-		.regex(/^\+?[0-9]{6,15}$/, 'Formato numero di telefono non valido')
+		.regex(/^\+\d{7,19}$/, 'Formato numero di telefono non valido')
 		.optional()
 		.or(z.literal('')),
 
@@ -85,10 +79,33 @@ const userProfileBaseSchema = z.object({
  * - If Italian (nationality = IT): taxCode is required
  * - If foreign without hasForeignTaxCode: taxCode should be empty
  * - If taxCode provided: validate checksum and consistency with birthDate
+ * - If Italian residence (residenceCountry = IT): postalCode must be 5 digits
+ * - If foreign residence (residenceCountry != IT): province must be "EE"
  */
 export const userProfileSchema = userProfileBaseSchema.superRefine((data, ctx) => {
 	const isItalian = data.nationality === 'IT';
+	const isForeigner = data.nationality === 'XX';
 	const hasTaxCode = data.taxCode && data.taxCode.length > 0;
+	const isItalianResidence = data.residenceCountry === 'IT';
+
+	// Foreigners who claim to have an Italian tax code must provide it
+	if (isForeigner && data.hasForeignTaxCode && !hasTaxCode) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Inserisci il Codice Fiscale oppure deseleziona "Ho un Codice Fiscale italiano"',
+			path: ['taxCode']
+		});
+		return;
+	}
+
+	// Foreigners without tax code must provide gender (since it cannot be derived from CF)
+	if (isForeigner && !hasTaxCode && (!data.gender || data.gender.length === 0)) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Il sesso è obbligatorio quando non hai un Codice Fiscale',
+			path: ['gender']
+		});
+	}
 
 	// Italian citizens must have a tax code
 	if (isItalian && !hasTaxCode) {
@@ -122,6 +139,34 @@ export const userProfileSchema = userProfileBaseSchema.superRefine((data, ctx) =
 			});
 		}
 	}
+
+	// Residence country validation
+	if (isItalianResidence) {
+		// Italian residence: postalCode must be exactly 5 digits
+		if (!/^\d{5}$/.test(data.postalCode)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'Il CAP deve essere di 5 cifre',
+				path: ['postalCode']
+			});
+		}
+	} else {
+		// Foreign residence: province must be "EE" and postalCode must be "00000"
+		if (data.province.toUpperCase() !== 'EE') {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'Per residenza estera la provincia deve essere "EE"',
+				path: ['province']
+			});
+		}
+		if (data.postalCode !== '00000') {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'Per residenza estera il CAP deve essere "00000"',
+				path: ['postalCode']
+			});
+		}
+	}
 });
 
 /**
@@ -149,9 +194,9 @@ export const newsletterSchema = z.object({
  * Admin membership number assignment schema (single user)
  */
 export const assignMembershipNumberSchema = z.object({
-	userIds: z.array(z.string().uuid('ID utente non valido')),
+	userIds: z.array(z.string().cuid('ID utente non valido')),
 	startNumber: z.number().int().positive().optional(),
-	specificNumbers: z.record(z.string().uuid(), z.string()).optional() // userId -> membershipNumber
+	specificNumbers: z.record(z.string().cuid(), z.string()).optional() // userId -> membershipNumber
 });
 
 /**
@@ -162,7 +207,7 @@ export const batchAssignCardsSchema = z.object({
 	prefix: z.string().max(20, 'Il prefisso non può superare 20 caratteri').optional().default(''),
 	startNumber: z.string().min(1, 'Inserisci il numero iniziale').max(10, 'Numero troppo lungo'),
 	endNumber: z.string().min(1, 'Inserisci il numero finale').max(10, 'Numero troppo lungo'),
-	userIds: z.array(z.string().uuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
+	userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
 }).refine(
 	(data) => {
 		const start = parseInt(data.startNumber, 10);
@@ -214,9 +259,40 @@ export const addCardRangeSchema = z
  */
 export const autoAssignCardsSchema = z.object({
 	userIds: z
-		.array(z.string().uuid('ID utente non valido'))
+		.array(z.string().cuid('ID utente non valido'))
 		.min(1, 'Seleziona almeno un utente')
 });
+
+/**
+ * Assign cards schema with discriminated union for different modes
+ * - auto: automatic assignment from pool
+ * - range: specific range of numbers
+ * - single: single specific number
+ */
+export const assignCardsSchema = z.discriminatedUnion('mode', [
+	z.object({
+		mode: z.literal('auto'),
+		userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
+	}),
+	z.object({
+		mode: z.literal('range'),
+		userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente'),
+		startNumber: z.string().min(1, 'Inserisci il numero iniziale'),
+		endNumber: z.string().min(1, 'Inserisci il numero finale')
+	}).refine(
+		(data) => {
+			const start = parseInt(data.startNumber, 10);
+			const end = parseInt(data.endNumber, 10);
+			return !isNaN(start) && !isNaN(end) && start <= end;
+		},
+		{ message: 'Il numero iniziale deve essere ≤ al numero finale', path: ['endNumber'] }
+	),
+	z.object({
+		mode: z.literal('single'),
+		userIds: z.array(z.string().cuid('ID utente non valido')).length(1, 'Seleziona esattamente un utente'),
+		membershipNumber: z.string().min(1, 'Inserisci il numero tessera')
+	})
+]);
 
 /**
  * Helper function to format Zod validation errors

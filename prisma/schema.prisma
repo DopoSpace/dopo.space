@@ -14,6 +14,7 @@ enum MembershipStatus {
   PENDING
   ACTIVE
   EXPIRED
+  CANCELED
 }
 
 enum PaymentStatus {
@@ -81,11 +82,15 @@ model UserProfile {
   birthCity         String?  @map("birth_city") // City name or "Paese Origine Estero" for foreign
   hasForeignTaxCode Boolean  @default(false) @map("has_foreign_tax_code") // Foreign national with Italian CF
 
+  // Gender (required for foreigners without tax code, since it cannot be derived from CF)
+  gender String? @map("gender") // "M" for male, "F" for female
+
   // Address (optional until profile completion)
-  address      String? // Made optional to avoid placeholder values
-  city         String? // Made optional to avoid placeholder values
-  postalCode   String? @map("postal_code") // Made optional to avoid placeholder values
-  province     String? // Made optional to avoid placeholder values
+  address          String? // Made optional to avoid placeholder values
+  city             String? // Made optional to avoid placeholder values
+  postalCode       String? @map("postal_code") // Made optional to avoid placeholder values
+  province         String? // Made optional to avoid placeholder values
+  residenceCountry String? @default("IT") @map("residence_country") // "IT" for Italy, ISO code for others
 
   // Contact information
   phone String? // Mobile phone (optional)
@@ -145,8 +150,9 @@ model Membership {
   userId String @map("user_id")
 
   // Membership card number (assigned by admin after payment)
-  membershipNumber String?   @unique @map("membership_number")
-  cardAssignedAt   DateTime? @map("card_assigned_at") // When the card number was assigned
+  membershipNumber         String?   @unique @map("membership_number")
+  previousMembershipNumber String?   @map("previous_membership_number") // Stored when membership expires or is canceled
+  cardAssignedAt           DateTime? @map("card_assigned_at") // When the card number was assigned
 
   // Validity period (365 days from activation)
   startDate DateTime? @map("start_date")
@@ -180,8 +186,9 @@ model PaymentLog {
   membershipId String   @map("membership_id")
 
   // Event information
-  eventType        String @map("event_type")
-  providerResponse Json   @map("provider_response")
+  eventType        String  @map("event_type")
+  providerEventId  String? @unique @map("provider_event_id") // PayPal event ID for idempotency
+  providerResponse Json    @map("provider_response")
 
   // Timestamp
   createdAt DateTime @default(now()) @map("created_at")

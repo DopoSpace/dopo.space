@@ -119,7 +119,10 @@ describe('PayPal Webhook Handler', () => {
 
 			expect(response.status).toBe(400);
 			expect(data).toEqual({ error: 'Unexpected event type' });
-			expect(mockPaymentLogger.warn).toHaveBeenCalledWith('Unexpected webhook event type: UNKNOWN.EVENT.TYPE');
+			expect(mockPaymentLogger.warn).toHaveBeenCalledWith(
+				{ eventType: 'UNKNOWN.EVENT.TYPE' },
+				'Unexpected webhook event type'
+			);
 		});
 
 		it('should accept CHECKOUT.ORDER.APPROVED', async () => {
@@ -219,6 +222,7 @@ describe('PayPal Webhook Handler', () => {
 		it('should skip if event already processed (idempotency)', async () => {
 			mockPrisma.paymentLog.findFirst.mockResolvedValue({ id: 'existing-log' });
 			const event = {
+				id: 'WH-EVENT-123', // PayPal event ID for idempotency
 				event_type: 'CHECKOUT.ORDER.APPROVED',
 				resource: {
 					id: 'ORDER-123',
@@ -228,17 +232,20 @@ describe('PayPal Webhook Handler', () => {
 			const request = createMockRequest(event);
 
 			const response = await POST({ request } as any);
+			const data = await response.json();
 
 			expect(response.status).toBe(200);
+			expect(data).toEqual({ success: true, duplicate: true });
 			expect(mockPrisma.membership.update).not.toHaveBeenCalled();
 			expect(mockPaymentLogger.info).toHaveBeenCalledWith(
-				{ membershipId: 'membership-456' },
-				'CHECKOUT.ORDER.APPROVED already processed, skipping'
+				{ providerEventId: 'WH-EVENT-123', eventType: 'CHECKOUT.ORDER.APPROVED' },
+				'Webhook event already processed, returning success'
 			);
 		});
 
 		it('should create payment log entry', async () => {
 			const event = {
+				id: 'WH-EVENT-456', // PayPal event ID
 				event_type: 'CHECKOUT.ORDER.APPROVED',
 				resource: {
 					id: 'ORDER-123',
@@ -253,6 +260,7 @@ describe('PayPal Webhook Handler', () => {
 				data: {
 					membershipId: 'membership-456',
 					eventType: 'CHECKOUT.ORDER.APPROVED',
+					providerEventId: 'WH-EVENT-456',
 					providerResponse: event
 				}
 			});
@@ -270,7 +278,10 @@ describe('PayPal Webhook Handler', () => {
 
 			await POST({ request } as any);
 
-			expect(mockPaymentLogger.info).toHaveBeenCalledWith('Order approved: ORDER-123 for membership: membership-456');
+			expect(mockPaymentLogger.info).toHaveBeenCalledWith(
+				{ orderId: 'ORDER-123', membershipId: 'membership-456' },
+				'Order approved'
+			);
 		});
 	});
 
@@ -415,6 +426,7 @@ describe('PayPal Webhook Handler', () => {
 
 		it('should create payment log', async () => {
 			const event = {
+				id: 'WH-EVENT-789',
 				event_type: 'PAYMENT.CAPTURE.COMPLETED',
 				resource: {
 					id: 'CAPTURE-123',
@@ -430,6 +442,7 @@ describe('PayPal Webhook Handler', () => {
 				data: {
 					membershipId: 'membership-123',
 					eventType: 'PAYMENT.CAPTURE.COMPLETED',
+					providerEventId: 'WH-EVENT-789',
 					providerResponse: event
 				}
 			});
@@ -448,7 +461,10 @@ describe('PayPal Webhook Handler', () => {
 
 			await POST({ request } as any);
 
-			expect(mockPaymentLogger.info).toHaveBeenCalledWith('Payment completed for membership: membership-123');
+			expect(mockPaymentLogger.info).toHaveBeenCalledWith(
+				{ membershipId: 'membership-123', captureId: 'CAPTURE-123' },
+				'Payment completed'
+			);
 		});
 	});
 
@@ -522,6 +538,7 @@ describe('PayPal Webhook Handler', () => {
 
 		it('should create payment log with event type', async () => {
 			const event = {
+				id: 'WH-EVENT-DENIED',
 				event_type: 'PAYMENT.CAPTURE.DENIED',
 				resource: {
 					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
@@ -535,6 +552,7 @@ describe('PayPal Webhook Handler', () => {
 				data: {
 					membershipId: 'membership-123',
 					eventType: 'PAYMENT.CAPTURE.DENIED',
+					providerEventId: 'WH-EVENT-DENIED',
 					providerResponse: event
 				}
 			});
@@ -551,7 +569,10 @@ describe('PayPal Webhook Handler', () => {
 
 			await POST({ request } as any);
 
-			expect(mockPaymentLogger.warn).toHaveBeenCalledWith('Payment failed for membership: membership-123');
+			expect(mockPaymentLogger.warn).toHaveBeenCalledWith(
+				{ membershipId: 'membership-123', eventType: 'PAYMENT.CAPTURE.DENIED' },
+				'Payment failed'
+			);
 		});
 	});
 
@@ -607,6 +628,7 @@ describe('PayPal Webhook Handler', () => {
 
 		it('should create payment log', async () => {
 			const event = {
+				id: 'WH-EVENT-REFUND',
 				event_type: 'PAYMENT.CAPTURE.REFUNDED',
 				resource: {
 					supplementary_data: { related_ids: { order_id: 'ORDER-123' } }
@@ -620,6 +642,7 @@ describe('PayPal Webhook Handler', () => {
 				data: {
 					membershipId: 'membership-123',
 					eventType: 'PAYMENT.CAPTURE.REFUNDED',
+					providerEventId: 'WH-EVENT-REFUND',
 					providerResponse: event
 				}
 			});
@@ -636,7 +659,10 @@ describe('PayPal Webhook Handler', () => {
 
 			await POST({ request } as any);
 
-			expect(mockPaymentLogger.info).toHaveBeenCalledWith('Payment refunded for membership: membership-123');
+			expect(mockPaymentLogger.info).toHaveBeenCalledWith(
+				{ membershipId: 'membership-123' },
+				'Payment refunded'
+			);
 		});
 	});
 
