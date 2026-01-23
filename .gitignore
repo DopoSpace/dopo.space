@@ -42,3 +42,6 @@ backups/
 
 # Documentation
 docs/
+
+# Test artifacts
+**/__screenshots__/
