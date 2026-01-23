@@ -7,6 +7,7 @@
 		required?: boolean;
 		disabled?: boolean;
 		onchange?: (checked: boolean) => void;
+		onblur?: (checked: boolean) => void;
 	}
 
 	let {
@@ -16,13 +17,21 @@
 		error,
 		required = false,
 		disabled = false,
-		onchange
+		onchange,
+		onblur
 	}: Props = $props();
 
 	function handleChange(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (onchange) {
 			onchange(target.checked);
+		}
+	}
+
+	function handleBlur(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (onblur) {
+			onblur(target.checked);
 		}
 	}
 </script>
@@ -41,6 +50,7 @@
 			aria-invalid={error ? 'true' : 'false'}
 			aria-describedby={error ? `${name}-error` : undefined}
 			onchange={handleChange}
+			onblur={handleBlur}
 		/>
 		<span class="text-gray-700">
 			{label}

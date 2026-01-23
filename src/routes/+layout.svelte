@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Menu from '$lib/components/Menu.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 	import type { LayoutData } from './$types';
 	import '../app.css';
 
@@ -14,5 +15,6 @@
 	<Menu user={data.user} admin={data.admin} />
 	<div class="flex flex-col bg-dopoRed min-h-screen">
 		{@render children()}
+		<Footer />
 	</div>
 {/if}

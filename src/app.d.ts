@@ -4,7 +4,33 @@
 import type { User, UserProfile, Membership, Admin } from '@prisma/client';
 import type { SubdomainContext } from '$lib/server/utils/subdomain';
 
+// PayPal SDK types
+interface PayPalButtonsComponent {
+	render(container: HTMLElement): void;
+}
+
+interface PayPalButtonsOptions {
+	style?: {
+		layout?: 'vertical' | 'horizontal';
+		color?: 'gold' | 'blue' | 'silver' | 'white' | 'black';
+		shape?: 'rect' | 'pill';
+		label?: 'paypal' | 'checkout' | 'buynow' | 'pay';
+	};
+	createOrder: () => Promise<string>;
+	onApprove: (data: { orderID: string }) => Promise<void>;
+	onCancel?: () => void;
+	onError?: (err: Error) => void;
+}
+
+interface PayPalNamespace {
+	Buttons(options: PayPalButtonsOptions): PayPalButtonsComponent;
+}
+
 declare global {
+	interface Window {
+		paypal?: PayPalNamespace;
+	}
+
 	namespace App {
 		// interface Error {}
 		interface Locals {

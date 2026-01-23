@@ -1,8 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { userProfileSchema, formatZodErrors } from '$lib/server/utils/validation';
+import { extractGenderFromTaxCode } from '$lib/server/utils/tax-code';
 import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
+import { getGooglePlacesApiKey } from '$lib/server/config/env';
+import { getMembershipSummary } from '$lib/server/services/membership';
+import { SystemState } from '$lib/types/membership';
 
 const logger = createLogger({ module: 'membership' });
 
@@ -26,15 +30,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 			birthProvince: true,
 			birthCity: true,
 			hasForeignTaxCode: true,
+			gender: true,
 			address: true,
 			city: true,
 			postalCode: true,
 			province: true,
+			residenceCountry: true,
 			phone: true,
 			privacyConsent: true,
 			dataConsent: true
 		}
 	});
+
+	// Get membership summary to determine state
+	const membershipSummary = await getMembershipSummary(user.id);
 
 	return {
 		user: {
@@ -50,15 +59,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 					birthProvince: profile.birthProvince,
 					birthCity: profile.birthCity,
 					hasForeignTaxCode: profile.hasForeignTaxCode,
+					gender: profile.gender,
 					address: profile.address,
 					city: profile.city,
 					postalCode: profile.postalCode,
 					province: profile.province,
+					residenceCountry: profile.residenceCountry,
 					phone: profile.phone,
 					privacyConsent: profile.privacyConsent,
 					dataConsent: profile.dataConsent
 				}
-			: null
+			: null,
+		googlePlacesApiKey: getGooglePlacesApiKey(),
+		membershipState: membershipSummary.systemState,
+		membershipNumber: membershipSummary.membershipNumber,
+		profileComplete: membershipSummary.profileComplete,
+		canProceedToPayment:
+			membershipSummary.profileComplete &&
+			(membershipSummary.systemState === SystemState.S0_NO_MEMBERSHIP ||
+				membershipSummary.systemState === SystemState.S1_PROFILE_COMPLETE ||
+				membershipSummary.systemState === SystemState.S3_PAYMENT_FAILED ||
+				membershipSummary.systemState === SystemState.S6_EXPIRED ||
+				membershipSummary.systemState === SystemState.S7_CANCELED)
 	};
 };
 
@@ -81,7 +103,9 @@ export const actions = {
 			birthProvince: formData.get('birthProvince'),
 			birthCity: formData.get('birthCity'),
 			hasForeignTaxCode: formData.get('hasForeignTaxCode') === 'true',
+			gender: formData.get('gender') || '',
 			taxCode: formData.get('taxCode') || '',
+			residenceCountry: formData.get('residenceCountry') || 'IT',
 			address: formData.get('address'),
 			city: formData.get('city'),
 			postalCode: formData.get('postalCode'),
@@ -108,6 +132,7 @@ export const actions = {
 					birthProvince: rawData.birthProvince as string,
 					birthCity: rawData.birthCity as string,
 					hasForeignTaxCode: rawData.hasForeignTaxCode,
+					gender: rawData.gender as string,
 					taxCode: rawData.taxCode as string,
 					address: rawData.address as string,
 					city: rawData.city as string,
@@ -138,6 +163,10 @@ export const actions = {
 				d.privacyConsent === true &&
 				d.dataConsent === true;
 
+			// Derive gender from tax code if present, otherwise use form value
+			const derivedGender = d.taxCode ? extractGenderFromTaxCode(d.taxCode) : null;
+			const finalGender = derivedGender || d.gender || null;
+
 			// Profile data shared between create and update
 			const profileData = {
 				firstName: d.firstName,
@@ -148,6 +177,8 @@ export const actions = {
 				birthProvince: d.birthProvince,
 				birthCity: d.birthCity,
 				hasForeignTaxCode: d.hasForeignTaxCode,
+				gender: finalGender,
+				residenceCountry: d.residenceCountry,
 				address: d.address,
 				city: d.city,
 				postalCode: d.postalCode,
@@ -167,7 +198,8 @@ export const actions = {
 				create: { userId: user.id, ...profileData }
 			});
 
-			// Return the updated values to prevent form field clearing during invalidateAll
+			// Always return success - no auto-redirect
+			// User can click "Procedi al pagamento" separately if they want to pay
 			return {
 				success: true,
 				values: {

@@ -23,6 +23,7 @@ import {
 	PAYPAL_MODE,
 	PAYPAL_WEBHOOK_ID
 } from '$env/static/private';
+import { env as dynamicEnv } from '$env/dynamic/private';
 
 /**
  * Environment variables schema
@@ -150,4 +151,12 @@ export function getEmailFrom(): string {
  */
 export function isSmtpConfigured(): boolean {
 	return !!(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASSWORD && env.EMAIL_FROM);
+}
+
+/**
+ * Google Places API key (optional, loaded from dynamic env)
+ */
+export function getGooglePlacesApiKey(): string | undefined {
+	const key = dynamicEnv.GOOGLE_PLACES_API_KEY;
+	return key && key.length > 0 ? key : undefined;
 }

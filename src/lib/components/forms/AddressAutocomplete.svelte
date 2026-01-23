@@ -1,5 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import {
+		loadGoogleMapsApi,
+		extractAddressComponents,
+		isGooglePlacesAvailable,
+		italianProvinces
+	} from '$lib/utils/google-places';
 
 	export interface AddressResult {
 		address: string;
@@ -30,17 +36,33 @@
 	}
 
 	interface Props {
-		label?: string;
+		name: string;
+		label: string;
+		value?: string;
 		placeholder?: string;
 		error?: string;
+		required?: boolean;
+		disabled?: boolean;
+		apiKey?: string;
+		mode?: 'address' | 'city' | 'country';
+		excludeCountries?: string[];
 		onselect?: (result: AddressResult) => void;
+		onblur?: (value: string) => void;
 	}
 
 	let {
-		label = 'Cerca indirizzo',
-		placeholder = 'Inizia a digitare un indirizzo...',
+		name,
+		label,
+		value = '',
+		placeholder = '',
 		error,
-		onselect
+		required = false,
+		disabled = false,
+		apiKey,
+		mode = 'address',
+		excludeCountries = [],
+		onselect,
+		onblur
 	}: Props = $props();
 
 	let query = $state('');
@@ -49,34 +71,89 @@
 	let showDropdown = $state(false);
 	let selectedIndex = $state(-1);
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let lastExternalValue = $state('');
 
-	// Map of Italian province names to codes
-	const italianProvinces: Record<string, string> = {
-		'agrigento': 'AG', 'alessandria': 'AL', 'ancona': 'AN', 'aosta': 'AO', 'arezzo': 'AR',
-		'ascoli piceno': 'AP', 'asti': 'AT', 'avellino': 'AV', 'bari': 'BA', 'barletta-andria-trani': 'BT',
-		'belluno': 'BL', 'benevento': 'BN', 'bergamo': 'BG', 'biella': 'BI', 'bologna': 'BO',
-		'bolzano': 'BZ', 'brescia': 'BS', 'brindisi': 'BR', 'cagliari': 'CA', 'caltanissetta': 'CL',
-		'campobasso': 'CB', 'caserta': 'CE', 'catania': 'CT', 'catanzaro': 'CZ', 'chieti': 'CH',
-		'como': 'CO', 'cosenza': 'CS', 'cremona': 'CR', 'crotone': 'KR', 'cuneo': 'CN',
-		'enna': 'EN', 'fermo': 'FM', 'ferrara': 'FE', 'firenze': 'FI', 'foggia': 'FG',
-		'forlì-cesena': 'FC', 'frosinone': 'FR', 'genova': 'GE', 'gorizia': 'GO', 'grosseto': 'GR',
-		'imperia': 'IM', 'isernia': 'IS', "l'aquila": 'AQ', 'la spezia': 'SP', 'latina': 'LT',
-		'lecce': 'LE', 'lecco': 'LC', 'livorno': 'LI', 'lodi': 'LO', 'lucca': 'LU',
-		'macerata': 'MC', 'mantova': 'MN', 'massa-carrara': 'MS', 'matera': 'MT', 'messina': 'ME',
-		'milano': 'MI', 'modena': 'MO', 'monza e brianza': 'MB', 'napoli': 'NA', 'novara': 'NO',
-		'nuoro': 'NU', 'oristano': 'OR', 'padova': 'PD', 'palermo': 'PA', 'parma': 'PR',
-		'pavia': 'PV', 'perugia': 'PG', 'pesaro e urbino': 'PU', 'pescara': 'PE', 'piacenza': 'PC',
-		'pisa': 'PI', 'pistoia': 'PT', 'pordenone': 'PN', 'potenza': 'PZ', 'prato': 'PO',
-		'ragusa': 'RG', 'ravenna': 'RA', 'reggio calabria': 'RC', 'reggio emilia': 'RE', 'rieti': 'RI',
-		'rimini': 'RN', 'roma': 'RM', 'rovigo': 'RO', 'salerno': 'SA', 'sassari': 'SS',
-		'savona': 'SV', 'siena': 'SI', 'siracusa': 'SR', 'sondrio': 'SO', 'sud sardegna': 'SU',
-		'taranto': 'TA', 'teramo': 'TE', 'terni': 'TR', 'torino': 'TO', 'trapani': 'TP',
-		'trento': 'TN', 'treviso': 'TV', 'trieste': 'TS', 'udine': 'UD', 'varese': 'VA',
-		'venezia': 'VE', 'verbano-cusio-ossola': 'VB', 'vercelli': 'VC', 'verona': 'VR',
-		'vibo valentia': 'VV', 'vicenza': 'VI', 'viterbo': 'VT'
-	};
+	// Provider state
+	let provider = $state<'google' | 'nominatim'>('nominatim');
+	let googleAutocomplete: google.maps.places.Autocomplete | null = null;
+	let inputElement: HTMLInputElement | null = null;
 
-	async function searchAddress(searchQuery: string) {
+	// Sync query with value prop only when value changes externally
+	$effect(() => {
+		if (value !== lastExternalValue) {
+			lastExternalValue = value;
+			query = value;
+		}
+	});
+
+	// Initialize Google Places if API key is provided
+	async function initGooglePlaces() {
+		if (!apiKey || !inputElement) return;
+
+		try {
+			await loadGoogleMapsApi(apiKey);
+
+			if (!isGooglePlacesAvailable()) {
+				console.warn('Google Places API not available, falling back to Nominatim');
+				return;
+			}
+
+			provider = 'google';
+
+			// Configure autocomplete options based on mode
+			const options: google.maps.places.AutocompleteOptions = {
+				fields: ['address_components', 'formatted_address', 'name'],
+				types: mode === 'address' ? ['address'] : mode === 'city' ? ['(cities)'] : ['country']
+			};
+
+			// Restrict to Italy only for city mode (birth city search)
+			// Address mode allows worldwide search for foreign residence
+			if (mode === 'city') {
+				options.componentRestrictions = { country: 'it' };
+			}
+
+			googleAutocomplete = new google.maps.places.Autocomplete(inputElement, options);
+
+			// Listen for place selection
+			googleAutocomplete.addListener('place_changed', () => {
+				const place = googleAutocomplete?.getPlace();
+				if (place && place.address_components) {
+					const addressData = extractAddressComponents(place, mode);
+
+					// Check if country is excluded
+					if (excludeCountries.length > 0 && addressData.countryCode) {
+						const excludedUpper = excludeCountries.map((c) => c.toUpperCase());
+						if (excludedUpper.includes(addressData.countryCode)) {
+							// Clear selection - this country is not allowed
+							query = '';
+							return;
+						}
+					}
+
+					// Update query with selected value
+					if (mode === 'address') {
+						query = addressData.address || place.formatted_address?.split(',')[0] || '';
+					} else if (mode === 'city') {
+						query = addressData.city || place.name || '';
+					} else {
+						// Country mode
+						query = addressData.country || place.name || '';
+					}
+
+					// Notify parent
+					if (onselect) {
+						onselect(addressData);
+					}
+				}
+			});
+		} catch (err) {
+			console.error('Failed to initialize Google Places:', err);
+			provider = 'nominatim';
+		}
+	}
+
+	// Nominatim fallback search
+	async function searchNominatim(searchQuery: string) {
 		if (searchQuery.length < 3) {
 			results = [];
 			showDropdown = false;
@@ -93,18 +170,36 @@
 				limit: '6'
 			});
 
-			const response = await fetch(
-				`https://nominatim.openstreetmap.org/search?${params}`,
-				{
-					headers: {
-						'Accept-Language': 'it',
-						'User-Agent': 'DopoSpace/1.0'
-					}
+			// Restrict to Italy only for city mode (birth city search)
+			// Address mode allows worldwide search for foreign residence
+			if (mode === 'city') {
+				params.set('countrycodes', 'it');
+			}
+
+			// Set featuretype based on mode
+			if (mode === 'city') {
+				params.set('featuretype', 'city');
+			} else if (mode === 'country') {
+				params.set('featuretype', 'country');
+			}
+
+			const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+				headers: {
+					'Accept-Language': 'it',
+					'User-Agent': 'DopoSpace/1.0'
 				}
-			);
+			});
 
 			if (response.ok) {
-				results = await response.json();
+				let allResults: NominatimResult[] = await response.json();
+				// Filter out excluded countries
+				if (excludeCountries.length > 0) {
+					const excludedLower = excludeCountries.map((c) => c.toLowerCase());
+					allResults = allResults.filter(
+						(r) => !r.address.country_code || !excludedLower.includes(r.address.country_code)
+					);
+				}
+				results = allResults;
 				showDropdown = results.length > 0;
 				selectedIndex = -1;
 			}
@@ -117,12 +212,21 @@
 	}
 
 	function handleInput(event: Event) {
+		// Don't process input when disabled
+		if (disabled) return;
+
 		const target = event.target as HTMLInputElement;
 		query = target.value;
 
+		// For Google provider, the autocomplete handles search automatically
+		if (provider === 'google') {
+			return;
+		}
+
+		// For Nominatim, debounce the search
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
-			searchAddress(query);
+			searchNominatim(query);
 		}, 350);
 	}
 
@@ -132,15 +236,17 @@
 		return italianProvinces[normalized] || countyOrState.slice(0, 2).toUpperCase();
 	}
 
-	function extractAddressData(result: NominatimResult): AddressResult {
+	function extractNominatimData(result: NominatimResult): AddressResult {
 		const addr = result.address;
 
 		// Build street address
 		let street = '';
-		if (addr.road) {
-			street = addr.road;
-			if (addr.house_number) {
-				street += `, ${addr.house_number}`;
+		if (mode === 'address') {
+			if (addr.road) {
+				street = addr.road;
+				if (addr.house_number) {
+					street += `, ${addr.house_number}`;
+				}
 			}
 		}
 
@@ -168,10 +274,17 @@
 	}
 
 	function selectResult(result: NominatimResult) {
-		const addressData = extractAddressData(result);
+		const addressData = extractNominatimData(result);
 
-		// Update query with the selected address
-		query = addressData.address || result.display_name.split(',')[0];
+		// Update query with the selected value
+		if (mode === 'address') {
+			query = addressData.address || result.display_name.split(',')[0];
+		} else if (mode === 'city') {
+			query = addressData.city || result.display_name.split(',')[0];
+		} else {
+			// Country mode
+			query = addressData.country || result.display_name.split(',')[0];
+		}
 
 		// Close dropdown
 		showDropdown = false;
@@ -184,6 +297,12 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
+		// Don't process keyboard events when disabled
+		if (disabled) return;
+
+		// For Google provider, let the autocomplete handle keyboard navigation
+		if (provider === 'google') return;
+
 		if (!showDropdown || results.length === 0) return;
 
 		switch (event.key) {
@@ -208,33 +327,54 @@
 	}
 
 	function handleBlur() {
-		// Delay to allow click on result
+		// For Nominatim, delay to allow click on result
+		if (provider === 'nominatim') {
+			setTimeout(() => {
+				showDropdown = false;
+			}, 200);
+		}
+		// Call onblur callback for validation after a short delay
+		// to allow selection to complete first
 		setTimeout(() => {
-			showDropdown = false;
-		}, 200);
+			if (onblur) {
+				onblur(query);
+			}
+		}, 250);
 	}
 
 	function handleFocus() {
-		if (results.length > 0) {
+		if (provider === 'nominatim' && results.length > 0) {
 			showDropdown = true;
 		}
 	}
 
 	onMount(() => {
+		// Try to initialize Google Places
+		initGooglePlaces();
+
 		return () => {
 			clearTimeout(debounceTimer);
+			// Clean up Google autocomplete
+			if (googleAutocomplete) {
+				google.maps.event.clearInstanceListeners(googleAutocomplete);
+			}
 		};
 	});
 </script>
 
-<div class="relative mb-4">
-	<label for="address-autocomplete" class="label text-gray-700">
+<div class="relative mb-6">
+	<label for={name} class="label text-gray-700">
 		{label}
+		{#if required}
+			<span class="text-red-500">*</span>
+		{/if}
 	</label>
 
 	<div class="relative">
 		<input
-			id="address-autocomplete"
+			bind:this={inputElement}
+			id={name}
+			{name}
 			type="text"
 			value={query}
 			oninput={handleInput}
@@ -242,33 +382,41 @@
 			onblur={handleBlur}
 			onfocus={handleFocus}
 			{placeholder}
+			{required}
+			{disabled}
 			autocomplete="off"
-			class="input text-gray-900 pr-10 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+			class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}"
 			role="combobox"
-			aria-expanded={showDropdown}
+			aria-expanded={provider === 'nominatim' ? showDropdown : false}
 			aria-haspopup="listbox"
-			aria-controls="address-results"
+			aria-controls="results-{name}"
 		/>
 
 		{#if isLoading}
 			<div class="absolute right-3 top-1/2 -translate-y-1/2">
 				<svg class="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
-					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-				</svg>
-			</div>
-		{:else}
-			<div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-				<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+					<circle
+						class="opacity-25"
+						cx="12"
+						cy="12"
+						r="10"
+						stroke="currentColor"
+						stroke-width="4"
+					></circle>
+					<path
+						class="opacity-75"
+						fill="currentColor"
+						d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+					></path>
 				</svg>
 			</div>
 		{/if}
 	</div>
 
-	{#if showDropdown && results.length > 0}
+	<!-- Nominatim dropdown (Google shows its own) -->
+	{#if provider === 'nominatim' && showDropdown && results.length > 0}
 		<ul
-			id="address-results"
+			id="results-{name}"
 			role="listbox"
 			class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
 		>
@@ -276,7 +424,10 @@
 				<li
 					role="option"
 					aria-selected={index === selectedIndex}
-					class="px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 {index === selectedIndex ? 'bg-orange-50' : 'hover:bg-gray-50'}"
+					class="px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 {index ===
+					selectedIndex
+						? 'bg-orange-50'
+						: 'hover:bg-gray-50'}"
 					onmousedown={() => selectResult(result)}
 				>
 					<div class="text-sm text-gray-900 font-medium">
@@ -293,8 +444,4 @@
 	{#if error}
 		<p class="text-red-600 text-sm mt-1">{error}</p>
 	{/if}
-
-	<p class="text-xs text-gray-500 mt-1">
-		Cerca un indirizzo e i campi verranno compilati automaticamente
-	</p>
 </div>

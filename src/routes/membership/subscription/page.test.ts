@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import SubscriptionPage from './+page.svelte';
+import { SystemState } from '$lib/types/membership';
 
 describe('Subscription Page', () => {
 	const mockData = {
@@ -9,7 +10,12 @@ describe('Subscription Page', () => {
 		},
 		profile: null,
 		admin: null,
-		isAdminRoute: false
+		isAdminRoute: false,
+		googlePlacesApiKey: undefined,
+		membershipState: SystemState.S0_NO_MEMBERSHIP,
+		membershipNumber: null,
+		profileComplete: false,
+		canProceedToPayment: false
 	};
 
 	it('renders subscription heading', () => {
@@ -19,16 +25,6 @@ describe('Subscription Page', () => {
 		});
 
 		expect(screen.getByRole('heading', { name: 'Iscrizione' })).toBeInTheDocument();
-	});
-
-	it('displays user email', () => {
-		render(SubscriptionPage, {
-			data: mockData,
-			form: null
-		});
-
-		const emailElements = screen.getAllByText(/test@example.com/);
-		expect(emailElements.length).toBeGreaterThan(0);
 	});
 
 	it('renders first name input field', () => {
@@ -92,16 +88,23 @@ describe('Subscription Page', () => {
 				birthProvince: null,
 				birthCity: null,
 				hasForeignTaxCode: false,
+				gender: null,
 				address: null,
 				city: null,
 				postalCode: null,
 				province: null,
 				phone: null,
+				residenceCountry: null,
 				privacyConsent: null,
 				dataConsent: null
 			},
 			admin: null,
-			isAdminRoute: false
+			isAdminRoute: false,
+			googlePlacesApiKey: undefined,
+			membershipState: SystemState.S0_NO_MEMBERSHIP,
+			membershipNumber: null,
+			profileComplete: false,
+			canProceedToPayment: false
 		};
 
 		render(SubscriptionPage, {

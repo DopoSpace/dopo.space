@@ -57,7 +57,19 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 
 	// Authenticate as user (auto-creates if doesn't exist)
 	// Note: Admin login uses password-based auth on admin subdomain
-	const user = await authenticateUser(normalizedEmail);
+	let user;
+	try {
+		user = await authenticateUser(normalizedEmail);
+	} catch (error) {
+		authLogger.error({
+			event: 'magic_link_authentication_failed',
+			email: normalizedEmail,
+			err: error
+		}, 'Failed to authenticate user after magic link verification');
+		return {
+			error: 'Si è verificato un errore durante l\'accesso. Riprova più tardi.'
+		};
+	}
 
 	// Generate session token with user role
 	const sessionToken = generateSessionToken(user.id, user.email, 'user');

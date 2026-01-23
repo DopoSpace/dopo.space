@@ -9,6 +9,7 @@
 		placeholder?: string;
 		maxlength?: number;
 		disabled?: boolean;
+		onblur?: (value: string) => void;
 	}
 
 	let {
@@ -20,8 +21,32 @@
 		required = false,
 		placeholder,
 		maxlength,
-		disabled = false
+		disabled = false,
+		onblur
 	}: Props = $props();
+
+	// Internal state that syncs with the value prop
+	let internalValue = $state('');
+	let lastExternalValue = $state('');
+
+	// Sync internal value with external value prop when it changes
+	$effect(() => {
+		if (value !== lastExternalValue) {
+			lastExternalValue = value;
+			internalValue = value;
+		}
+	});
+
+	function handleInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		internalValue = target.value;
+	}
+
+	function handleBlur() {
+		if (onblur) {
+			onblur(internalValue);
+		}
+	}
 </script>
 
 <div class="mb-6">
@@ -35,7 +60,9 @@
 		{type}
 		id={name}
 		{name}
-		{value}
+		value={internalValue}
+		oninput={handleInput}
+		onblur={handleBlur}
 		{required}
 		{placeholder}
 		{maxlength}

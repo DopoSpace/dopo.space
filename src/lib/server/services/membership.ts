@@ -6,9 +6,13 @@
 
 import { prisma } from '../db/prisma';
 import type { Prisma } from '@prisma/client';
-import { SystemState, type MembershipSummary } from '$lib/types/membership';
+import { SystemState, SystemStateLabels, type MembershipSummary } from '$lib/types/membership';
 import { MembershipStatus, PaymentStatus } from '@prisma/client';
-import { getAvailableNumbers, getAvailableNumbersWithTx } from './card-ranges';
+import {
+	getAvailableNumbersWithTx,
+	isNumberInConfiguredRangesWithTx,
+	validateRangeAgainstConfigured
+} from './card-ranges';
 import { getMembershipFee } from './settings';
 import pino from 'pino';
 
@@ -31,7 +35,7 @@ export interface BatchAssignResult {
 
 /**
  * Get membership summary for a user
- * Determines the current system state (S0-S6) and provides relevant information
+ * Determines the current system state (S0-S7) and provides relevant information
  */
 export async function getMembershipSummary(userId: string): Promise<MembershipSummary> {
 	const user = await prisma.user.findUnique({
@@ -68,10 +72,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 
 	// S0: No membership
 	if (!membership) {
+		const state = SystemState.S0_NO_MEMBERSHIP;
 		return {
-			systemState: SystemState.S0_NO_MEMBERSHIP,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: null,
+			previousMembershipNumber: null,
 			startDate: null,
 			endDate: null,
 			profileComplete,
@@ -80,12 +87,49 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		};
 	}
 
-	// S3: Payment failed
-	if (membership.paymentStatus === PaymentStatus.FAILED || membership.paymentStatus === PaymentStatus.CANCELED) {
+	// S7: Canceled by admin
+	if (membership.status === MembershipStatus.CANCELED) {
+		const state = SystemState.S7_CANCELED;
 		return {
-			systemState: SystemState.S3_PAYMENT_FAILED,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
+			startDate: null,
+			endDate: null,
+			profileComplete,
+			canPurchase: true,
+			message: 'Your membership has been canceled. Contact support for more information.'
+		};
+	}
+
+	// S6: Expired membership (status = EXPIRED)
+	if (membership.status === MembershipStatus.EXPIRED) {
+		const state = SystemState.S6_EXPIRED;
+		return {
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
+			hasActiveMembership: false,
+			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
+			startDate: null,
+			endDate: null,
+			profileComplete,
+			canPurchase: true,
+			message: 'Your membership has expired. Purchase a new membership to continue.'
+		};
+	}
+
+	// S3: Payment failed
+	if (membership.paymentStatus === PaymentStatus.FAILED || membership.paymentStatus === PaymentStatus.CANCELED) {
+		const state = SystemState.S3_PAYMENT_FAILED;
+		return {
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
+			hasActiveMembership: false,
+			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: membership.startDate,
 			endDate: membership.endDate,
 			profileComplete,
@@ -101,10 +145,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		membership.paymentProviderId &&
 		!membership.membershipNumber
 	) {
+		const state = SystemState.S2_PROCESSING_PAYMENT;
 		return {
-			systemState: SystemState.S2_PROCESSING_PAYMENT,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: null,
 			endDate: null,
 			profileComplete,
@@ -115,10 +162,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 
 	// S1: Profile complete, payment pending (not yet started)
 	if (membership.paymentStatus === PaymentStatus.PENDING && profileComplete) {
+		const state = SystemState.S1_PROFILE_COMPLETE;
 		return {
-			systemState: SystemState.S1_PROFILE_COMPLETE,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: null,
 			endDate: null,
 			profileComplete,
@@ -129,10 +179,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 
 	// Profile incomplete with pending membership - user needs to complete profile first
 	if (membership.paymentStatus === PaymentStatus.PENDING && !profileComplete) {
+		const state = SystemState.S0_NO_MEMBERSHIP;
 		return {
-			systemState: SystemState.S0_NO_MEMBERSHIP,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: null,
 			endDate: null,
 			profileComplete: false,
@@ -143,10 +196,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 
 	// S4: Payment succeeded, awaiting number assignment
 	if (membership.paymentStatus === PaymentStatus.SUCCEEDED && !membership.membershipNumber) {
+		const state = SystemState.S4_AWAITING_NUMBER;
 		return {
-			systemState: SystemState.S4_AWAITING_NUMBER,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: null,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: membership.startDate,
 			endDate: membership.endDate,
 			profileComplete,
@@ -163,10 +219,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		membership.status === MembershipStatus.ACTIVE &&
 		!isExpired
 	) {
+		const state = SystemState.S5_ACTIVE;
 		return {
-			systemState: SystemState.S5_ACTIVE,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: true,
 			membershipNumber: membership.membershipNumber,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: membership.startDate,
 			endDate: membership.endDate,
 			profileComplete,
@@ -175,12 +234,16 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		};
 	}
 
-	// S6: Expired membership (must have had membershipNumber assigned - was previously active)
+	// S6: Expired membership by date (endDate < now but status not yet updated)
+	// This is a transitional state before the scheduled job runs
 	if (membership.membershipNumber && membership.endDate && membership.endDate < new Date()) {
+		const state = SystemState.S6_EXPIRED;
 		return {
-			systemState: SystemState.S6_EXPIRED,
+			systemState: state,
+			italianLabel: SystemStateLabels[state],
 			hasActiveMembership: false,
 			membershipNumber: membership.membershipNumber,
+			previousMembershipNumber: membership.previousMembershipNumber,
 			startDate: membership.startDate,
 			endDate: membership.endDate,
 			profileComplete,
@@ -201,10 +264,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		endDate: membership.endDate
 	}, 'CRITICAL: Membership reached unknown state - state machine logic error');
 
+	const state = SystemState.S0_NO_MEMBERSHIP;
 	return {
-		systemState: SystemState.S0_NO_MEMBERSHIP,
+		systemState: state,
+		italianLabel: SystemStateLabels[state],
 		hasActiveMembership: false,
 		membershipNumber: membership.membershipNumber || null,
+		previousMembershipNumber: membership.previousMembershipNumber,
 		startDate: membership.startDate,
 		endDate: membership.endDate,
 		profileComplete,
@@ -214,25 +280,145 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 }
 
 /**
+ * Result of the expired memberships update job
+ */
+export interface ExpiredMembershipsResult {
+	processed: number;
+	memberships: { id: string; userId: string; previousNumber: string }[];
+}
+
+/**
  * Update expired memberships
  * Should be run daily via cron job
+ *
+ * For each expired membership:
+ * 1. Move membershipNumber → previousMembershipNumber
+ * 2. Clear membershipNumber
+ * 3. Clear startDate/endDate
+ * 4. Set status = EXPIRED
  */
-export async function updateExpiredMemberships() {
+export async function updateExpiredMemberships(): Promise<ExpiredMembershipsResult> {
 	const now = new Date();
 
-	const result = await prisma.membership.updateMany({
+	// Find all active memberships that have expired
+	const expiredMemberships = await prisma.membership.findMany({
 		where: {
 			status: MembershipStatus.ACTIVE,
 			endDate: {
 				lt: now
 			}
 		},
-		data: {
-			status: MembershipStatus.EXPIRED
+		select: {
+			id: true,
+			userId: true,
+			membershipNumber: true
 		}
 	});
 
-	return result.count;
+	if (expiredMemberships.length === 0) {
+		return { processed: 0, memberships: [] };
+	}
+
+	const processedMemberships: { id: string; userId: string; previousNumber: string }[] = [];
+
+	// Process each membership in a transaction
+	await prisma.$transaction(async (tx) => {
+		for (const membership of expiredMemberships) {
+			await tx.membership.update({
+				where: { id: membership.id },
+				data: {
+					previousMembershipNumber: membership.membershipNumber,
+					membershipNumber: null,
+					startDate: null,
+					endDate: null,
+					status: MembershipStatus.EXPIRED
+				}
+			});
+
+			if (membership.membershipNumber) {
+				processedMemberships.push({
+					id: membership.id,
+					userId: membership.userId,
+					previousNumber: membership.membershipNumber
+				});
+			}
+		}
+	});
+
+	logger.info(
+		{ count: processedMemberships.length },
+		'Processed expired memberships'
+	);
+
+	return {
+		processed: processedMemberships.length,
+		memberships: processedMemberships
+	};
+}
+
+/**
+ * Result of canceling a membership
+ */
+export interface CancelMembershipResult {
+	success: boolean;
+	previousNumber: string | null;
+}
+
+/**
+ * Cancel a membership (admin action)
+ *
+ * This function:
+ * 1. Moves membershipNumber → previousMembershipNumber
+ * 2. Clears membershipNumber
+ * 3. Clears startDate/endDate
+ * 4. Sets status = CANCELED
+ * 5. Records the admin who performed the action
+ */
+export async function cancelMembership(
+	membershipId: string,
+	adminId: string
+): Promise<CancelMembershipResult> {
+	const membership = await prisma.membership.findUnique({
+		where: { id: membershipId },
+		select: {
+			id: true,
+			membershipNumber: true,
+			status: true
+		}
+	});
+
+	if (!membership) {
+		throw new Error('Membership not found');
+	}
+
+	// Don't allow canceling already canceled memberships
+	if (membership.status === MembershipStatus.CANCELED) {
+		throw new Error('Membership is already canceled');
+	}
+
+	const previousNumber = membership.membershipNumber;
+
+	await prisma.membership.update({
+		where: { id: membershipId },
+		data: {
+			previousMembershipNumber: previousNumber,
+			membershipNumber: null,
+			startDate: null,
+			endDate: null,
+			status: MembershipStatus.CANCELED,
+			updatedBy: adminId
+		}
+	});
+
+	logger.info(
+		{ membershipId, adminId, previousNumber },
+		'Membership canceled by admin'
+	);
+
+	return {
+		success: true,
+		previousNumber
+	};
 }
 
 /**
@@ -412,8 +598,24 @@ export async function batchAssignMembershipNumbers(
 	userIds: string[]
 ): Promise<BatchAssignResult> {
 	const allNumbers = generateSequentialNumbers(prefix, startNumber, endNumber);
+	const start = parseInt(startNumber, 10);
+	const end = parseInt(endNumber, 10);
 
 	return await prisma.$transaction(async (tx) => {
+		// Verify ALL numbers in the range are within configured card ranges
+		const validation = await validateRangeAgainstConfigured(tx, start, end);
+		if (!validation.valid) {
+			const sample = validation.invalidNumbers.slice(0, 5);
+			const more =
+				validation.invalidNumbers.length > 5
+					? ` e altri ${validation.invalidNumbers.length - 5}`
+					: '';
+			throw new Error(
+				`I seguenti numeri non sono in nessun range configurato: ${sample.join(', ')}${more}. ` +
+					`Configura prima i range appropriati.`
+			);
+		}
+
 		// Find which numbers already exist in the database
 		const existingMemberships = await tx.membership.findMany({
 			where: { membershipNumber: { in: allNumbers } },
@@ -442,8 +644,103 @@ export async function batchAssignMembershipNumbers(
 }
 
 /**
+ * Result of single membership number assignment
+ */
+export interface SingleAssignResult {
+	success: boolean;
+	email: string;
+	membershipNumber: string;
+}
+
+/**
+ * Assign a single specific membership number to a user
+ * Uses transaction to ensure atomicity and prevent duplicate assignments
+ * @param userId - User ID to assign the number to
+ * @param membershipNumber - Specific membership number to assign
+ * @returns SingleAssignResult with success status and assigned details
+ */
+export async function assignSingleMembershipNumber(
+	userId: string,
+	membershipNumber: string
+): Promise<SingleAssignResult> {
+	return await prisma.$transaction(async (tx) => {
+		// 1. Check if number is already assigned
+		const existing = await tx.membership.findFirst({
+			where: { membershipNumber }
+		});
+
+		if (existing) {
+			throw new Error(`Il numero ${membershipNumber} è già assegnato`);
+		}
+
+		// 2. Verify the number is within a configured range
+		const isInRange = await isNumberInConfiguredRangesWithTx(tx, membershipNumber);
+		if (!isInRange) {
+			throw new Error(
+				`Il numero ${membershipNumber} non è presente in nessun range configurato. ` +
+					`Configura prima un range che includa questo numero.`
+			);
+		}
+
+		// 3. Find user with S4 membership (payment succeeded, no number)
+		const user = await tx.user.findUnique({
+			where: { id: userId },
+			include: {
+				memberships: {
+					where: {
+						paymentStatus: PaymentStatus.SUCCEEDED,
+						membershipNumber: null,
+						status: {
+							notIn: [MembershipStatus.EXPIRED, MembershipStatus.CANCELED]
+						}
+					},
+					orderBy: { createdAt: 'desc' },
+					take: 1
+				}
+			}
+		});
+
+		if (!user) {
+			throw new Error('Utente non trovato');
+		}
+
+		const membership = user.memberships[0];
+		if (!membership) {
+			throw new Error('Utente non in stato S4 (pagamento completato, in attesa di tessera)');
+		}
+
+		// 4. Assign the number
+		const startDate = new Date();
+		const endDate = calculateEndDate(startDate);
+
+		await tx.membership.update({
+			where: { id: membership.id },
+			data: {
+				membershipNumber,
+				status: MembershipStatus.ACTIVE,
+				startDate,
+				endDate,
+				cardAssignedAt: new Date()
+			}
+		});
+
+		logger.info(
+			{ userId, email: user.email, membershipNumber },
+			'Single membership number assigned'
+		);
+
+		return {
+			success: true,
+			email: user.email,
+			membershipNumber
+		};
+	});
+}
+
+/**
  * Get users awaiting card assignment (S4 state)
  * These are users with payment succeeded but no membership number assigned
+ * Excludes expired and canceled memberships
  */
 export async function getUsersAwaitingCard() {
 	try {
@@ -452,7 +749,10 @@ export async function getUsersAwaitingCard() {
 				memberships: {
 					some: {
 						paymentStatus: PaymentStatus.SUCCEEDED,
-						membershipNumber: null
+						membershipNumber: null,
+						status: {
+							notIn: [MembershipStatus.EXPIRED, MembershipStatus.CANCELED]
+						}
 					}
 				}
 			},
@@ -466,7 +766,10 @@ export async function getUsersAwaitingCard() {
 				memberships: {
 					where: {
 						paymentStatus: PaymentStatus.SUCCEEDED,
-						membershipNumber: null
+						membershipNumber: null,
+						status: {
+							notIn: [MembershipStatus.EXPIRED, MembershipStatus.CANCELED]
+						}
 					},
 					orderBy: { createdAt: 'desc' },
 					take: 1,
