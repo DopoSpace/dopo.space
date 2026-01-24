@@ -1,30 +1,66 @@
 /**
  * Email Service
  *
- * Handles sending transactional emails via SMTP (Nodemailer).
+ * Handles sending transactional emails via Resend.
+ * Supports i18n with locale parameter (Italian/English).
  */
 
-import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
-import {
-	SMTP_HOST,
-	SMTP_PORT,
-	SMTP_SECURE,
-	SMTP_USER,
-	SMTP_PASSWORD,
-	EMAIL_FROM
-} from '$env/static/private';
+import { Resend } from 'resend';
+import { env } from '$lib/server/config/env';
+import { NODE_ENV } from '$env/static/private';
 import { createLogger } from '$lib/server/utils/logger';
 
+type EmailLocale = 'it' | 'en';
+
 const logger = createLogger({ module: 'mailer' });
+
+const emailTranslations = {
+	it: {
+		magicLink: {
+			subject: 'Entra in Dopo.space',
+			greeting: 'Ciao,',
+			clickLink: 'per loggarti su Dopo.space usa questo link qui sotto:',
+			button: 'Accedi',
+			orCopy: 'Oppure copia e incolla questo link nel tuo browser:',
+			expires: 'Il link scadrà tra 15 minuti.'
+		},
+		payment: {
+			subject: 'Conferma Pagamento - Tessera Dopo Space',
+			title: 'Pagamento Confermato!',
+			greeting: (name: string) => `Ciao ${name},`,
+			text: (amount: string) => `Il tuo pagamento di €${amount} è stato elaborato con successo.`,
+			cardNote:
+				"Grazie per aver completato l'iscrizione! Ti assegneremo a breve un numero di tessera e riceverai la tua tessera digitale da AICS.",
+			thanks: 'Grazie per esserti unito a Dopo Space!'
+		}
+	},
+	en: {
+		magicLink: {
+			subject: 'Enter Dopo.space',
+			greeting: 'Hi,',
+			clickLink: 'to log in to Dopo.space use the link below:',
+			button: 'Login',
+			orCopy: 'Or copy and paste this link into your browser:',
+			expires: 'This link will expire in 15 minutes.'
+		},
+		payment: {
+			subject: 'Payment Confirmation - Dopo Space Membership',
+			title: 'Payment Confirmed!',
+			greeting: (name: string) => `Hi ${name},`,
+			text: (amount: string) =>
+				`Your payment of €${amount} has been successfully processed.`,
+			cardNote:
+				'Thank you for completing your registration! We will assign you a membership number shortly and you will receive your digital card from AICS.',
+			thanks: 'Thank you for joining Dopo Space!'
+		}
+	}
+};
 
 /**
  * Custom error class for email operations with error categorization
  */
 export class EmailError extends Error {
-	/** Whether this error is transient (can be retried) or permanent */
 	public readonly isTransient: boolean;
-	/** Original error cause */
 	public readonly cause?: unknown;
 
 	constructor(message: string, isTransient: boolean, cause?: unknown) {
@@ -35,102 +71,121 @@ export class EmailError extends Error {
 	}
 }
 
-/**
- * Categorize SMTP errors as transient (retryable) or permanent
- * @param error - The error to categorize
- * @returns true if the error is transient and can be retried
- */
+function escapeHtml(str: string): string {
+	return str
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
 function isTransientError(error: unknown): boolean {
 	if (!(error instanceof Error)) return false;
 
-	const errorMessage = error.message.toLowerCase();
-	const errorCode = (error as NodeJS.ErrnoException).code?.toLowerCase() || '';
+	const msg = error.message.toLowerCase();
 
-	// Transient errors - can be retried
-	const transientCodes = [
-		'econnreset', // Connection reset
-		'econnrefused', // Connection refused (server down temporarily)
-		'etimedout', // Connection timeout
-		'esocket', // Socket error
-		'enotfound', // DNS lookup failed (temporary)
-		'enetunreach', // Network unreachable
-		'ehostunreach' // Host unreachable
-	];
-
-	const transientMessages = [
-		'connection timeout',
-		'socket hang up',
-		'temporary',
-		'try again',
+	const transientPatterns = [
+		'rate limit',
+		'too many requests',
 		'service unavailable',
-		'too many connections',
-		'rate limit'
+		'timeout',
+		'temporarily',
+		'try again',
+		'network',
+		'connection'
 	];
 
-	// SMTP response codes in 4xx range are transient
-	const smtp4xxPattern = /\b4\d{2}\b/;
+	if (transientPatterns.some((pattern) => msg.includes(pattern))) return true;
+	if (/\b429\b/.test(msg)) return true;
+	if (/\b5\d{2}\b/.test(msg)) return true;
 
-	if (transientCodes.includes(errorCode)) return true;
-	if (transientMessages.some((msg) => errorMessage.includes(msg))) return true;
-	if (smtp4xxPattern.test(errorMessage)) return true;
-
-	// Permanent errors - should NOT be retried
-	// SMTP 5xx codes, auth failures, invalid addresses, etc.
 	return false;
 }
 
-// Create transporter instance
-let transporter: Transporter | null = null;
+let resendClient: Resend | null = null;
 
-function getTransporter(): Transporter {
-	if (!transporter) {
-		transporter = nodemailer.createTransport({
-			host: SMTP_HOST,
-			port: parseInt(SMTP_PORT),
-			secure: SMTP_SECURE === 'true',
-			auth: SMTP_USER
-				? {
-						user: SMTP_USER,
-						pass: SMTP_PASSWORD
-					}
-				: undefined
+function getResendClient(): Resend {
+	resendClient ??= new Resend(env.RESEND_API_KEY);
+	return resendClient;
+}
+
+interface EmailOptions {
+	to: string;
+	subject: string;
+	html: string;
+	text: string;
+}
+
+async function sendWithErrorHandling(
+	options: EmailOptions,
+	errorMessage: string,
+	logContext: Record<string, unknown>
+): Promise<void> {
+	const resend = getResendClient();
+
+	try {
+		const { error } = await resend.emails.send({
+			from: env.EMAIL_FROM,
+			...options
 		});
+
+		if (error) {
+			throw new Error(error.message);
+		}
+	} catch (error) {
+		const transient = isTransientError(error);
+		logger.error(
+			{ err: error, ...logContext, isTransient: transient },
+			`${errorMessage} (${transient ? 'transient' : 'permanent'})`
+		);
+		throw new EmailError(errorMessage, transient, error);
 	}
-	return transporter;
+}
+
+function getLogoSignature(): string {
+	if (NODE_ENV !== 'production') return '';
+
+	return `
+		<hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e5e5;">
+		<a href="https://dopo.space" style="display: inline-block;">
+			<img src="https://dopo.space/logo-rosso.svg" alt="Dopo" style="height: 32px;" />
+		</a>
+	`;
 }
 
 /**
  * Send magic link email for authentication
  * @throws EmailError with isTransient flag indicating if retry is appropriate
  */
-export async function sendMagicLinkEmail(email: string, token: string, url: string) {
-	const transporter = getTransporter();
+export async function sendMagicLinkEmail(
+	email: string,
+	token: string,
+	url: string,
+	locale: EmailLocale = 'it'
+): Promise<void> {
+	const t = emailTranslations[locale].magicLink;
+	const magicLink = `${url}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+	const magicLinkHtml = escapeHtml(magicLink);
 
-	const magicLink = `${url}/auth/verify?token=${token}&email=${encodeURIComponent(email)}`;
-
-	try {
-		await transporter.sendMail({
-			from: EMAIL_FROM,
+	await sendWithErrorHandling(
+		{
 			to: email,
-			subject: 'Login to Dopo Space',
+			subject: t.subject,
 			html: `
-				<h1>Login to Dopo Space</h1>
-				<p>Click the link below to login:</p>
-				<a href="${magicLink}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px;">Login</a>
-				<p>Or copy this link:</p>
-				<p>${magicLink}</p>
-				<p>This link will expire in 15 minutes.</p>
+				<p>${t.greeting}</p>
+				<p>${t.clickLink}</p>
+				<a href="${magicLinkHtml}" style="display: inline-block; padding: 12px 24px; background-color: #DC2626; color: white; text-decoration: none; border-radius: 8px;">${t.button}</a>
+				<p>${t.orCopy}</p>
+				<p style="word-break: break-all;">${magicLinkHtml}</p>
+				<p>${t.expires}</p>
+				${getLogoSignature()}
 			`,
-			text: `Login to Dopo Space\n\nClick this link to login: ${magicLink}\n\nThis link will expire in 15 minutes.`
-		});
-	} catch (error) {
-		const transient = isTransientError(error);
-		logger.error(
-			{ err: error, email, isTransient: transient },
-			`Failed to send magic link email (${transient ? 'transient' : 'permanent'})`
-		);
-		throw new EmailError('Failed to send magic link email', transient, error);
-	}
+			text: `${t.greeting}\n\n${t.clickLink}\n\n${magicLink}\n\n${t.expires}`
+		},
+		'Failed to send magic link email',
+		{ email }
+	);
 }
 
 /**
@@ -140,96 +195,49 @@ export async function sendMagicLinkEmail(email: string, token: string, url: stri
 export async function sendPaymentConfirmationEmail(
 	email: string,
 	firstName: string,
-	amount: number
-) {
-	const transporter = getTransporter();
+	amount: number,
+	locale: EmailLocale = 'it'
+): Promise<void> {
+	const t = emailTranslations[locale].payment;
+	const formattedAmount = (amount / 100).toFixed(2);
 
-	try {
-		await transporter.sendMail({
-			from: EMAIL_FROM,
+	await sendWithErrorHandling(
+		{
 			to: email,
-			subject: 'Payment Confirmation - Dopo Space Membership',
+			subject: t.subject,
 			html: `
-				<h1>Payment Confirmed!</h1>
-				<p>Hi ${firstName},</p>
-				<p>Your payment of €${(amount / 100).toFixed(2)} has been successfully processed.</p>
-				<p>Your membership card number will be assigned shortly by our team.</p>
-				<p>You can visit our office with this confirmation email to receive your membership card.</p>
+				<h1>${t.title}</h1>
+				<p>${t.greeting(firstName)}</p>
+				<p>${t.text(formattedAmount)}</p>
+				<p>${t.cardNote}</p>
 				<br>
-				<p>Thank you for joining Dopo Space!</p>
+				<p>${t.thanks}</p>
 			`,
-			text: `Payment Confirmed!\n\nHi ${firstName},\n\nYour payment of €${(amount / 100).toFixed(2)} has been successfully processed.\n\nYour membership card number will be assigned shortly by our team.\n\nYou can visit our office with this confirmation email to receive your membership card.\n\nThank you for joining Dopo Space!`
-		});
-	} catch (error) {
-		const transient = isTransientError(error);
-		logger.error(
-			{ err: error, email, isTransient: transient },
-			`Failed to send payment confirmation email (${transient ? 'transient' : 'permanent'})`
-		);
-		throw new EmailError('Failed to send payment confirmation email', transient, error);
-	}
-}
-
-/**
- * Send membership number assignment email (S5 state)
- * @throws EmailError with isTransient flag indicating if retry is appropriate
- */
-export async function sendMembershipNumberEmail(
-	email: string,
-	firstName: string,
-	membershipNumber: string,
-	endDate: Date
-) {
-	const transporter = getTransporter();
-
-	try {
-		await transporter.sendMail({
-			from: EMAIL_FROM,
-			to: email,
-			subject: 'Your Membership Number - Dopo Space',
-			html: `
-				<h1>Welcome to Dopo Space!</h1>
-				<p>Hi ${firstName},</p>
-				<p>Your membership card number has been assigned:</p>
-				<h2 style="color: #2563eb; font-size: 32px; margin: 20px 0;">${membershipNumber}</h2>
-				<p>Your membership is valid until: <strong>${endDate.toLocaleDateString('it-IT')}</strong></p>
-				<p>You can now access all Dopo Space facilities and services.</p>
-				<br>
-				<p>See you soon!</p>
-			`,
-			text: `Welcome to Dopo Space!\n\nHi ${firstName},\n\nYour membership card number has been assigned: ${membershipNumber}\n\nYour membership is valid until: ${endDate.toLocaleDateString('it-IT')}\n\nYou can now access all Dopo Space facilities and services.\n\nSee you soon!`
-		});
-	} catch (error) {
-		const transient = isTransientError(error);
-		logger.error(
-			{ err: error, email, membershipNumber, isTransient: transient },
-			`Failed to send membership number email (${transient ? 'transient' : 'permanent'})`
-		);
-		throw new EmailError('Failed to send membership number email', transient, error);
-	}
+			text: `${t.title}\n\n${t.greeting(firstName)}\n\n${t.text(formattedAmount)}\n\n${t.cardNote}\n\n${t.thanks}`
+		},
+		'Failed to send payment confirmation email',
+		{ email }
+	);
 }
 
 /**
  * Generic email sending utility
  * @throws EmailError with isTransient flag indicating if retry is appropriate
  */
-export async function sendEmail(to: string, subject: string, html: string, text?: string) {
-	const transporter = getTransporter();
-
-	try {
-		await transporter.sendMail({
-			from: EMAIL_FROM,
+export async function sendEmail(
+	to: string,
+	subject: string,
+	html: string,
+	text?: string
+): Promise<void> {
+	await sendWithErrorHandling(
+		{
 			to,
 			subject,
 			html,
-			text: text || html.replace(/<[^>]*>/g, '') // Strip HTML tags for text version
-		});
-	} catch (error) {
-		const transient = isTransientError(error);
-		logger.error(
-			{ err: error, to, subject, isTransient: transient },
-			`Failed to send email (${transient ? 'transient' : 'permanent'})`
-		);
-		throw new EmailError('Failed to send email', transient, error);
-	}
+			text: text ?? html.replace(/<[^>]*>/g, '')
+		},
+		'Failed to send email',
+		{ to, subject }
+	);
 }
