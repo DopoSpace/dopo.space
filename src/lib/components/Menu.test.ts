@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
-import { writable } from 'svelte/store';
-import type { Page } from '@sveltejs/kit';
 import Menu from './Menu.svelte';
-import { testElementClasses } from '$lib/test-utils/pageTestHelpers';
 
 // Create a simple writable store implementation for vi.hoisted
 const { mockPage } = vi.hoisted(() => {
@@ -68,19 +65,17 @@ describe('Menu Component', () => {
 		expect(contactLinks[0]).toHaveAttribute('href', '/contact');
 	});
 
-	it('has correct CSS classes for layout', () => {
+	it('has menu class for navigation container', () => {
 		const { container } = render(Menu);
-		testElementClasses(container, 'div.absolute', [
-			'absolute',
-			'top-0',
-			'left-0',
-			'bg-dopoRed',
-			'w-full'
-		]);
+		// Menu uses .menu class with CSS @apply for positioning and background
+		const menuNav = container.querySelector('nav.menu');
+		expect(menuNav).toBeInTheDocument();
 	});
 
-	it('has flex layout with correct gap', () => {
+	it('has menu-container class for flex layout', () => {
 		const { container } = render(Menu);
-		testElementClasses(container, 'div.flex', ['flex', 'justify-between', 'items-center', 'gap-4']);
+		// Menu uses .menu-container class with CSS @apply for flex layout
+		const menuContainer = container.querySelector('.menu-container');
+		expect(menuContainer).toBeInTheDocument();
 	});
 });
