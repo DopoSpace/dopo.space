@@ -12,12 +12,6 @@ import {
 	APP_URL,
 	MAIN_DOMAIN,
 	ADMIN_SUBDOMAIN,
-	SMTP_HOST,
-	SMTP_PORT,
-	SMTP_USER,
-	SMTP_PASSWORD,
-	SMTP_SECURE,
-	EMAIL_FROM,
 	PAYPAL_CLIENT_ID,
 	PAYPAL_CLIENT_SECRET,
 	PAYPAL_MODE,
@@ -55,23 +49,9 @@ const envSchema = z.object({
 	MAIN_DOMAIN: z.string().min(1, 'MAIN_DOMAIN is required (e.g., dopo.space or dopo.local:5173)'),
 	ADMIN_SUBDOMAIN: z.string().min(1, 'ADMIN_SUBDOMAIN is required (e.g., admin)'),
 
-	// SMTP Configuration (optional in development)
-	SMTP_HOST: z.string().optional(),
-	SMTP_PORT: z
-		.string()
-		.optional()
-		.refine(
-			(val) => {
-				if (!val) return true; // optional
-				const port = parseInt(val, 10);
-				return !isNaN(port) && port > 0 && port <= 65535;
-			},
-			'SMTP_PORT must be a valid port number between 1 and 65535'
-		),
-	SMTP_USER: z.string().optional(),
-	SMTP_PASSWORD: z.string().optional(),
-	SMTP_SECURE: z.enum(['true', 'false', '']).optional(),
-	EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address').optional(),
+	// Email Configuration (Resend)
+	RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+	EMAIL_FROM: z.string().min(1, 'EMAIL_FROM is required (e.g., "Dopo Space <noreply@dopo.space>")'),
 
 	// PayPal Configuration
 	PAYPAL_CLIENT_ID: z.string().min(1, 'PAYPAL_CLIENT_ID is required'),
@@ -92,12 +72,8 @@ export const env = envSchema.parse({
 	APP_URL,
 	MAIN_DOMAIN,
 	ADMIN_SUBDOMAIN,
-	SMTP_HOST,
-	SMTP_PORT,
-	SMTP_USER,
-	SMTP_PASSWORD,
-	SMTP_SECURE,
-	EMAIL_FROM,
+	RESEND_API_KEY: dynamicEnv.RESEND_API_KEY,
+	EMAIL_FROM: dynamicEnv.EMAIL_FROM,
 	PAYPAL_CLIENT_ID,
 	PAYPAL_CLIENT_SECRET,
 	PAYPAL_MODE,
@@ -131,26 +107,12 @@ export function getAdminDomain(): string {
 	return `${env.ADMIN_SUBDOMAIN}.${env.MAIN_DOMAIN}`;
 }
 
-export function getSmtpPort(): number {
-	if (!env.SMTP_PORT) {
-		return 587; // Default SMTP port
-	}
-	return parseInt(env.SMTP_PORT, 10);
-}
-
-export function getSmtpSecure(): boolean {
-	return env.SMTP_SECURE === 'true';
+export function getResendApiKey(): string {
+	return env.RESEND_API_KEY;
 }
 
 export function getEmailFrom(): string {
-	return env.EMAIL_FROM || 'noreply@dopo.space';
-}
-
-/**
- * Check if SMTP is configured
- */
-export function isSmtpConfigured(): boolean {
-	return !!(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASSWORD && env.EMAIL_FROM);
+	return env.EMAIL_FROM;
 }
 
 /**

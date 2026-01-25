@@ -12,6 +12,7 @@ import { prisma } from '$lib/server/db/prisma';
 import { PaymentStatus, MembershipStatus, type Membership } from '@prisma/client';
 import { PAYPAL_WEBHOOK_ID } from '$env/static/private';
 import { paymentLogger } from '$lib/server/utils/logger';
+import { sendPaymentConfirmationEmail } from '$lib/server/email/mailer';
 
 /**
  * Allowed webhook event types (whitelist for security)
@@ -264,6 +265,24 @@ async function handlePaymentCompleted(event: any, providerEventId: string | unde
 	await createPaymentLogIdempotent(membership.id, 'PAYMENT.CAPTURE.COMPLETED', providerEventId, event);
 
 	paymentLogger.info({ membershipId: membership.id, captureId }, 'Payment completed');
+
+	// Send payment confirmation email (non-blocking)
+	try {
+		const user = await prisma.user.findUnique({
+			where: { id: membership.userId },
+			include: { profile: { select: { firstName: true } } }
+		});
+
+		if (user) {
+			const firstName = user.profile?.firstName || 'Socio';
+			const locale = (user.preferredLocale === 'en' ? 'en' : 'it') as 'it' | 'en';
+			await sendPaymentConfirmationEmail(user.email, firstName, Math.round(amount), locale);
+			paymentLogger.info({ membershipId: membership.id, email: user.email, locale }, 'Payment confirmation email sent');
+		}
+	} catch (emailError) {
+		// Log email error but don't fail the webhook
+		paymentLogger.error({ err: emailError, membershipId: membership.id }, 'Failed to send payment confirmation email');
+	}
 }
 
 /**

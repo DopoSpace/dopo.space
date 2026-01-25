@@ -7,6 +7,14 @@ import { PaymentStatus, MembershipStatus } from '@prisma/client';
 
 // Mock environment variables
 vi.mock('$env/static/private', () => ({
+	JWT_SECRET: 'test-jwt-secret-at-least-32-characters-long',
+	DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+	APP_URL: 'http://localhost:5173',
+	MAIN_DOMAIN: 'lvh.me:5173',
+	ADMIN_SUBDOMAIN: 'admin',
+	PAYPAL_CLIENT_ID: 'test-client-id',
+	PAYPAL_CLIENT_SECRET: 'test-client-secret',
+	PAYPAL_MODE: 'sandbox',
 	PAYPAL_WEBHOOK_ID: 'test-webhook-id'
 }));
 
@@ -42,6 +50,12 @@ const mockPaymentLogger = {
 
 vi.mock('$lib/server/utils/logger', () => ({
 	paymentLogger: mockPaymentLogger
+}));
+
+// Mock email mailer
+const mockSendPaymentConfirmationEmail = vi.fn();
+vi.mock('$lib/server/email/mailer', () => ({
+	sendPaymentConfirmationEmail: mockSendPaymentConfirmationEmail
 }));
 
 // Import after mocks - updated path to route

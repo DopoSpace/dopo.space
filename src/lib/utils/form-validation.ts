@@ -6,6 +6,7 @@
  */
 
 import { calculateAge } from './date';
+import * as m from '$lib/paraglide/messages';
 
 export type ValidationResult = {
 	valid: boolean;
@@ -109,46 +110,46 @@ function extractBirthDateFromTaxCode(taxCode: string): { year: number; month: nu
 export const validators: Record<string, FieldValidator> = {
 	firstName: (value: string): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: 'Il nome è obbligatorio' };
+			return { valid: false, error: m.validation_first_name_required() };
 		}
 		if (value.trim().length < 2) {
-			return { valid: false, error: 'Il nome deve contenere almeno 2 caratteri' };
+			return { valid: false, error: m.validation_first_name_min() };
 		}
 		if (value.trim().length > 50) {
-			return { valid: false, error: 'Il nome non può superare 50 caratteri' };
+			return { valid: false, error: m.validation_first_name_max() };
 		}
 		return { valid: true };
 	},
 
 	lastName: (value: string): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: 'Il cognome è obbligatorio' };
+			return { valid: false, error: m.validation_last_name_required() };
 		}
 		if (value.trim().length < 2) {
-			return { valid: false, error: 'Il cognome deve contenere almeno 2 caratteri' };
+			return { valid: false, error: m.validation_last_name_min() };
 		}
 		if (value.trim().length > 50) {
-			return { valid: false, error: 'Il cognome non può superare 50 caratteri' };
+			return { valid: false, error: m.validation_last_name_max() };
 		}
 		return { valid: true };
 	},
 
 	birthDate: (value: string): ValidationResult => {
 		if (!value) {
-			return { valid: false, error: 'La data di nascita è obbligatoria' };
+			return { valid: false, error: m.validation_birth_date_required() };
 		}
 
 		const date = new Date(value);
 		if (isNaN(date.getTime())) {
-			return { valid: false, error: 'Data di nascita non valida' };
+			return { valid: false, error: m.validation_birth_date_invalid() };
 		}
 
 		const age = calculateAge(date);
 		if (age < 16) {
-			return { valid: false, error: 'Devi avere almeno 16 anni per iscriverti. Il tesseramento dei minori non è al momento supportato.' };
+			return { valid: false, error: m.validation_birth_date_under16() };
 		}
 		if (age > 120) {
-			return { valid: false, error: 'Data di nascita non valida' };
+			return { valid: false, error: m.validation_birth_date_invalid() };
 		}
 
 		return { valid: true };
@@ -156,33 +157,33 @@ export const validators: Record<string, FieldValidator> = {
 
 	nationality: (value: string): ValidationResult => {
 		if (!value || value.length === 0) {
-			return { valid: false, error: 'Seleziona la nazionalità' };
+			return { valid: false, error: m.validation_nationality_required() };
 		}
 		if (value.length !== 2) {
-			return { valid: false, error: 'Nazionalità non valida' };
+			return { valid: false, error: m.validation_nationality_invalid() };
 		}
 		return { valid: true };
 	},
 
 	birthProvince: (value: string): ValidationResult => {
 		if (!value || value.length === 0) {
-			return { valid: false, error: 'La provincia di nascita è obbligatoria' };
+			return { valid: false, error: m.validation_birth_province_required() };
 		}
 		if (!/^[A-Z]{2}$/i.test(value)) {
-			return { valid: false, error: 'La provincia deve essere di 2 lettere' };
+			return { valid: false, error: m.validation_birth_province_format() };
 		}
 		return { valid: true };
 	},
 
 	birthCity: (value: string): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: 'Il comune di nascita è obbligatorio' };
+			return { valid: false, error: m.validation_birth_city_required() };
 		}
 		if (value.trim().length < 2) {
-			return { valid: false, error: 'Inserisci il comune di nascita' };
+			return { valid: false, error: m.validation_birth_city_min() };
 		}
 		if (value.trim().length > 100) {
-			return { valid: false, error: 'Il comune di nascita è troppo lungo' };
+			return { valid: false, error: m.validation_birth_city_max() };
 		}
 		return { valid: true };
 	},
@@ -194,10 +195,10 @@ export const validators: Record<string, FieldValidator> = {
 		// Gender is required for foreigners without tax code
 		if (isForeigner && !hasForeignTaxCode) {
 			if (!value || value.trim().length === 0) {
-				return { valid: false, error: 'Il sesso è obbligatorio' };
+				return { valid: false, error: m.validation_gender_required() };
 			}
 			if (value !== 'M' && value !== 'F') {
-				return { valid: false, error: 'Seleziona un valore valido' };
+				return { valid: false, error: m.validation_gender_invalid() };
 			}
 		}
 
@@ -216,13 +217,13 @@ export const validators: Record<string, FieldValidator> = {
 
 		// For Italians, tax code is required
 		if (isItalian && (!value || value.trim().length === 0)) {
-			return { valid: false, error: 'Il codice fiscale è obbligatorio per i cittadini italiani' };
+			return { valid: false, error: m.validation_tax_code_required() };
 		}
 
 		// If value is provided, validate format
 		if (value && value.trim().length > 0) {
 			if (!TAX_CODE_REGEX.test(value)) {
-				return { valid: false, error: 'Formato codice fiscale non valido' };
+				return { valid: false, error: m.validation_tax_code_format() };
 			}
 
 			// Validate checksum
@@ -248,7 +249,7 @@ export const validators: Record<string, FieldValidator> = {
 						) {
 							return {
 								valid: false,
-								error: 'La data di nascita non corrisponde al codice fiscale'
+								error: m.validation_tax_code_birth_mismatch()
 							};
 						}
 					}
@@ -261,45 +262,45 @@ export const validators: Record<string, FieldValidator> = {
 
 	address: (value: string): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: "L'indirizzo è obbligatorio" };
+			return { valid: false, error: m.validation_address_required() };
 		}
 		if (value.trim().length < 5) {
-			return { valid: false, error: "L'indirizzo deve contenere almeno 5 caratteri" };
+			return { valid: false, error: m.validation_address_min() };
 		}
 		if (value.trim().length > 200) {
-			return { valid: false, error: "L'indirizzo non può superare 200 caratteri" };
+			return { valid: false, error: m.validation_address_max() };
 		}
 		return { valid: true };
 	},
 
 	city: (value: string): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: 'Il comune è obbligatorio' };
+			return { valid: false, error: m.validation_city_required() };
 		}
 		if (value.trim().length < 2) {
-			return { valid: false, error: 'Il comune deve contenere almeno 2 caratteri' };
+			return { valid: false, error: m.validation_city_min() };
 		}
 		if (value.trim().length > 100) {
-			return { valid: false, error: 'Il comune non può superare 100 caratteri' };
+			return { valid: false, error: m.validation_city_max() };
 		}
 		return { valid: true };
 	},
 
 	postalCode: (value: string, context?: ValidationContext): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: 'Il CAP è obbligatorio' };
+			return { valid: false, error: m.validation_postal_code_required() };
 		}
 
 		// For Italian residence, must be exactly 5 digits
 		const isItalianResidence = context?.residenceCountry === 'IT' || !context?.residenceCountry;
 		if (isItalianResidence) {
 			if (!/^\d{5}$/.test(value)) {
-				return { valid: false, error: 'Il CAP deve essere di 5 cifre' };
+				return { valid: false, error: m.validation_postal_code_format() };
 			}
 		} else {
 			// For foreign residence, must be exactly "00000" (matches server-side validation)
 			if (value !== '00000') {
-				return { valid: false, error: 'Per residenza estera il CAP deve essere "00000"' };
+				return { valid: false, error: m.validation_postal_code_foreign() };
 			}
 		}
 
@@ -308,16 +309,16 @@ export const validators: Record<string, FieldValidator> = {
 
 	province: (value: string, context?: ValidationContext): ValidationResult => {
 		if (!value || value.trim().length === 0) {
-			return { valid: false, error: 'La provincia è obbligatoria' };
+			return { valid: false, error: m.validation_province_required() };
 		}
 		if (!/^[A-Z]{2}$/i.test(value)) {
-			return { valid: false, error: 'La provincia deve essere di 2 lettere' };
+			return { valid: false, error: m.validation_province_format() };
 		}
 
 		// For foreign residence, province must be "EE"
 		const isForeignResidence = context?.residenceCountry && context.residenceCountry !== 'IT';
 		if (isForeignResidence && value.toUpperCase() !== 'EE') {
-			return { valid: false, error: 'Per residenza estera la provincia deve essere "EE"' };
+			return { valid: false, error: m.validation_province_foreign() };
 		}
 
 		return { valid: true };
@@ -335,14 +336,14 @@ export const validators: Record<string, FieldValidator> = {
 
 		// Must start with + followed by digits
 		if (!/^\+\d{7,19}$/.test(cleaned)) {
-			return { valid: false, error: 'Formato numero di telefono non valido' };
+			return { valid: false, error: m.validation_phone_format() };
 		}
 
 		// Check that after the prefix (1-4 digits) there are at least 6 digits for the number
 		// Minimum: +X followed by 6 digits = +XXXXXXX (8 chars)
 		// Maximum: +XXXX followed by 15 digits = +XXXXXXXXXXXXXXXXXXX (20 chars)
 		if (cleaned.length < 8) {
-			return { valid: false, error: 'Il numero di telefono è troppo corto' };
+			return { valid: false, error: m.validation_phone_short() };
 		}
 
 		return { valid: true };
@@ -351,7 +352,7 @@ export const validators: Record<string, FieldValidator> = {
 	privacyConsent: (value: string): ValidationResult => {
 		// Checkbox value comes as 'true' or empty
 		if (value !== 'true') {
-			return { valid: false, error: 'Devi accettare la privacy policy' };
+			return { valid: false, error: m.validation_privacy_required() };
 		}
 		return { valid: true };
 	},
@@ -359,7 +360,7 @@ export const validators: Record<string, FieldValidator> = {
 	dataConsent: (value: string): ValidationResult => {
 		// Checkbox value comes as 'true' or empty
 		if (value !== 'true') {
-			return { valid: false, error: 'Devi acconsentire al trattamento dei dati' };
+			return { valid: false, error: m.validation_data_required() };
 		}
 		return { valid: true };
 	}
@@ -401,7 +402,7 @@ function validateTaxCodeChecksum(taxCode: string): ValidationResult {
 	const actualCheck = code[15];
 
 	if (expectedCheck !== actualCheck) {
-		return { valid: false, error: 'Codice fiscale non valido (checksum errato)' };
+		return { valid: false, error: m.validation_tax_code_checksum() };
 	}
 
 	return { valid: true };
