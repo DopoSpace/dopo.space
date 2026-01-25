@@ -5,9 +5,11 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "pnpm run i18n:compile && vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
+		"postinstall": "pnpm run i18n:compile || echo ''",
+		"i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy url cookie baseLocale",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
@@ -46,7 +48,6 @@
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^25.0.1",
 		"@types/node-cron": "^3.0.11",
-		"@types/nodemailer": "^7.0.4",
 		"@vitest/browser": "^4.0.15",
 		"@vitest/browser-playwright": "^4.0.15",
 		"@vitest/ui": "^4.0.15",
@@ -67,17 +68,19 @@
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
+		"@inlang/paraglide-js": "^2.9.1",
 		"@mailchimp/mailchimp_marketing": "^3.0.80",
 		"@paypal/paypal-server-sdk": "^2.1.0",
 		"@prisma/client": "^6.19.1",
 		"bcrypt": "^6.0.0",
 		"date-fns": "^4.1.0",
 		"exceljs": "^4.4.0",
+		"flatpickr": "^4.6.13",
 		"jsonwebtoken": "^9.0.3",
 		"node-cron": "^4.2.1",
-		"nodemailer": "^7.0.11",
 		"pino": "^10.1.0",
 		"pino-pretty": "^13.1.3",
+		"resend": "^6.8.0",
 		"zod": "^4.1.13"
 	}
 }

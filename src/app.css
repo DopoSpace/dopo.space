@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Prevent white flash during page reload (language switch) */
+html {
+  background-color: #FF0000;
+}
+
 /* Custom theme configuration */
 @theme {
   --color-dopoRed: #FF0000;

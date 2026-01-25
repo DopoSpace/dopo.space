@@ -1,6 +1,15 @@
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
+// Global mock for $env/dynamic/private - includes Resend config
+vi.mock('$env/dynamic/private', () => ({
+	env: {
+		RESEND_API_KEY: 're_test_mock_api_key_12345',
+		EMAIL_FROM: 'Test <test@example.com>',
+		GOOGLE_PLACES_API_KEY: undefined
+	}
+}));
+
 // Global mock for $app/stores - writable store that can be updated in tests
 vi.mock('$app/stores', () => {
 	const { writable } = require('svelte/store');
