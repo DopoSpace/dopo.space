@@ -31,6 +31,73 @@ function parseDate(value: string | null): Date | null {
 /** Valid filter status values */
 type FilterStatus = 'active' | 'expired' | 'canceled' | 'awaiting_card' | 'awaiting_payment' | 'payment_failed' | 'not_member';
 
+/** Valid sort fields */
+type SortField = 'email' | 'firstName' | 'lastName' | 'membershipNumber' | 'status' | 'startDate' | 'endDate' | 'createdAt';
+type SortOrder = 'asc' | 'desc';
+
+/** Fields that can be sorted at the database level */
+const DB_SORTABLE_FIELDS: SortField[] = ['email', 'firstName', 'lastName', 'createdAt'];
+
+/** Build Prisma orderBy clause from sort parameters (only for DB-sortable fields) */
+function buildOrderBy(sort: SortField, order: SortOrder): Prisma.UserOrderByWithRelationInput {
+	switch (sort) {
+		case 'email':
+			return { email: order };
+		case 'firstName':
+			return { profile: { firstName: order } };
+		case 'lastName':
+			return { profile: { lastName: order } };
+		case 'createdAt':
+		default:
+			return { createdAt: order };
+	}
+}
+
+/** Sort users by membership fields (done in-memory after fetch) */
+function sortByMembershipField<T extends { membershipNumber: string | null; membershipStatus: string | null; startDate: string | null; endDate: string | null }>(
+	users: T[],
+	sort: SortField,
+	order: SortOrder
+): T[] {
+	const sorted = [...users];
+	const multiplier = order === 'asc' ? 1 : -1;
+
+	sorted.sort((a, b) => {
+		let aVal: string | null;
+		let bVal: string | null;
+
+		switch (sort) {
+			case 'membershipNumber':
+				aVal = a.membershipNumber;
+				bVal = b.membershipNumber;
+				break;
+			case 'status':
+				aVal = a.membershipStatus;
+				bVal = b.membershipStatus;
+				break;
+			case 'startDate':
+				aVal = a.startDate;
+				bVal = b.startDate;
+				break;
+			case 'endDate':
+				aVal = a.endDate;
+				bVal = b.endDate;
+				break;
+			default:
+				return 0;
+		}
+
+		// Nulls go to the end regardless of sort order
+		if (aVal === null && bVal === null) return 0;
+		if (aVal === null) return 1;
+		if (bVal === null) return -1;
+
+		return aVal.localeCompare(bVal) * multiplier;
+	});
+
+	return sorted;
+}
+
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Admin is guaranteed to be authenticated by hooks.server.ts
 	const admin = locals.admin;
@@ -55,6 +122,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const startDateTo = parseDate(url.searchParams.get('startDateTo'));
 	const endDateFrom = parseDate(url.searchParams.get('endDateFrom'));
 	const endDateTo = parseDate(url.searchParams.get('endDateTo'));
+
+	// Get sort parameters
+	const validSortFields: SortField[] = ['email', 'firstName', 'lastName', 'membershipNumber', 'status', 'startDate', 'endDate', 'createdAt'];
+	const rawSort = url.searchParams.get('sort') || 'createdAt';
+	const sort: SortField = validSortFields.includes(rawSort as SortField) ? (rawSort as SortField) : 'createdAt';
+	const rawOrder = url.searchParams.get('order') || 'desc';
+	const order: SortOrder = rawOrder === 'asc' ? 'asc' : 'desc';
+	const isMembershipSort = !DB_SORTABLE_FIELDS.includes(sort);
 
 	// Build where clause
 	const conditions: Prisma.UserWhereInput[] = [];
@@ -221,31 +296,39 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						take: 1
 					}
 				},
-				orderBy: {
-					createdAt: 'desc'
-				},
+				orderBy: buildOrderBy(sort, order),
 				skip: (page - 1) * PAGE_SIZE,
 				take: PAGE_SIZE
 			}),
 			prisma.user.count({ where: whereClause })
 		]);
 
+		// Map users to response format
+		let mappedUsers = users.map((user) => ({
+			id: user.id,
+			email: user.email,
+			firstName: user.profile?.firstName || '-',
+			lastName: user.profile?.lastName || '-',
+			membershipNumber: user.memberships[0]?.membershipNumber || null,
+			membershipStatus: user.memberships[0]?.status || null,
+			paymentStatus: user.memberships[0]?.paymentStatus || null,
+			startDate: user.memberships[0]?.startDate?.toISOString() || null,
+			endDate: user.memberships[0]?.endDate?.toISOString() || null,
+			createdAt: user.createdAt.toISOString()
+		}));
+
+		// Apply in-memory sorting for membership fields
+		if (isMembershipSort) {
+			mappedUsers = sortByMembershipField(mappedUsers, sort, order);
+		}
+
 		return {
-			users: users.map((user) => ({
-				id: user.id,
-				email: user.email,
-				firstName: user.profile?.firstName || '-',
-				lastName: user.profile?.lastName || '-',
-				membershipNumber: user.memberships[0]?.membershipNumber || null,
-				membershipStatus: user.memberships[0]?.status || null,
-				paymentStatus: user.memberships[0]?.paymentStatus || null,
-				startDate: user.memberships[0]?.startDate?.toISOString() || null,
-				endDate: user.memberships[0]?.endDate?.toISOString() || null,
-				createdAt: user.createdAt.toISOString()
-			})),
+			users: mappedUsers,
 			search,
 			filters,
 			hasActiveFilters,
+			sort,
+			order,
 			pagination: {
 				page,
 				pageSize: PAGE_SIZE,

@@ -10,6 +10,10 @@
 	// Filter panel visibility
 	let showFilters = $state(data.hasActiveFilters);
 
+	// Sort fields that are sortable
+	type SortField = 'email' | 'firstName' | 'lastName' | 'membershipNumber' | 'status' | 'startDate' | 'endDate' | 'createdAt';
+	const sortableFields: SortField[] = ['email', 'firstName', 'lastName', 'membershipNumber', 'status', 'startDate', 'endDate', 'createdAt'];
+
 	// Filter state - initialized from server data
 	let filterStatus = $state(data.filters.status);
 	let filterRegisteredFrom = $state(data.filters.registeredFrom);
@@ -25,7 +29,7 @@
 		{ value: 'active', label: 'Attivo' },
 		{ value: 'awaiting_card', label: 'Pagato - In attesa tessera' },
 		{ value: 'awaiting_payment', label: 'In attesa di pagamento' },
-		{ value: 'payment_failed', label: 'Pagamento fallito' },
+		{ value: 'payment_failed', label: 'Pagamento non riuscito' },
 		{ value: 'expired', label: 'Scaduto' },
 		{ value: 'canceled', label: 'Cancellato' },
 		{ value: 'not_member', label: 'Non iscritto' }
@@ -65,6 +69,10 @@
 		if (filterEndDateFrom) params.set('endDateFrom', filterEndDateFrom);
 		if (filterEndDateTo) params.set('endDateTo', filterEndDateTo);
 
+		// Preserve sort
+		if (data.sort && data.sort !== 'createdAt') params.set('sort', data.sort);
+		if (data.order && data.order !== 'desc') params.set('order', data.order);
+
 		selectedUserIds = new Set();
 		goto(`/admin/users?${params.toString()}`);
 	}
@@ -101,6 +109,10 @@
 		if (filterStartDateTo) params.set('startDateTo', filterStartDateTo);
 		if (filterEndDateFrom) params.set('endDateFrom', filterEndDateFrom);
 		if (filterEndDateTo) params.set('endDateTo', filterEndDateTo);
+
+		// Preserve sort
+		if (data.sort && data.sort !== 'createdAt') params.set('sort', data.sort);
+		if (data.order && data.order !== 'desc') params.set('order', data.order);
 
 		// Clear selection when searching
 		selectedUserIds = new Set();
@@ -159,6 +171,39 @@
 
 	function clearSelection() {
 		selectedUserIds = new Set();
+	}
+
+	function handleSort(field: SortField) {
+		const params = new URLSearchParams();
+
+		// Preserve search
+		if (data.search) params.set('search', data.search);
+
+		// Preserve filters
+		if (filterStatus) params.set('status', filterStatus);
+		if (filterRegisteredFrom) params.set('registeredFrom', filterRegisteredFrom);
+		if (filterRegisteredTo) params.set('registeredTo', filterRegisteredTo);
+		if (filterStartDateFrom) params.set('startDateFrom', filterStartDateFrom);
+		if (filterStartDateTo) params.set('startDateTo', filterStartDateTo);
+		if (filterEndDateFrom) params.set('endDateFrom', filterEndDateFrom);
+		if (filterEndDateTo) params.set('endDateTo', filterEndDateTo);
+
+		// Toggle sort order if same field, otherwise default to asc
+		const newOrder = data.sort === field && data.order === 'asc' ? 'desc' : 'asc';
+		params.set('sort', field);
+		params.set('order', newOrder);
+
+		selectedUserIds = new Set();
+		goto(`/admin/users?${params.toString()}`);
+	}
+
+	function getSortIcon(field: SortField): string {
+		if (data.sort !== field) return '↕'; // Neutral
+		return data.order === 'asc' ? '↑' : '↓';
+	}
+
+	function isSortActive(field: SortField): boolean {
+		return data.sort === field;
 	}
 </script>
 
@@ -496,39 +541,46 @@
 									/>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('email') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('email')}
 								>
-									Email
+									Email <span class="ml-1">{getSortIcon('email')}</span>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('firstName') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('firstName')}
 								>
-									Nome
+									Nome <span class="ml-1">{getSortIcon('firstName')}</span>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('lastName') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('lastName')}
 								>
-									Cognome
+									Cognome <span class="ml-1">{getSortIcon('lastName')}</span>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('membershipNumber') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('membershipNumber')}
 								>
-									N. Tessera
+									N. Tessera <span class="ml-1">{getSortIcon('membershipNumber')}</span>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('status') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('status')}
 								>
-									Status
+									Status <span class="ml-1">{getSortIcon('status')}</span>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('startDate') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('startDate')}
 								>
-									Inizio
+									Inizio <span class="ml-1">{getSortIcon('startDate')}</span>
 								</th>
 								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none {isSortActive('endDate') ? 'text-blue-600' : 'text-gray-500'}"
+									onclick={() => handleSort('endDate')}
 								>
-									Scadenza
+									Scadenza <span class="ml-1">{getSortIcon('endDate')}</span>
 								</th>
 								<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
 									Azioni
@@ -611,19 +663,12 @@
 											>
 												In attesa di pagamento
 											</span>
-										{:else if user.paymentStatus === 'FAILED'}
+										{:else if user.paymentStatus === 'FAILED' || user.paymentStatus === 'CANCELED'}
 											<span
 												class="status-badge bg-red-100 text-red-800"
-												data-tooltip="Il pagamento non è andato a buon fine. L'utente può riprovare."
+												data-tooltip="Il pagamento non è andato a buon fine (fallito o annullato). L'utente può riprovare."
 											>
-												Pagamento fallito
-											</span>
-										{:else if user.paymentStatus === 'CANCELED'}
-											<span
-												class="status-badge bg-gray-100 text-gray-600"
-												data-tooltip="L'utente ha annullato il pagamento"
-											>
-												Annullato
+												Pagamento non riuscito
 											</span>
 										{:else}
 											<span
