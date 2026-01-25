@@ -47,6 +47,9 @@ model User {
   email     String   @unique
   phone     String?
 
+  // Preferred locale for emails (it/en)
+  preferredLocale String? @default("it") @map("preferred_locale")
+
   // Newsletter management
   newsletterSubscribed Boolean @default(false) @map("newsletter_subscribed")
   mailchimpSubscriberId String? @map("mailchimp_subscriber_id")
