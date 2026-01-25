@@ -1,17 +1,16 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import FormCard from '$lib/components/forms/FormCard.svelte';
-	import Input from '$lib/components/forms/Input.svelte';
-	import Button from '$lib/components/forms/Button.svelte';
-	import WelcomeHeader from '$lib/components/forms/WelcomeHeader.svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
+	import TextContainer from '$lib/components/TextContainer.svelte';
 	import Toast from '$lib/components/Toast.svelte';
+	import { trackLoginStart } from '$lib/analytics';
+	import * as m from '$lib/paraglide/messages';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
 	let loading = $state(false);
 	let showSuccessToast = $state(false);
 
-	// Show toast when magic link is sent
 	$effect(() => {
 		if (form?.success) {
 			showSuccessToast = true;
@@ -19,145 +18,65 @@
 	});
 </script>
 
-<div class="login-page">
-	<div class="form-container">
-		<!-- Welcome Header -->
-		<WelcomeHeader
-			title="Accedi"
-			subtitle="Inserisci la tua email per ricevere un link di accesso"
-			showAvatar={false}
-			showEmail={false}
-		/>
-
+<PublicPageLayout>
+	<TextContainer>
 		{#if form?.success}
-			<!-- Success State -->
-			<FormCard title="Email inviata!" icon="check" subtitle="Controlla la tua casella di posta">
-				<div class="success-content">
-					<p class="success-email">
-						Abbiamo inviato un link di accesso a <strong>{form.email}</strong>
-					</p>
-					<p class="success-hint">
-						Clicca sul link nell'email per accedere. Il link scadra tra 15 minuti.
-					</p>
-					<div class="success-tips">
-						<p class="tips-title">Non trovi l'email?</p>
-						<ul class="tips-list">
-							<li>Controlla la cartella spam o posta indesiderata</li>
-							<li>Verifica che l'indirizzo email sia corretto</li>
-							<li>Attendi qualche minuto e riprova</li>
-						</ul>
-					</div>
-				</div>
-			</FormCard>
+			<h1>{m.auth_success_title()}</h1>
+			<p>{@html m.auth_success_message({ email: `<strong>${form.email}</strong>` })}</p>
+			<p>{m.auth_success_hint()}</p>
 
-			<div class="retry-section">
-				<a href="/auth/login" class="retry-link">Invia un nuovo link</a>
-			</div>
+			<h2>{m.auth_success_tips_title()}</h2>
+			<ul>
+				<li>{m.auth_success_tip_spam()}</li>
+				<li>{m.auth_success_tip_verify()}</li>
+				<li>{m.auth_success_tip_wait()}</li>
+			</ul>
+
+			<p>
+				<a href="/auth/login">{m.auth_retry_link()}</a>
+			</p>
 		{:else}
-			<!-- Login Form -->
+			<h1>{m.auth_login_title()}</h1>
+			<p>{m.auth_login_subtitle()}</p>
+
 			<form
 				method="POST"
 				use:enhance={() => {
 					loading = true;
+					trackLoginStart();
 					return async ({ update }) => {
 						await update();
 						loading = false;
 					};
 				}}
 			>
-				<FormCard title="Email" icon="user" subtitle="Non serve password, ti invieremo un link magico">
-					<Input
-						name="email"
-						label="Indirizzo Email"
+				<div class="form-group">
+					<input
 						type="email"
+						name="email"
+						placeholder={m.auth_email_placeholder()}
 						value={form?.email || ''}
-						error={form?.errors?.email}
 						required
-						placeholder="tua@email.com"
+						autocomplete="email"
 					/>
-				</FormCard>
 
-				<div class="submit-section">
-					<Button type="submit" variant="primary" {loading} fullWidth>
-						{loading ? 'Invio in corso...' : 'Invia link di accesso'}
-					</Button>
+					{#if form?.errors?.email}
+						<p class="error">{form.errors.email}</p>
+					{/if}
 				</div>
+
+				<button type="submit" disabled={loading}>
+					{loading ? m.auth_submit_sending() : m.auth_submit_send()}
+				</button>
 			</form>
 		{/if}
 
-		<div class="back-link">
-			<a href="/">Torna alla home</a>
-		</div>
-	</div>
-</div>
+		<p class="back-link">
+			<a href="/">{m.common_back_home()}</a>
+		</p>
+	</TextContainer>
+</PublicPageLayout>
 
 {#if showSuccessToast}
-	<Toast
-		message="Link di accesso inviato! Controlla la tua email."
-		type="success"
-		onclose={() => showSuccessToast = false}
-	/>
+	<Toast message={m.auth_toast_success()} type="success" onclose={() => (showSuccessToast = false)} />
 {/if}
-
-<style>
-	@reference "tailwindcss";
-
-	.login-page {
-		@apply min-h-screen;
-		background-color: var(--color-dopoRed);
-	}
-
-	.form-container {
-		@apply w-full max-w-6xl mx-auto px-4 py-12 md:px-8 md:py-16 lg:px-12;
-	}
-
-	.submit-section {
-		@apply mt-2;
-	}
-
-	.back-link {
-		@apply mt-8 text-center;
-	}
-
-	.back-link a {
-		@apply text-white/80 hover:text-white underline hover:no-underline transition-colors;
-	}
-
-	/* Success state styles */
-	.success-content {
-		@apply space-y-4;
-	}
-
-	.success-email {
-		@apply text-gray-900 text-lg;
-	}
-
-	.success-email strong {
-		@apply font-semibold text-blue-600;
-	}
-
-	.success-hint {
-		@apply text-gray-600;
-	}
-
-	.success-tips {
-		@apply mt-6 p-4 bg-gray-50 rounded-lg border border-gray-100;
-	}
-
-	.tips-title {
-		@apply font-medium text-gray-700 mb-2;
-	}
-
-	.tips-list {
-		@apply text-sm text-gray-600 space-y-1 list-disc list-inside;
-	}
-
-	.retry-section {
-		@apply mt-6 text-center;
-	}
-
-	.retry-link {
-		@apply inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg text-white hover:bg-white/20 transition-colors;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-	}
-</style>

@@ -6,7 +6,8 @@ import VerifyPage from './+page.svelte';
 const baseMockData = {
 	admin: null,
 	user: null,
-	isAdminRoute: false
+	isAdminRoute: false,
+	locale: 'it' as const
 };
 
 describe('Verify Page', () => {
@@ -33,7 +34,8 @@ describe('Verify Page', () => {
 
 		const errorHeadings = screen.getAllByText('Errore');
 		expect(errorHeadings.length).toBeGreaterThan(0);
-		expect(screen.getByText(errorMessage)).toBeInTheDocument();
+		// Error message is now part of the paragraph, search for partial text
+		expect(screen.getByText(new RegExp(errorMessage))).toBeInTheDocument();
 	});
 
 	it('shows link to request new magic link on error', () => {
@@ -49,7 +51,7 @@ describe('Verify Page', () => {
 		expect(links[0]).toHaveAttribute('href', '/auth/login');
 	});
 
-	it('applies error styling when error is present', () => {
+	it('renders error title as h1 heading', () => {
 		render(VerifyPage, {
 			data: {
 				...baseMockData,
@@ -59,6 +61,7 @@ describe('Verify Page', () => {
 
 		const errorHeadings = screen.getAllByRole('heading', { name: 'Errore' });
 		expect(errorHeadings.length).toBeGreaterThan(0);
-		expect(errorHeadings[0]).toHaveClass('text-red-600');
+		// Error title is now a standard h1 element
+		expect(errorHeadings[0].tagName.toLowerCase()).toBe('h1');
 	});
 });

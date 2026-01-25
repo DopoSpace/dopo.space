@@ -7,8 +7,9 @@ import {
 } from '$lib/server/auth/magic-link';
 import { USER_SESSION_COOKIE_NAME, getUserCookieOptions } from '$lib/server/config/constants';
 import { authLogger } from '$lib/server/utils/logger';
+import { prisma } from '$lib/server/db/prisma';
 
-export const load: PageServerLoad = async ({ url, cookies }) => {
+export const load: PageServerLoad = async ({ url, cookies, locals }) => {
 	const token = url.searchParams.get('token');
 	const email = url.searchParams.get('email');
 
@@ -60,6 +61,13 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	let user;
 	try {
 		user = await authenticateUser(normalizedEmail);
+
+		// Save the user's preferred locale for future emails (e.g., payment confirmation)
+		const locale = locals.locale === 'en' ? 'en' : 'it';
+		await prisma.user.update({
+			where: { id: user.id },
+			data: { preferredLocale: locale }
+		});
 	} catch (error) {
 		authLogger.error({
 			event: 'magic_link_authentication_failed',

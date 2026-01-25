@@ -3,18 +3,24 @@ import type { Actions } from './$types';
 import { emailSchema, formatZodErrors } from '$lib/server/utils/validation';
 import { generateMagicLinkToken } from '$lib/server/auth/magic-link';
 import { sendMagicLinkEmail } from '$lib/server/email/mailer';
-import { APP_URL, SMTP_HOST } from '$env/static/private';
+import { APP_URL } from '$env/static/private';
 import { checkRateLimit, getClientIP, RATE_LIMITS } from '$lib/server/utils/rate-limit';
 import { authLogger } from '$lib/server/utils/logger';
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
+		// Get locale from request context
+		const locale = (locals.locale === 'en' ? 'en' : 'it') as 'it' | 'en';
+
 		// Rate limiting: prevent brute force magic link generation
 		const clientIP = getClientIP(request);
 		const rateLimitResponse = checkRateLimit(`magic-link:${clientIP}`, RATE_LIMITS.MAGIC_LINK);
 		if (rateLimitResponse) {
+			const errorMessage = locale === 'en'
+				? 'Too many attempts. Please try again later.'
+				: 'Troppi tentativi. Riprova più tardi.';
 			return fail(429, {
-				errors: { email: 'Troppi tentativi. Riprova più tardi.' },
+				errors: { email: errorMessage },
 				email: ''
 			});
 		}
@@ -34,28 +40,13 @@ export const actions = {
 			// Generate magic link token
 			const token = generateMagicLinkToken(validation.data.email);
 
-			// Check if SMTP is properly configured
-			// If SMTP_HOST is empty or localhost, we're in development - just log the link
-			const isDevMode = !SMTP_HOST || SMTP_HOST === '' || SMTP_HOST === 'localhost' || SMTP_HOST === '127.0.0.1';
-
-			if (isDevMode) {
-				// Development mode: log magic link to console
-				const magicLink = `${APP_URL}/auth/verify?token=${token}&email=${encodeURIComponent(validation.data.email)}`;
-				authLogger.info({
-					event: 'magic_link_generated',
-					email: validation.data.email,
-					magicLink,
-					mode: 'development'
-				}, 'Magic link generated (dev mode)');
-			} else {
-				// Production mode: send email via SMTP
-				authLogger.info({
-					event: 'magic_link_sent',
-					email: validation.data.email,
-					mode: 'production'
-				}, 'Sending magic link via SMTP');
-				await sendMagicLinkEmail(validation.data.email, token, APP_URL);
-			}
+			// Send magic link email via Resend
+			authLogger.info({
+				event: 'magic_link_sending',
+				email: validation.data.email,
+				locale
+			}, 'Sending magic link email');
+			await sendMagicLinkEmail(validation.data.email, token, APP_URL, locale);
 
 			return {
 				success: true,
@@ -67,8 +58,11 @@ export const actions = {
 				email: validation.data.email,
 				error: error instanceof Error ? error.message : 'Unknown error'
 			}, 'Error sending magic link');
+			const errorMessage = locale === 'en'
+				? 'Error sending email. Please try again later.'
+				: 'Errore durante l\'invio dell\'email. Riprova più tardi.';
 			return fail(500, {
-				errors: { email: 'Errore durante l\'invio dell\'email. Riprova più tardi.' },
+				errors: { email: errorMessage },
 				email: validation.data.email
 			});
 		}

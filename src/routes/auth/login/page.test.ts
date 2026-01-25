@@ -10,7 +10,9 @@ describe('Login Page', () => {
 
 	it('renders email input field', () => {
 		render(LoginPage);
-		expect(screen.getByLabelText('Email')).toBeInTheDocument();
+		const emailInputs = screen.getAllByPlaceholderText(/email/i);
+		expect(emailInputs.length).toBeGreaterThan(0);
+		expect(emailInputs[0]).toHaveAttribute('type', 'email');
 	});
 
 	it('renders submit button', () => {
@@ -52,7 +54,7 @@ describe('Login Page', () => {
 		expect(screen.getByText('Email non valida')).toBeInTheDocument();
 	});
 
-	it('pre-fills email field with previous value on error', () => {
+	it('shows email input with error state', () => {
 		render(LoginPage, {
 			form: {
 				errors: {
@@ -62,9 +64,12 @@ describe('Login Page', () => {
 			}
 		});
 
-		// In browser mode, just verify the email input exists
-		const emailInput = screen.getByLabelText('Email');
-		expect(emailInput).toBeInTheDocument();
-		expect(emailInput).toHaveAttribute('name', 'email');
+		// Verify error message is displayed
+		expect(screen.getByText('Errore')).toBeInTheDocument();
+
+		// Verify email input exists
+		const emailInputs = screen.getAllByPlaceholderText(/email/i);
+		expect(emailInputs.length).toBeGreaterThan(0);
+		expect(emailInputs[0]).toHaveAttribute('name', 'email');
 	});
 });

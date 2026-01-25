@@ -1,26 +1,51 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
 	import TextContainer from '$lib/components/TextContainer.svelte';
+	import { trackLoginFailure } from '$lib/analytics';
+	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	// Track login failure when error is present
+	onMount(() => {
+		if (data.error) {
+			// Determine failure reason based on error message
+			const reason = data.error.includes('scaduto') ? 'expired' : 'invalid';
+			trackLoginFailure(reason);
+		}
+	});
 </script>
 
-<div class="bg-dopoRed min-h-screen flex items-center justify-center px-4">
-	<TextContainer>
-		{#if data.error}
-			<div class="bg-white text-gray-900 rounded-lg p-6 md:p-8">
-				<h1 class="text-3xl md:text-4xl font-bold mb-4 text-red-600">Errore</h1>
-				<p class="text-lg mb-6">{data.error}</p>
-				<a href="/auth/login" class="btn-primary inline-block"> Richiedi nuovo link </a>
-			</div>
-		{:else}
-			<div class="bg-white text-gray-900 rounded-lg p-6 md:p-8 text-center">
-				<h1 class="text-3xl md:text-4xl font-bold mb-4">Verifica in corso...</h1>
-				<p class="text-lg">Attendere mentre verifichiamo il tuo accesso.</p>
-				<div class="mt-6">
-					<div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+<PublicPageLayout>
+	<div class="verify-page">
+		<TextContainer>
+			{#if data.error}
+				<h1>{m.auth_verify_error_title()}</h1>
+				<p>{data.error}. <a href="/auth/login">{m.auth_verify_request_link()}</a></p>
+			{:else}
+				<div class="processing-state">
+					<div class="spinner"></div>
+					<p>{m.auth_verify_loading_title()}. {m.auth_verify_loading_text()}</p>
 				</div>
-			</div>
-		{/if}
-	</TextContainer>
-</div>
+			{/if}
+
+			<p class="back-link">
+				<a href="/">{m.common_back_to_home()}</a>
+			</p>
+		</TextContainer>
+	</div>
+</PublicPageLayout>
+
+<style>
+	@reference "tailwindcss";
+
+	.verify-page {
+		@apply min-h-screen;
+	}
+
+	.processing-state {
+		@apply flex items-center gap-4;
+	}
+</style>
