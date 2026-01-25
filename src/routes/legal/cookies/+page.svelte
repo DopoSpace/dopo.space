@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.cookie_policy_title()} - DOPO? ASD</title>
+	<title>{m.cookie_policy_title()} - APS Dopolavoro</title>
 	<meta name="description" content={m.cookie_policy_intro()} />
 </svelte:head>
 
@@ -150,7 +150,7 @@
 			<h2>8. {m.cookie_policy_contact_title()}</h2>
 			<p>{m.cookie_policy_contact_text()}</p>
 			<ul>
-				<li>Email: <a href="mailto:privacy@dopo.space">privacy@dopo.space</a></li>
+				<li>Email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a></li>
 			</ul>
 		</TextContainer>
 	</div>

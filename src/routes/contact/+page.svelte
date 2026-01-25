@@ -32,7 +32,7 @@
 			target="_blank"
 			rel="noopener noreferrer"
 					>
-			Via Boncompagni 51/10, Milano
+			Via Boncompagni 51/10, 20139 Milano (MI)
 		</a>.
 	</p>
 	</TextContainer>

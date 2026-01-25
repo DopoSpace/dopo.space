@@ -22,8 +22,8 @@
 </script>
 
 <svelte:head>
-	<title>Documenti Legali - DOPO? ASD</title>
-	<meta name="description" content="Documenti legali di DOPO? ASD: privacy policy, cookie policy, termini e condizioni" />
+	<title>Documenti Legali - APS Dopolavoro</title>
+	<meta name="description" content="Documenti legali di APS Dopolavoro: privacy policy, cookie policy, termini e condizioni" />
 </svelte:head>
 
 <PublicPageLayout>
@@ -44,7 +44,7 @@
 
 			<p style="text-align: center; margin-top: 3rem;">
 				Per qualsiasi domanda sui documenti legali, contattaci a
-				<a href="mailto:privacy@dopo.space">privacy@dopo.space</a>
+				<a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>
 			</p>
 		</TextContainer>
 	</div>

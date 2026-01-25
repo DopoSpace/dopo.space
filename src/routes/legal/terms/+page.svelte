@@ -4,8 +4,8 @@
 </script>
 
 <svelte:head>
-	<title>Termini e Condizioni - DOPO? ASD</title>
-	<meta name="description" content="Termini e condizioni di utilizzo del servizio DOPO? ASD" />
+	<title>Termini e Condizioni - APS Dopolavoro</title>
+	<meta name="description" content="Termini e condizioni di utilizzo del servizio APS Dopolavoro" />
 </svelte:head>
 
 <PublicPageLayout>
@@ -14,7 +14,7 @@
 
 		<h2>1. Premessa</h2>
 		<p>
-			I presenti Termini e Condizioni (di seguito "Termini") regolano l'utilizzo della piattaforma online di <strong>DOPO? ASD</strong> (Associazione Sportiva Dilettantistica) per la gestione delle iscrizioni e del tesseramento associativo.
+			I presenti Termini e Condizioni (di seguito "Termini") regolano l'utilizzo della piattaforma online di <strong>APS Dopolavoro</strong> (Associazione di Promozione Sociale) per la gestione delle iscrizioni e del tesseramento associativo.
 		</p>
 		<p>
 			L'utilizzo della piattaforma e il completamento della procedura di iscrizione comportano l'accettazione integrale dei presenti Termini.
@@ -22,7 +22,7 @@
 
 		<h2>2. Definizioni</h2>
 		<ul>
-			<li><strong>"Associazione"</strong>: DOPO? ASD</li>
+			<li><strong>"Associazione"</strong>: APS Dopolavoro</li>
 			<li><strong>"Piattaforma"</strong>: Il sito web dopo.space e tutti i servizi correlati</li>
 			<li><strong>"Utente"</strong>: Qualsiasi persona che accede alla Piattaforma</li>
 			<li><strong>"Socio"</strong>: L'utente che ha completato l'iscrizione e il pagamento della quota associativa</li>
@@ -108,7 +108,7 @@
 
 		<h2>11. Recesso e Cancellazione</h2>
 		<p>
-			L'Utente puo richiedere la cancellazione del proprio account in qualsiasi momento contattando l'Associazione all'indirizzo <a href="mailto:info@dopo.space">info@dopo.space</a>.
+			L'Utente puo richiedere la cancellazione del proprio account in qualsiasi momento contattando l'Associazione all'indirizzo <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>.
 		</p>
 		<p>
 			La cancellazione dell'account non da diritto al rimborso della quota associativa gia versata.
@@ -143,8 +143,8 @@
 			Per qualsiasi domanda relativa ai presenti Termini, puoi contattarci a:
 		</p>
 		<ul>
-			<li>Email: <a href="mailto:info@dopo.space">info@dopo.space</a></li>
-			<li>Indirizzo: DOPO? ASD, Via Example 123, 20100 Milano (MI), Italia</li>
+			<li>Email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a></li>
+			<li>Indirizzo: APS Dopolavoro, Via Boncompagni 51/10, 20139 Milano (MI), Italia</li>
 		</ul>
 	</TextContainer>
 </PublicPageLayout>

@@ -161,7 +161,7 @@
   "payment_not_completed": "Pagamento non effettuato",
   "payment_you_canceled": "Hai annullato il pagamento",
   "payment_no_charge": "Non e stato effettuato alcun addebito sulla tua carta o conto PayPal.",
-  "payment_need_help": "Se hai avuto problemi con il pagamento o hai bisogno di assistenza, contattaci a <a href=\"mailto:info@dopo.space\">info@dopo.space</a>",
+  "payment_need_help": "Se hai avuto problemi con il pagamento o hai bisogno di assistenza, contattaci a <a href=\"mailto:dopolavoro.milano@gmail.com\">dopolavoro.milano@gmail.com</a>",
   "payment_retry": "Riprova il pagamento",
   "payment_edit_profile": "Modifica il profilo",
 
@@ -169,7 +169,7 @@
   "footer_cookies": "Cookie Policy",
   "footer_terms": "Termini e Condizioni",
   "footer_payments": "Condizioni di Pagamento",
-  "footer_copyright": "DOPO? ASD - Tutti i diritti riservati",
+  "footer_copyright": "APS Dopolavoro - Tutti i diritti riservati",
 
   "validation_first_name_required": "Il nome e obbligatorio",
   "validation_first_name_min": "Il nome deve contenere almeno 2 caratteri",

@@ -404,7 +404,7 @@
 					{#if isUnder16}
 						<div class="warning-box">
 							<p><strong>{m.subscription_under16_title()}</strong></p>
-							<p>{@html m.subscription_under16_text({ email: '<a href="mailto:info@dopo.space">info@dopo.space</a>' })}</p>
+							<p>{@html m.subscription_under16_text({ email: '<a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>' })}</p>
 						</div>
 					{/if}
 

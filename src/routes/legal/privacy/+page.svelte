@@ -5,8 +5,8 @@
 </script>
 
 <svelte:head>
-	<title>Privacy Policy - DOPO? ASD</title>
-	<meta name="description" content="Informativa sulla privacy di DOPO? ASD ai sensi del GDPR" />
+	<title>Privacy Policy - APS Dopolavoro</title>
+	<meta name="description" content="Informativa sulla privacy di APS Dopolavoro ai sensi del GDPR" />
 </svelte:head>
 
 <PublicPageLayout>
@@ -17,10 +17,10 @@
 
 			<h2>1. Titolare del Trattamento</h2>
 			<p>
-				Il Titolare del trattamento dei dati personali e <strong>DOPO? ASD</strong> (Associazione Sportiva Dilettantistica), con sede legale in Via Example 123, 20100 Milano (MI), Italia.
+				Il Titolare del trattamento dei dati personali e <strong>APS Dopolavoro</strong> (Associazione di Promozione Sociale), con sede legale in Via Boncompagni 51/10, 20139 Milano (MI), Italia.
 			</p>
 			<p>
-				Per qualsiasi domanda relativa al trattamento dei tuoi dati personali, puoi contattarci all'indirizzo email: <a href="mailto:privacy@dopo.space">privacy@dopo.space</a>
+				Per qualsiasi domanda relativa al trattamento dei tuoi dati personali, puoi contattarci all'indirizzo email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>
 			</p>
 
 			<h2>2. Dati Personali Raccolti</h2>
@@ -127,7 +127,7 @@
 				<li><strong>Revoca del consenso:</strong> Revocare in qualsiasi momento i consensi prestati</li>
 			</ul>
 			<p>
-				Per esercitare i tuoi diritti, puoi contattarci all'indirizzo <a href="mailto:privacy@dopo.space">privacy@dopo.space</a>
+				Per esercitare i tuoi diritti, puoi contattarci all'indirizzo <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>
 			</p>
 
 			<h2>8. Diritto di Reclamo</h2>
@@ -161,8 +161,8 @@
 				Per qualsiasi domanda relativa a questa Privacy Policy o al trattamento dei tuoi dati personali, puoi contattarci a:
 			</p>
 			<ul>
-				<li>Email: <a href="mailto:privacy@dopo.space">privacy@dopo.space</a></li>
-				<li>Indirizzo: DOPO? ASD, Via Example 123, 20100 Milano (MI), Italia</li>
+				<li>Email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a></li>
+				<li>Indirizzo: APS Dopolavoro, Via Boncompagni 51/10, 20139 Milano (MI), Italia</li>
 			</ul>
 		</TextContainer>
 	</div>

@@ -161,7 +161,7 @@
   "payment_not_completed": "Payment not processed",
   "payment_you_canceled": "You canceled the payment",
   "payment_no_charge": "No charges have been made to your card or PayPal account.",
-  "payment_need_help": "If you experienced issues with the payment or need assistance, please contact us at <a href=\"mailto:info@dopo.space\">info@dopo.space</a>",
+  "payment_need_help": "If you experienced issues with the payment or need assistance, please contact us at <a href=\"mailto:dopolavoro.milano@gmail.com\">dopolavoro.milano@gmail.com</a>",
   "payment_retry": "Retry payment",
   "payment_edit_profile": "Edit profile",
 
@@ -169,7 +169,7 @@
   "footer_cookies": "Cookie Policy",
   "footer_terms": "Terms and Conditions",
   "footer_payments": "Payment Terms",
-  "footer_copyright": "DOPO? ASD - All rights reserved",
+  "footer_copyright": "APS Dopolavoro - All rights reserved",
 
   "validation_first_name_required": "First name is required",
   "validation_first_name_min": "First name must be at least 2 characters",

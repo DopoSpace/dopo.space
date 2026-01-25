@@ -25,7 +25,7 @@
 				&copy; {currentYear} {m.footer_copyright()}
 			</p>
 			<p class="footer-address">
-				Via Example 123, 20100 Milano (MI) - <a href="mailto:info@dopo.space">info@dopo.space</a>
+				Via Boncompagni 51/10, 20139 Milano (MI) - <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>
 			</p>
 		</div>
 	</div>
