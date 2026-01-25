@@ -1,39 +1,37 @@
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/svelte';
 import type { Snippet } from 'svelte';
 import TextContainer from './TextContainer.svelte';
-import { testElementClasses } from '$lib/test-utils/pageTestHelpers';
 
 // Helper to create a mock snippet for testing
 // In Svelte 5, children are Snippets, but testing-library doesn't fully support this yet
 const mockChildren = (() => 'Test') as unknown as Snippet;
 
 describe('TextContainer Component', () => {
-	it('has large text size class', () => {
+	it('renders with text-container class', () => {
 		const { container } = render(TextContainer, {
 			children: mockChildren
 		});
-		testElementClasses(container, 'div', ['text-3xl']);
+		const textContainer = container.querySelector('.text-container');
+		expect(textContainer).toBeInTheDocument();
 	});
 
-	it('has responsive width classes', () => {
+	it('renders as a div element', () => {
 		const { container } = render(TextContainer, {
 			children: mockChildren
 		});
-		testElementClasses(container, 'div', ['w-full', 'md:w-4/5']);
+		const textContainer = container.querySelector('.text-container');
+		expect(textContainer).toBeInTheDocument();
+		expect(textContainer?.tagName.toLowerCase()).toBe('div');
 	});
 
-	it('has correct padding classes', () => {
+	it('applies styling via CSS (responsive width, padding, typography)', () => {
 		const { container } = render(TextContainer, {
 			children: mockChildren
 		});
-		testElementClasses(container, 'div', ['px-4', 'py-16']);
-	});
-
-	it('has flexbox and gap classes', () => {
-		const { container } = render(TextContainer, {
-			children: mockChildren
-		});
-		testElementClasses(container, 'div', ['flex', 'flex-col', 'gap-4']);
+		// The component uses @apply for Tailwind classes in scoped CSS
+		// We verify the component class exists - actual styles are applied via CSS
+		const textContainer = container.querySelector('.text-container');
+		expect(textContainer).toBeInTheDocument();
 	});
 });

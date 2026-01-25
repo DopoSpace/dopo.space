@@ -20,7 +20,7 @@ describe('Contact Page', () => {
 		expect(links.length).toBeGreaterThan(0);
 		expect(links[0]).toHaveAttribute('href', 'mailto:dopolavoro.milano@gmail.com');
 		expect(links[0]).toHaveAttribute('target', '_blank');
-		expect(links[0]).toHaveClass('underline');
+		// Underline styling is applied via TextContainer :global(a) CSS rule
 	});
 
 	it('displays Instagram label', () => {
@@ -35,7 +35,7 @@ describe('Contact Page', () => {
 		expect(links.length).toBeGreaterThan(0);
 		expect(links[0]).toHaveAttribute('href', 'https://www.instagram.com/dopo.space/');
 		expect(links[0]).toHaveAttribute('target', '_blank');
-		expect(links[0]).toHaveClass('underline');
+		// Underline styling is applied via TextContainer :global(a) CSS rule
 	});
 
 	it('displays location label', () => {
@@ -50,6 +50,6 @@ describe('Contact Page', () => {
 		expect(links.length).toBeGreaterThan(0);
 		expect(links[0]).toHaveAttribute('href', 'https://www.google.com/maps/place/DOPO%3F/@45.4385079,9.2315244,17z/');
 		expect(links[0]).toHaveAttribute('target', '_blank');
-		expect(links[0]).toHaveClass('underline');
+		// Underline styling is applied via TextContainer :global(a) CSS rule
 	});
 });

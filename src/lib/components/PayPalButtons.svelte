@@ -1,19 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { trackPaymentStart } from '$lib/analytics';
 
 	interface Props {
 		clientId: string;
 		amount: number;
 		currency?: string;
+		showAmount?: boolean;
 	}
 
-	let { clientId, amount, currency = 'EUR' }: Props = $props();
+	let { clientId, amount, currency = 'EUR', showAmount = true }: Props = $props();
 
-	let buttonsContainer: HTMLDivElement;
+	let buttonsContainer: HTMLDivElement | undefined = $state();
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let paypalLoaded = $state(false);
+	let resetting = $state(false); // True while resetting after window close
 
 	// Format amount for display
 	const formattedAmount = $derived((amount / 100).toFixed(2));
@@ -88,6 +91,22 @@
 			createOrder: async () => {
 				error = null;
 
+				// Wait if we're still resetting from a previous window close
+				if (resetting) {
+					await new Promise<void>((resolve) => {
+						const checkResetting = () => {
+							if (!resetting) {
+								resolve();
+							} else {
+								setTimeout(checkResetting, 100);
+							}
+						};
+						checkResetting();
+					});
+				}
+
+				trackPaymentStart(amount);
+
 				try {
 					const response = await fetch('/api/membership/create-order', {
 						method: 'POST',
@@ -139,19 +158,41 @@
 
 			// Handle cancel
 			onCancel: async () => {
-				// Reset membership state so user can retry
+				// Block new orders while we reset
+				resetting = true;
 				try {
 					await fetch('/api/membership/cancel-order', { method: 'POST' });
 				} catch (e) {
 					console.error('Failed to cancel order:', e);
+				} finally {
+					resetting = false;
 				}
 				goto('/membership/payment/cancel');
 			},
 
 			// Handle errors
-			onError: (err: Error) => {
+			onError: async (err: Error) => {
 				console.error('PayPal error:', err);
-				error = 'Si è verificato un errore durante il pagamento. Riprova più tardi.';
+
+				// Ignore "Window is closed" error - this happens when user closes popup
+				// It's not a real error, just PayPal complaining about the closed window
+				if (err?.message?.includes('Window is closed')) {
+					// Block new orders while we reset
+					resetting = true;
+					try {
+						await fetch('/api/membership/cancel-order', { method: 'POST' });
+					} catch (e) {
+						console.error('Failed to cancel order:', e);
+					} finally {
+						resetting = false;
+					}
+					return;
+				}
+
+				// Don't overwrite specific error messages from createOrder or onApprove
+				if (!error) {
+					error = 'Si è verificato un errore durante il pagamento. Riprova più tardi.';
+				}
 			}
 		}).render(buttonsContainer);
 	}
@@ -181,17 +222,13 @@
 			</button>
 		</div>
 	{:else}
-		<div class="amount-summary">
-			<span class="amount-label">Totale da pagare:</span>
-			<span class="amount-value">{currency} {formattedAmount}</span>
-		</div>
+		{#if showAmount}
+			<div class="amount-summary">
+				<span class="amount-label">Totale da pagare:</span>
+				<span class="amount-value">{currency} {formattedAmount}</span>
+			</div>
+		{/if}
 		<div bind:this={buttonsContainer} class="buttons-container"></div>
-		<p class="secure-note">
-			<svg class="lock-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-			</svg>
-			Pagamento sicuro tramite PayPal
-		</p>
 	{/if}
 </div>
 
@@ -240,13 +277,5 @@
 
 	.buttons-container {
 		@apply min-h-[150px];
-	}
-
-	.secure-note {
-		@apply flex items-center justify-center gap-2 text-sm text-gray-500 mt-4;
-	}
-
-	.lock-icon {
-		@apply w-4 h-4;
 	}
 </style>

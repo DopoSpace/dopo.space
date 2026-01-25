@@ -1,12 +1,13 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
+
 	const currentYear = new Date().getFullYear();
 
-	const legalLinks = [
-		{ href: '/legal/privacy', label: 'Privacy Policy' },
-		{ href: '/legal/cookies', label: 'Cookie Policy' },
-		{ href: '/legal/terms', label: 'Termini e Condizioni' },
-		{ href: '/legal/payments', label: 'Condizioni di Pagamento' }
-	];
+	const legalLinks = $derived([
+		{ href: '/legal/privacy', label: m.footer_privacy() },
+		{ href: '/legal/cookies', label: m.footer_cookies() },
+		{ href: '/legal/terms', label: m.footer_terms() }
+	]);
 </script>
 
 <footer class="footer">
@@ -21,7 +22,7 @@
 
 		<div class="footer-bottom">
 			<p class="footer-copyright">
-				&copy; {currentYear} DOPO? ASD - Tutti i diritti riservati
+				&copy; {currentYear} {m.footer_copyright()}
 			</p>
 			<p class="footer-address">
 				Via Example 123, 20100 Milano (MI) - <a href="mailto:info@dopo.space">info@dopo.space</a>
@@ -39,7 +40,7 @@
 	}
 
 	.footer-container {
-		@apply max-w-4xl mx-auto;
+		@apply max-w-2xl mx-auto;
 	}
 
 	.footer-nav {

@@ -178,9 +178,9 @@
 		{/if}
 	</label>
 
-	<div class="flex gap-2">
+	<div class="phone-input-row">
 		<!-- Country prefix selector -->
-		<div class="w-44 flex-shrink-0">
+		<div class="prefix-wrapper">
 			<Listbox
 				name="{name}-prefix"
 				label=""
@@ -196,21 +196,19 @@
 		</div>
 
 		<!-- Phone number input -->
-		<div class="flex-1">
-			<div class="mb-6">
-				<input
-					type="tel"
-					id="{name}-number"
-					value={phoneNumber}
-					oninput={handleNumberInput}
-					onblur={handleBlur}
-					{disabled}
-					placeholder="333 1234567"
-					class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
-					aria-invalid={error ? 'true' : 'false'}
-					aria-describedby={error ? `${name}-error` : undefined}
-				/>
-			</div>
+		<div class="number-wrapper">
+			<input
+				type="tel"
+				id="{name}-number"
+				value={phoneNumber}
+				oninput={handleNumberInput}
+				onblur={handleBlur}
+				{disabled}
+				placeholder="333 1234567"
+				class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
+				aria-invalid={error ? 'true' : 'false'}
+				aria-describedby={error ? `${name}-error` : undefined}
+			/>
 		</div>
 	</div>
 
@@ -225,8 +223,25 @@
 <style>
 	@reference "tailwindcss";
 
-	/* Remove margin from nested Listbox */
-	.w-44 :global(.mb-6) {
-		margin-bottom: 0;
+	.phone-input-row {
+		@apply flex gap-2 items-stretch;
+	}
+
+	.prefix-wrapper {
+		@apply w-52 flex-shrink-0;
+	}
+
+	/* Remove all margins from nested Listbox container */
+	.prefix-wrapper :global(> div) {
+		@apply mb-0;
+	}
+
+	/* Make listbox button match input height */
+	.prefix-wrapper :global(.listbox-button) {
+		min-height: 68px;
+	}
+
+	.number-wrapper {
+		@apply flex-1;
 	}
 </style>

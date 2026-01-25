@@ -3,12 +3,271 @@
 
 	interface Props {
 		children: Snippet;
-		maxWidth?: string;
 	}
 
-	let { children, maxWidth = 'md:w-4/5' }: Props = $props();
+	let { children }: Props = $props();
 </script>
 
-<div class="text-3xl w-full {maxWidth} px-4 py-16 flex flex-col gap-4">
+<div class="text-container">
 	{@render children()}
 </div>
+
+<style>
+	@reference "tailwindcss";
+
+	.text-container {
+		@apply w-full px-4 py-16;
+		@apply md:w-4/5;
+	}
+
+	/* Headings */
+	.text-container :global(h1) {
+		@apply text-4xl md:text-5xl font-bold text-white mb-8 leading-tight;
+	}
+
+	.text-container :global(h2) {
+		@apply text-2xl md:text-3xl font-bold text-white mt-12 mb-4 leading-tight;
+	}
+
+	.text-container :global(h2:first-child),
+	.text-container :global(h1 + h2) {
+		@apply mt-0;
+	}
+
+	/* Paragraphs */
+	.text-container :global(p) {
+		@apply text-xl md:text-2xl text-white/90 leading-relaxed mb-6;
+	}
+
+	.text-container :global(p:last-child) {
+		@apply mb-0;
+	}
+
+	/* Lists */
+	.text-container :global(ul:not(.listbox-options)),
+	.text-container :global(ol) {
+		@apply text-xl md:text-2xl text-white/90 leading-relaxed mb-6 pl-6 space-y-2;
+	}
+
+	.text-container :global(ul:not(.listbox-options)) {
+		@apply list-disc;
+	}
+
+	.text-container :global(ol) {
+		@apply list-decimal;
+	}
+
+	.text-container :global(li:not(.listbox-option)) {
+		@apply pl-2;
+	}
+
+	/* Links */
+	.text-container :global(a) {
+		@apply text-white underline decoration-white/50 underline-offset-4 hover:decoration-white transition-colors;
+	}
+
+	/* Strong/Bold */
+	.text-container :global(strong) {
+		@apply font-semibold text-white;
+	}
+
+	/* Emphasis */
+	.text-container :global(em) {
+		@apply italic;
+	}
+
+	/* Form Elements */
+	.text-container :global(form) {
+		@apply mt-8 space-y-6;
+	}
+
+	.text-container :global(input[type='email']),
+	.text-container :global(input[type='text']),
+	.text-container :global(input[type='tel']) {
+		@apply w-full px-4 py-4 text-xl md:text-2xl;
+		@apply bg-transparent border-2 border-white/50 rounded-lg;
+		@apply text-white placeholder-white/50;
+		@apply focus:border-white focus:outline-none;
+	}
+
+	.text-container :global(label) {
+		@apply block text-lg md:text-xl text-white/90 mb-2;
+	}
+
+	.text-container :global(button[type='submit']) {
+		@apply w-full px-6 py-4 text-xl md:text-2xl font-bold mt-4;
+		@apply bg-white rounded-lg cursor-pointer;
+		@apply hover:bg-white/90 transition-colors;
+		@apply disabled:opacity-50 disabled:cursor-not-allowed;
+		color: var(--color-dopoRed);
+	}
+
+	.text-container :global(.error) {
+		@apply text-white bg-white/20 px-4 py-2 rounded-lg text-base mt-2;
+	}
+
+	.text-container :global(.form-group) {
+		@apply space-y-2;
+	}
+
+	.text-container :global(.back-link) {
+		@apply text-base mt-12;
+	}
+
+	/* Select */
+	.text-container :global(select) {
+		@apply w-full px-4 py-4 text-xl md:text-2xl;
+		@apply bg-transparent border-2 border-white/50 rounded-lg;
+		@apply text-white;
+		@apply focus:border-white focus:outline-none;
+		@apply appearance-none cursor-pointer;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 1rem center;
+		background-size: 1.5rem;
+		padding-right: 3rem;
+	}
+
+	.text-container :global(select option) {
+		@apply text-white;
+		background-color: var(--color-dopoRed-dark);
+	}
+
+	/* Input date (date picker styling) */
+	.text-container :global(input[type='date']) {
+		@apply w-full px-4 py-4 text-xl md:text-2xl;
+		@apply bg-transparent border-2 border-white/50 rounded-lg;
+		@apply text-white;
+		@apply focus:border-white focus:outline-none;
+	}
+
+	.text-container :global(input[type='date']::-webkit-calendar-picker-indicator) {
+		filter: invert(1);
+		cursor: pointer;
+	}
+
+	/* Checkbox container */
+	.text-container :global(.checkbox-group) {
+		@apply flex items-start gap-3;
+	}
+
+	.text-container :global(input[type='checkbox']) {
+		@apply w-6 h-6 min-w-[1.5rem] mt-1;
+		@apply bg-transparent border-2 border-white/50 rounded;
+		@apply cursor-pointer;
+		accent-color: white;
+	}
+
+	.text-container :global(input[type='checkbox']:checked) {
+		@apply bg-white border-white;
+	}
+
+	.text-container :global(input[type='checkbox']:focus) {
+		@apply outline-none ring-2 ring-white/50 ring-offset-0;
+	}
+
+	.text-container :global(.checkbox-label) {
+		@apply text-lg md:text-xl text-white/90 leading-relaxed cursor-pointer;
+	}
+
+	/* Form section dividers */
+	.text-container :global(.form-section) {
+		@apply border-t border-white/20 pt-8 mt-8;
+	}
+
+	.text-container :global(.form-section-title) {
+		@apply text-xl md:text-2xl font-bold text-white mb-4;
+	}
+
+	/* Info/Warning boxes */
+	.text-container :global(.info-box) {
+		@apply bg-white/10 border border-white/30 rounded-lg p-4 my-6;
+	}
+
+	.text-container :global(.info-box p) {
+		@apply text-white/90 text-base md:text-lg mb-0;
+	}
+
+	.text-container :global(.warning-box) {
+		@apply bg-amber-500/20 border border-amber-400/50 rounded-lg p-4 my-6;
+	}
+
+	.text-container :global(.warning-box p) {
+		@apply text-amber-100 text-base md:text-lg mb-0;
+	}
+
+	/* Success box */
+	.text-container :global(.success-box) {
+		@apply bg-green-500/20 border border-green-400/50 rounded-lg p-4 my-6;
+	}
+
+	.text-container :global(.success-box p) {
+		@apply text-green-100 text-base md:text-lg mb-0;
+	}
+
+	/* Tables (for legal pages) */
+	.text-container :global(table) {
+		@apply w-full border-collapse my-6;
+	}
+
+	.text-container :global(th),
+	.text-container :global(td) {
+		@apply border border-white/30 px-4 py-3 text-left text-white/90;
+	}
+
+	.text-container :global(th) {
+		@apply bg-white/10 font-semibold text-white;
+	}
+
+	.text-container :global(table code) {
+		@apply bg-white/20 px-2 py-0.5 rounded text-sm font-mono text-white;
+	}
+
+
+	/* Grid layouts */
+	.text-container :global(.grid) {
+		@apply grid gap-4;
+	}
+
+	.text-container :global(.grid-cols-2) {
+		@apply grid-cols-1 md:grid-cols-2;
+	}
+
+	.text-container :global(.grid-cols-3) {
+		@apply grid-cols-1 md:grid-cols-3;
+	}
+
+	/* Spinner */
+	.text-container :global(.spinner) {
+		@apply w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin;
+	}
+
+	/* Card links (for legal index) */
+	.text-container :global(.card-link) {
+		@apply block p-6 bg-white/10 border border-white/30 rounded-lg;
+		@apply hover:bg-white/20 hover:border-white/50 transition-all;
+	}
+
+	.text-container :global(.card-link h3) {
+		@apply text-xl font-bold text-white mb-2;
+	}
+
+	.text-container :global(.card-link p) {
+		@apply text-white/70 text-base mb-0;
+	}
+
+	/* Button secondary (white outline) */
+	.text-container :global(button.secondary),
+	.text-container :global(.btn-secondary) {
+		@apply w-full px-6 py-4 text-xl md:text-2xl font-bold mt-4;
+		@apply bg-transparent border-2 border-white rounded-lg cursor-pointer text-white;
+		@apply hover:bg-white/10 transition-colors;
+		@apply disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+
+	/* Disabled input state */
+	.text-container :global(input:disabled),
+	.text-container :global(select:disabled) {
+		@apply opacity-50 cursor-not-allowed;
+	}
+</style>

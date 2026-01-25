@@ -33,7 +33,8 @@ describe('FormCard Component', () => {
 
 	it('applies card styling classes', () => {
 		const { container } = render(FormCardTestWrapper, { content: 'Unique Content 789' });
-		const cards = container.querySelectorAll('.bg-white.rounded-lg.shadow-lg');
+		// FormCard uses form-card class with @apply bg-white rounded-xl shadow-sm
+		const cards = container.querySelectorAll('.form-card');
 		expect(cards.length).toBeGreaterThan(0);
 	});
 });

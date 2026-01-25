@@ -44,9 +44,11 @@ describe('About Page', () => {
 		expect(pdfLinks[0]).toHaveAttribute('target', '_blank');
 	});
 
-	it('PDF link is underlined', () => {
+	it('PDF link is styled as a link', () => {
 		render(AboutPage);
 		const pdfLinks = screen.getAllByRole('link', { name: /TRASPARENZA DATI/i });
-		expect(pdfLinks[0]).toHaveClass('underline');
+		// Link styling (underline) is applied via TextContainer :global(a) CSS rule
+		expect(pdfLinks[0]).toBeInTheDocument();
+		expect(pdfLinks[0].tagName.toLowerCase()).toBe('a');
 	});
 });

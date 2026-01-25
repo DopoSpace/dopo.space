@@ -11,8 +11,7 @@
 			href="mailto:dopolavoro.milano@gmail.com"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="underline"
-		>
+					>
 			dopolavoro.milano@gmail.com
 		</a>
 	</p>
@@ -22,8 +21,7 @@
 			href="https://www.instagram.com/dopo.space/"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="underline"
-		>
+					>
 			dopo.space
 		</a>
 	</p>
@@ -33,8 +31,7 @@
 			href="https://www.google.com/maps/place/DOPO%3F/@45.4385079,9.2315244,17z/"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="underline"
-		>
+					>
 			Via Boncompagni 51/10, Milano
 		</a>.
 	</p>

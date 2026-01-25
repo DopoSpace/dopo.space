@@ -207,12 +207,14 @@
 </script>
 
 <div class="mb-6 relative" bind:this={containerRef}>
-	<label for={name} class="label text-gray-700">
-		{label}
-		{#if required}
-			<span class="text-red-600">*</span>
-		{/if}
-	</label>
+	{#if label}
+		<label for={name} class="label text-gray-700">
+			{label}
+			{#if required}
+				<span class="text-red-600">*</span>
+			{/if}
+		</label>
+	{/if}
 
 	<!-- Hidden input for form submission -->
 	<input type="hidden" {name} value={internalValue} />
