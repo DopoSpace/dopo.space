@@ -2,10 +2,11 @@
  * SvelteKit Server Hooks
  *
  * Global server-side middleware for authentication, subdomain routing,
- * and request handling.
+ * i18n, and request handling.
  */
 
 import type { Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 import { verifySessionToken } from '$lib/server/auth/magic-link';
 import { prisma } from '$lib/server/db/prisma';
 import { detectSubdomain, isRouteAllowedOnSubdomain } from '$lib/server/utils/subdomain';
@@ -14,6 +15,10 @@ import {
 	ADMIN_SESSION_COOKIE_NAME
 } from '$lib/server/config/constants';
 import pino from 'pino';
+import { paraglideMiddleware } from '$lib/paraglide/server.js';
+import type { locales } from '$lib/paraglide/runtime.js';
+
+type Locale = (typeof locales)[number];
 
 // Validate environment variables at startup (will throw if invalid)
 import '$lib/server/config/env';
@@ -29,7 +34,38 @@ if (!building && process.env.NODE_ENV === 'production') {
 
 const logger = pino({ name: 'hooks' });
 
-export const handle: Handle = async ({ event, resolve }) => {
+/**
+ * i18n middleware
+ * Handles locale detection from URL and cookie.
+ * URL rewriting is handled by the reroute hook in hooks.ts
+ */
+const i18nHandle: Handle = async ({ event, resolve }) => {
+	const pathname = event.url.pathname;
+
+	// Skip i18n for admin routes - they stay in Italian only
+	if (pathname.startsWith('/admin')) {
+		event.locals.locale = 'it';
+		return resolve(event);
+	}
+
+	// Detect locale from URL prefix - URL is the source of truth
+	// /en/* routes = English, all other routes = Italian
+	const isEnglish = pathname.startsWith('/en/') || pathname === '/en';
+	const locale: Locale = isEnglish ? 'en' : 'it';
+
+	// Store locale in locals for use in pages
+	event.locals.locale = locale;
+
+	// Use Paraglide middleware to set up AsyncLocalStorage for server-side rendering
+	return paraglideMiddleware(event.request, async () => {
+		return resolve(event);
+	});
+};
+
+/**
+ * Main application handle for auth and routing
+ */
+const mainHandle: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
 	const hostname = event.url.hostname;
 
@@ -115,6 +151,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 							id: true,
 							email: true,
 							phone: true,
+							preferredLocale: true,
 							newsletterSubscribed: true,
 							sessionsInvalidatedAt: true,
 							createdAt: true,
@@ -156,3 +193,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	return resolve(event);
 };
+
+// Combine i18n and main handlers
+export const handle = sequence(i18nHandle, mainHandle);

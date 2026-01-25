@@ -37,6 +37,46 @@ vi.mock('$lib/server/db/prisma', () => ({
 	prisma: mockPrisma
 }));
 
+// Mock Paraglide server to avoid AsyncLocalStorage issues in tests
+vi.mock('$lib/paraglide/server.js', () => ({
+	paraglideMiddleware: vi.fn((_request, handler) => handler())
+}));
+
+// Mock Paraglide runtime
+vi.mock('$lib/paraglide/runtime.js', () => ({
+	locales: ['it', 'en'] as const
+}));
+
+// Mock SvelteKit sequence to avoid AsyncLocalStorage issues
+// This implements sequence by chaining handlers - each handler's resolve calls the next handler
+vi.mock('@sveltejs/kit/hooks', () => ({
+	sequence: (...handlers: any[]) => {
+		return async (input: any) => {
+			// Create a chain of resolve functions
+			// The last resolve in the chain is the original resolve
+			let index = handlers.length;
+
+			const createResolve = (i: number): any => {
+				if (i >= handlers.length) {
+					return input.resolve;
+				}
+				return (event: any) => {
+					return handlers[i]({
+						event,
+						resolve: createResolve(i + 1)
+					});
+				};
+			};
+
+			// Start with the first handler
+			return handlers[0]({
+				event: input.event,
+				resolve: createResolve(1)
+			});
+		};
+	}
+}));
+
 // Import after mocks
 const { handle } = await import('./hooks.server');
 

@@ -3,6 +3,9 @@
 
 import type { User, UserProfile, Membership, Admin } from '@prisma/client';
 import type { SubdomainContext } from '$lib/server/utils/subdomain';
+import type { locales } from '$lib/paraglide/runtime';
+
+type Locale = (typeof locales)[number];
 
 // PayPal SDK types
 interface PayPalButtonsComponent {
@@ -34,6 +37,8 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
+			// Current locale for i18n
+			locale: Locale;
 			// Subdomain context ('admin' or 'main')
 			subdomainContext: SubdomainContext;
 			// Regular user (for /membership routes on main domain)
