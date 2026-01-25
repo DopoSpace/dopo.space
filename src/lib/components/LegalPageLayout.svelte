@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		title: string;
@@ -17,27 +18,15 @@
 				<svg class="back-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
 				</svg>
-				Torna alla Home
+				{m.common_back_to_home()}
 			</a>
 			<h1 class="legal-title">{title}</h1>
-			<p class="legal-updated">Ultimo aggiornamento: {lastUpdated}</p>
+			<p class="legal-updated">{m.cookie_policy_last_updated({ date: lastUpdated })}</p>
 		</header>
 
 		<main class="legal-content">
 			{@render children()}
 		</main>
-
-		<footer class="legal-footer">
-			<nav class="legal-nav">
-				<a href="/legal/privacy">Privacy Policy</a>
-				<a href="/legal/cookies">Cookie Policy</a>
-				<a href="/legal/terms">Termini e Condizioni</a>
-				<a href="/legal/payments">Condizioni di Pagamento</a>
-							</nav>
-			<p class="legal-copyright">
-				&copy; {new Date().getFullYear()} DOPO? ASD - Tutti i diritti riservati
-			</p>
-		</footer>
 	</div>
 </div>
 
@@ -45,12 +34,11 @@
 	@reference "tailwindcss";
 
 	.legal-page {
-		@apply min-h-screen;
 		background-color: var(--color-dopoRed);
 	}
 
 	.legal-container {
-		@apply w-full max-w-4xl mx-auto px-4 py-8 md:px-8 md:py-12;
+		@apply w-full max-w-2xl mx-auto px-4 py-8 md:px-8 md:py-12;
 	}
 
 	.legal-header {
@@ -66,7 +54,7 @@
 	}
 
 	.legal-title {
-		@apply text-3xl md:text-4xl font-bold text-white mb-2;
+		@apply text-2xl md:text-3xl font-bold text-white mb-2;
 	}
 
 	.legal-updated {
@@ -105,6 +93,23 @@
 		@apply font-semibold text-gray-900;
 	}
 
+	.legal-content :global(table) {
+		@apply w-full border-collapse my-6;
+	}
+
+	.legal-content :global(th),
+	.legal-content :global(td) {
+		@apply border border-gray-200 px-4 py-2 text-left text-gray-700;
+	}
+
+	.legal-content :global(th) {
+		@apply bg-gray-50 font-semibold text-gray-900;
+	}
+
+	.legal-content :global(table code) {
+		@apply bg-gray-100 px-2 py-0.5 rounded text-sm font-mono text-gray-800;
+	}
+
 	.legal-content :global(.info-box) {
 		@apply bg-blue-50 border border-blue-100 rounded-lg p-4 my-6;
 	}
@@ -119,21 +124,5 @@
 
 	.legal-content :global(.warning-box p) {
 		@apply text-amber-800 mb-0;
-	}
-
-	.legal-footer {
-		@apply mt-8 pt-6 border-t border-white/20;
-	}
-
-	.legal-nav {
-		@apply flex flex-wrap gap-4 justify-center mb-4;
-	}
-
-	.legal-nav a {
-		@apply text-white/70 hover:text-white text-sm transition-colors;
-	}
-
-	.legal-copyright {
-		@apply text-center text-white/50 text-xs;
 	}
 </style>
