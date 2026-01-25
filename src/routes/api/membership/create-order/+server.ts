@@ -36,8 +36,20 @@ export const POST: RequestHandler = async ({ locals }) => {
 			throw error(400, 'Il pagamento è già stato completato');
 		}
 
+		// If there's a payment in progress, reset it to allow retry
+		// This handles cases where user closed PayPal window without completing or canceling
 		if (summary.systemState === SystemState.S2_PROCESSING_PAYMENT) {
-			throw error(400, 'Hai già un pagamento in corso');
+			await prisma.membership.updateMany({
+				where: {
+					userId: user.id,
+					paymentStatus: 'PENDING',
+					paymentProviderId: { not: null }
+				},
+				data: {
+					paymentProviderId: null
+				}
+			});
+			logger.info({ userId: user.id }, 'Reset stale payment-in-progress membership');
 		}
 
 		// Check if profile is complete

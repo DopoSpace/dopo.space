@@ -1,73 +1,76 @@
 <script lang="ts">
-	import FormCard from '$lib/components/forms/FormCard.svelte';
-	import WelcomeHeader from '$lib/components/forms/WelcomeHeader.svelte';
+	import { onMount } from 'svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
+	import TextContainer from '$lib/components/TextContainer.svelte';
 	import PayPalButtons from '$lib/components/PayPalButtons.svelte';
+	import { trackCheckoutView } from '$lib/analytics';
 	import type { PageData } from './$types';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data }: { data: PageData } = $props();
 
 	// Format amount for display
 	const formattedAmount = $derived((data.fee / 100).toFixed(2));
+
+	// Track checkout view on mount
+	onMount(() => {
+		trackCheckoutView(data.fee);
+	});
 </script>
 
 <svelte:head>
-	<title>Pagamento - Dopo Space</title>
+	<title>{m.checkout_title()} - Dopo Space</title>
 </svelte:head>
 
-<div class="checkout-page">
-	<div class="checkout-container">
-		<!-- Header -->
-		<WelcomeHeader
-			title="Pagamento"
-			subtitle="Completa il pagamento della tua tessera"
-			showEmail={false}
-		/>
+<PublicPageLayout>
+	<div class="checkout-page">
+		<TextContainer>
+			<h1>{m.checkout_title()}</h1>
+			<p>{m.checkout_subtitle()}</p>
 
-		<!-- Order Summary -->
-		<FormCard title="Riepilogo ordine" icon="receipt">
-			<div class="order-summary">
-				<div class="order-line">
-					<span class="order-item">Tessera Dopo Space 2025</span>
-					<span class="order-price">&euro;{formattedAmount}</span>
-				</div>
-				<div class="order-divider"></div>
-				<div class="order-total">
-					<span class="total-label">Totale</span>
-					<span class="total-price">&euro;{formattedAmount}</span>
+			<!-- Order Summary -->
+			<div class="form-section">
+				<h2 class="form-section-title">{m.checkout_order_summary()}</h2>
+				<div class="order-summary">
+					<div class="order-line">
+						<span>{m.checkout_membership_card()}</span>
+						<span class="order-price">&euro;{formattedAmount}</span>
+					</div>
+					<div class="order-divider"></div>
+					<div class="order-total">
+						<span>{m.checkout_total()}</span>
+						<span class="total-price">&euro;{formattedAmount}</span>
+					</div>
 				</div>
 			</div>
-		</FormCard>
 
-		<!-- Payment Method -->
-		<FormCard title="Metodo di pagamento" icon="credit-card">
-			<PayPalButtons
-				clientId={data.paypalClientId}
-				amount={data.fee}
-			/>
-		</FormCard>
+			<!-- Payment Method -->
+			<div class="form-section">
+				<h2 class="form-section-title">{m.checkout_payment_method()}</h2>
+				<div class="paypal-container">
+					<PayPalButtons
+						clientId={data.paypalClientId}
+						amount={data.fee}
+						showAmount={false}
+					/>
+				</div>
+			</div>
 
-		<!-- Back Link -->
-		<div class="back-link">
-			<a href="/membership/subscription">
-				<svg class="back-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-				</svg>
-				Torna al profilo
-			</a>
-		</div>
+			<!-- Back Link -->
+			<p class="back-link">
+				<a href="/membership/subscription">
+					← {m.checkout_back_to_profile()}
+				</a>
+			</p>
+		</TextContainer>
 	</div>
-</div>
+</PublicPageLayout>
 
 <style>
 	@reference "tailwindcss";
 
 	.checkout-page {
 		@apply min-h-screen;
-		background-color: var(--color-dopoRed);
-	}
-
-	.checkout-container {
-		@apply w-full max-w-2xl mx-auto px-4 py-12 md:px-8 md:py-16;
 	}
 
 	.order-summary {
@@ -75,42 +78,80 @@
 	}
 
 	.order-line {
-		@apply flex justify-between items-center;
-	}
-
-	.order-item {
-		@apply text-gray-700;
+		@apply flex justify-between items-center text-white/90;
 	}
 
 	.order-price {
-		@apply text-gray-900 font-medium;
+		@apply text-white font-medium;
 	}
 
 	.order-divider {
-		@apply border-t border-gray-200;
+		@apply border-t border-white/30;
 	}
 
 	.order-total {
-		@apply flex justify-between items-center pt-2;
-	}
-
-	.total-label {
-		@apply text-lg font-semibold text-gray-900;
+		@apply flex justify-between items-center pt-2 text-white;
 	}
 
 	.total-price {
-		@apply text-xl font-bold text-gray-900;
+		@apply text-2xl font-bold;
 	}
 
-	.back-link {
-		@apply mt-8 text-center;
+	.paypal-container {
+		@apply mt-4;
 	}
 
-	.back-link a {
-		@apply inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors;
+	/* Override PayPal buttons wrapper for dark theme */
+	.paypal-container :global(.paypal-buttons-wrapper) {
+		@apply bg-white/10 rounded-lg p-6;
 	}
 
-	.back-icon {
-		@apply w-5 h-5;
+	.paypal-container :global(.buttons-container) {
+		@apply w-full;
+	}
+
+	.paypal-container :global(.paypal-button-container) {
+		min-width: 100% !important;
+		max-width: 100% !important;
+		width: 100% !important;
+	}
+
+	.paypal-container :global([data-uid-paypalbuttons]),
+	.paypal-container :global(.paypal-buttons),
+	.paypal-container :global(.zoid-component-frame) {
+		width: 100% !important;
+	}
+
+	.paypal-container :global(.secure-note) {
+		@apply text-white/60 justify-center;
+	}
+
+	.paypal-container :global(.secure-note svg) {
+		@apply text-white/60;
+	}
+
+	.paypal-container :global(.loading-state) {
+		@apply text-white/70;
+	}
+
+	.paypal-container :global(.spinner) {
+		@apply border-white/30 border-t-white;
+	}
+
+	.paypal-container :global(.error-state) {
+		@apply text-white;
+	}
+
+	.paypal-container :global(.error-icon) {
+		@apply text-amber-400;
+	}
+
+	.paypal-container :global(.error-message) {
+		@apply text-amber-300;
+	}
+
+	.paypal-container :global(.retry-button) {
+		@apply bg-white hover:bg-white/90;
+		color: var(--color-dopoRed);
 	}
 </style>

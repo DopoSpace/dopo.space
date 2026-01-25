@@ -27,7 +27,7 @@ const MEMBERSHIP_DURATION_DAYS = 365;
  * Result of batch membership number assignment
  */
 export interface BatchAssignResult {
-	assigned: { userId: string; email: string; membershipNumber: string }[];
+	assigned: { userId: string; email: string; membershipNumber: string; firstName: string; endDate: Date }[];
 	skipped: string[]; // numeri già esistenti nel DB
 	remaining: string[]; // tessere non assegnate (avanzate)
 	usersWithoutCard: { userId: string; email: string }[]; // utenti non assegnati (tessere insufficienti)
@@ -440,13 +440,23 @@ export async function createMembershipForPayment(userId: string) {
 	// Use transaction to atomically check and create
 	return await prisma.$transaction(async (tx) => {
 		// Check if user already has a pending or active membership
+		// Expired memberships with successful payments should NOT block new membership creation
 		const existingMembership = await tx.membership.findFirst({
 			where: {
 				userId,
 				OR: [
+					// Currently active membership
 					{ status: MembershipStatus.ACTIVE },
-					{ paymentStatus: PaymentStatus.PENDING },
-					{ paymentStatus: PaymentStatus.SUCCEEDED }
+					// Payment in progress (not expired)
+					{
+						status: { not: MembershipStatus.EXPIRED },
+						paymentStatus: PaymentStatus.PENDING
+					},
+					// Payment succeeded but not yet activated (awaiting number assignment)
+					{
+						status: MembershipStatus.PENDING,
+						paymentStatus: PaymentStatus.SUCCEEDED
+					}
 				]
 			}
 		});
@@ -495,6 +505,7 @@ interface UserWithMembership {
 	id: string;
 	email: string;
 	memberships: { id: string }[];
+	profile?: { firstName: string | null } | null;
 }
 
 /**
@@ -512,6 +523,9 @@ async function fetchUsersInS4State(tx: TransactionClient, userIds: string[]) {
 			}
 		},
 		include: {
+			profile: {
+				select: { firstName: true }
+			},
 			memberships: {
 				where: {
 					paymentStatus: PaymentStatus.SUCCEEDED,
@@ -525,6 +539,15 @@ async function fetchUsersInS4State(tx: TransactionClient, userIds: string[]) {
 	});
 }
 
+/** Result for a single assigned user */
+interface AssignedUser {
+	userId: string;
+	email: string;
+	membershipNumber: string;
+	firstName: string;
+	endDate: Date;
+}
+
 /**
  * Core logic for assigning membership numbers to users
  * Shared between batch and auto assignment functions
@@ -535,11 +558,11 @@ async function assignNumbersToUsers(
 	availableNumbers: string[],
 	logContext: string
 ): Promise<{
-	assigned: { userId: string; email: string; membershipNumber: string }[];
+	assigned: AssignedUser[];
 	usersWithoutCard: { userId: string; email: string }[];
 	numberIndex: number;
 }> {
-	const assigned: { userId: string; email: string; membershipNumber: string }[] = [];
+	const assigned: AssignedUser[] = [];
 	const usersWithoutCard: { userId: string; email: string }[] = [];
 	let numberIndex = 0;
 
@@ -576,7 +599,13 @@ async function assignNumbersToUsers(
 			}
 		});
 
-		assigned.push({ userId: user.id, email: user.email, membershipNumber });
+		assigned.push({
+			userId: user.id,
+			email: user.email,
+			membershipNumber,
+			firstName: user.profile?.firstName || 'Socio',
+			endDate
+		});
 	}
 
 	return { assigned, usersWithoutCard, numberIndex };
@@ -601,7 +630,7 @@ export async function batchAssignMembershipNumbers(
 	const start = parseInt(startNumber, 10);
 	const end = parseInt(endNumber, 10);
 
-	return await prisma.$transaction(async (tx) => {
+	const result = await prisma.$transaction(async (tx) => {
 		// Verify ALL numbers in the range are within configured card ranges
 		const validation = await validateRangeAgainstConfigured(tx, start, end);
 		if (!validation.valid) {
@@ -641,6 +670,8 @@ export async function batchAssignMembershipNumbers(
 			usersWithoutCard
 		};
 	});
+
+	return result;
 }
 
 /**
@@ -663,7 +694,7 @@ export async function assignSingleMembershipNumber(
 	userId: string,
 	membershipNumber: string
 ): Promise<SingleAssignResult> {
-	return await prisma.$transaction(async (tx) => {
+	const result = await prisma.$transaction(async (tx) => {
 		// 1. Check if number is already assigned
 		const existing = await tx.membership.findFirst({
 			where: { membershipNumber }
@@ -686,6 +717,9 @@ export async function assignSingleMembershipNumber(
 		const user = await tx.user.findUnique({
 			where: { id: userId },
 			include: {
+				profile: {
+					select: { firstName: true }
+				},
 				memberships: {
 					where: {
 						paymentStatus: PaymentStatus.SUCCEEDED,
@@ -735,6 +769,8 @@ export async function assignSingleMembershipNumber(
 			membershipNumber
 		};
 	});
+
+	return result;
 }
 
 /**
@@ -791,7 +827,7 @@ export async function getUsersAwaitingCard() {
  * Result of automatic card assignment
  */
 export interface AutoAssignResult {
-	assigned: { userId: string; email: string; membershipNumber: string }[];
+	assigned: { userId: string; email: string; membershipNumber: string; firstName: string; endDate: Date }[];
 	usersWithoutCard: { userId: string; email: string }[];
 	availableCount: number;
 	requestedCount: number;
@@ -803,7 +839,7 @@ export interface AutoAssignResult {
  * Uses transaction to ensure atomicity and prevent race conditions
  */
 export async function autoAssignMembershipNumbers(userIds: string[]): Promise<AutoAssignResult> {
-	return await prisma.$transaction(async (tx) => {
+	const result = await prisma.$transaction(async (tx) => {
 		const availableNumbers = await getAvailableNumbersWithTx(tx);
 
 		if (availableNumbers.length === 0) {
@@ -825,6 +861,8 @@ export async function autoAssignMembershipNumbers(userIds: string[]): Promise<Au
 			requestedCount: userIds.length
 		};
 	});
+
+	return result;
 }
 
 /**

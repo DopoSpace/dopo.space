@@ -1,20 +1,22 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
-	import FormCard from '$lib/components/forms/FormCard.svelte';
-	import Input from '$lib/components/forms/Input.svelte';
-	import Listbox from '$lib/components/forms/Listbox.svelte';
-	import Checkbox from '$lib/components/forms/Checkbox.svelte';
-	import Button from '$lib/components/forms/Button.svelte';
-	import ErrorMessage from '$lib/components/forms/ErrorMessage.svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
+	import TextContainer from '$lib/components/TextContainer.svelte';
 	import AddressAutocomplete, { type AddressResult } from '$lib/components/forms/AddressAutocomplete.svelte';
 	import PhoneInput from '$lib/components/forms/PhoneInput.svelte';
-	import ProvinceSelect from '$lib/components/forms/ProvinceSelect.svelte';
-	import WelcomeHeader from '$lib/components/forms/WelcomeHeader.svelte';
-	import ConsentSection from '$lib/components/forms/ConsentSection.svelte';
+	import Listbox from '$lib/components/forms/Listbox.svelte';
+	import DatePicker from '$lib/components/forms/DatePicker.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 	import { validateField, type ValidationContext } from '$lib/utils/form-validation';
 	import { calculateAge } from '$lib/utils/date';
 	import { SystemState } from '$lib/types/membership';
+	import {
+		trackLoginSuccess,
+		trackProfileFormStart,
+		trackProfileFormSubmit
+	} from '$lib/analytics';
+	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
 	// Type for profile form errors
@@ -72,6 +74,23 @@
 	// Form is collapsed by default if profile is already complete
 	let formExpanded = $state(!data.profileComplete);
 
+	// Track form interaction (only once per session)
+	let formInteractionTracked = $state(false);
+
+	// Track login success if user just came from verification
+	onMount(() => {
+		if (typeof document !== 'undefined' && document.referrer.includes('/auth/verify')) {
+			trackLoginSuccess();
+		}
+	});
+
+	function handleFormInteraction() {
+		if (!formInteractionTracked) {
+			formInteractionTracked = true;
+			trackProfileFormStart();
+		}
+	}
+
 	// Show toast when form submission succeeds or fails
 	$effect(() => {
 		if (form?.success) {
@@ -125,16 +144,11 @@
 	let birthDate = $derived(birthDateOverride ?? form?.values?.birthDate ?? formatDateForInput(data.profile?.birthDate));
 
 	// Handle address selection from autocomplete
-	// Always update all fields when user selects from autocomplete
 	function handleAddressSelect(result: AddressResult) {
-		// Always update address (the main field)
 		addressOverride = result.address;
-		// Update other fields - use result value or preserve existing if empty
 		if (result.city) cityOverride = result.city;
 		if (result.postalCode) postalCodeOverride = result.postalCode;
-		// Update country (default to IT if not provided)
 		residenceCountryOverride = result.countryCode || 'IT';
-		// Only update province if residence is in Italy
 		if (result.countryCode === 'IT' && result.province) {
 			provinceOverride = result.province;
 		}
@@ -147,9 +161,9 @@
 	}
 
 	// Handle nationality change - clear birth city when nationality changes
-	function handleNationalityChange(value: string) {
-		nationalityOverride = value;
-		// Clear birth city and province when nationality changes
+	function handleNationalityChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		nationalityOverride = target.value;
 		birthCityOverride = '';
 		birthProvinceOverride = '';
 	}
@@ -171,10 +185,7 @@
 	// Computed states
 	let isItalian = $derived(nationality === 'IT');
 	let isForeigner = $derived(nationality === 'XX');
-	// Show tax code: always by default, or if Italian, or if foreigner with Italian tax code
 	let showTaxCodeField = $derived(!isForeigner || hasForeignTaxCode);
-	// Show gender field: only for foreigners without tax code (since it cannot be derived from CF)
-	let showGenderField = $derived(isForeigner && !hasForeignTaxCode);
 
 	// Build validation context from current form state
 	let validationContext = $derived<ValidationContext>({
@@ -191,7 +202,6 @@
 			clientErrors[fieldName] = result.error;
 		} else {
 			delete clientErrors[fieldName];
-			// Force reactivity by reassigning
 			clientErrors = { ...clientErrors };
 		}
 	}
@@ -212,38 +222,24 @@
 		return form?.errors?.[fieldName] ?? clientErrors[fieldName];
 	}
 
-	// Nationality options
-	const nationalityOptions = [
-		{ value: 'IT', label: 'Italiana' },
-		{ value: 'XX', label: 'Estera' }
-	];
-
-	// Gender options
-	const genderOptions = [
-		{ value: 'M', label: 'Maschio' },
-		{ value: 'F', label: 'Femmina' }
-	];
-
-	// Country names for display
-	const countryNames: Record<string, string> = {
-		IT: 'Italia',
-		DE: 'Germania',
-		FR: 'Francia',
-		ES: 'Spagna',
-		UK: 'Regno Unito',
-		US: 'Stati Uniti',
-		CH: 'Svizzera',
-		AT: 'Austria',
-		BE: 'Belgio',
-		NL: 'Paesi Bassi',
-		PT: 'Portogallo',
-		PL: 'Polonia',
-		RO: 'Romania'
-	};
-
 	// Get country name from code
 	function getCountryName(code: string): string {
-		return countryNames[code] || code;
+		const countryMessages: Record<string, () => string> = {
+			IT: m.country_IT,
+			DE: m.country_DE,
+			FR: m.country_FR,
+			ES: m.country_ES,
+			UK: m.country_UK,
+			US: m.country_US,
+			CH: m.country_CH,
+			AT: m.country_AT,
+			BE: m.country_BE,
+			NL: m.country_NL,
+			PT: m.country_PT,
+			PL: m.country_PL,
+			RO: m.country_RO
+		};
+		return countryMessages[code]?.() || code;
 	}
 
 	// Format birth date for input
@@ -253,444 +249,458 @@
 		if (isNaN(d.getTime())) return '';
 		return d.toISOString().split('T')[0];
 	}
-
 </script>
 
-{#snippet headerSubtitle()}
-	{#if data.membershipState === SystemState.S0_NO_MEMBERSHIP}
-		Completa il tuo profilo per attivare la tessera
-	{:else if data.membershipState === SystemState.S1_PROFILE_COMPLETE}
-		Profilo completo! <a href="/membership/checkout">Procedi al pagamento</a>
-	{:else if data.membershipState === SystemState.S2_PROCESSING_PAYMENT}
-		Pagamento in corso...
-	{:else if data.membershipState === SystemState.S3_PAYMENT_FAILED}
-		Il pagamento non è andato a buon fine. <a href="/membership/checkout">Riprova</a>
-	{:else if data.membershipState === SystemState.S4_AWAITING_NUMBER}
-		Pagamento completato! In attesa di assegnazione tessera
-	{:else if data.membershipState === SystemState.S5_ACTIVE}
-		La tua tessera è attiva
-	{:else if data.membershipState === SystemState.S6_EXPIRED}
-		La tua tessera è scaduta. <a href="/membership/checkout">Rinnova ora</a>
-	{:else if data.membershipState === SystemState.S7_CANCELED}
-		La tua tessera è stata cancellata
-	{:else}
-		Completa il tuo profilo per attivare la tessera
-	{/if}
-{/snippet}
+<svelte:head>
+	<title>{m.subscription_title()} - Dopo Space</title>
+</svelte:head>
 
-<div class="subscription-page">
-	<div class="form-container">
-		<!-- Welcome Header -->
-		<WelcomeHeader
-			title="Iscrizione"
-			subtitleSnippet={headerSubtitle}
-			email={data.user.email}
-			showEmail={false}
-		/>
+<PublicPageLayout>
+	<div class="subscription-page">
+		<TextContainer>
+			<!-- Header -->
+			<h1>{m.subscription_title()}</h1>
+			<!-- Subtitle only for states without status cards -->
+			{#if data.membershipState === SystemState.S0_NO_MEMBERSHIP}
+				<p>{m.subscription_subtitle_no_membership()}</p>
+			{:else if data.membershipState === SystemState.S1_PROFILE_COMPLETE}
+				<p>{@html m.subscription_subtitle_profile_complete().replace('Procedi al pagamento', '<a href="/membership/checkout">' + m.subscription_proceed_payment() + '</a>')}</p>
+			{:else if data.membershipState === SystemState.S2_PROCESSING_PAYMENT}
+				<p>{m.subscription_subtitle_processing()}</p>
+			{:else if data.membershipState === SystemState.S7_CANCELED}
+				<p>{m.subscription_subtitle_canceled()}</p>
+			{/if}
+			<!-- States S3, S4, S5, S6 show status text instead of subtitle -->
+			{#if data.membershipState === SystemState.S4_AWAITING_NUMBER}
+				<p>{m.subscription_status_payment_completed_text()}. {m.subscription_status_payment_completed_note()}</p>
+			{:else if data.membershipState === SystemState.S5_ACTIVE}
+				<p>
+					{m.subscription_status_active_text()}.
+					{#if data.membershipNumber}
+						{m.subscription_status_number({ number: data.membershipNumber })}.
+					{/if}
+					{m.subscription_status_active_welcome()}
+				</p>
+			{:else if data.membershipState === SystemState.S3_PAYMENT_FAILED}
+				<p>{m.subscription_status_failed_text()}. <a href="/membership/checkout">{m.subscription_status_failed_retry()}</a> {m.subscription_status_failed_note()}</p>
+			{:else if data.membershipState === SystemState.S6_EXPIRED}
+				<p>{m.subscription_status_expired_text()}. <a href="/membership/checkout">{m.subscription_status_expired_renew()}</a> {m.subscription_status_expired_note()}</p>
+			{/if}
 
-		<!-- Membership Status Cards -->
-		{#if data.membershipState === SystemState.S4_AWAITING_NUMBER}
-			<FormCard title="Pagamento completato" icon="check">
-				<div class="status-card success">
-					<div class="status-icon-wrapper">
-						<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-					</div>
-					<div class="status-content">
-						<h3 class="status-title">Il tuo pagamento è stato ricevuto!</h3>
-						<p class="status-text">Ti assegneremo un numero tessera a breve. Riceverai un'email di conferma.</p>
-					</div>
-				</div>
-			</FormCard>
-		{:else if data.membershipState === SystemState.S5_ACTIVE}
-			<FormCard title="Tessera attiva" icon="check">
-				<div class="status-card success">
-					<div class="status-icon-wrapper">
-						<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-					</div>
-					<div class="status-content">
-						<h3 class="status-title">La tua tessera è attiva!</h3>
-						{#if data.membershipNumber}
-							<p class="status-number">Numero tessera: <strong>{data.membershipNumber}</strong></p>
-						{/if}
-						<p class="status-text">Benvenuto nella community di Dopo Space!</p>
-					</div>
-				</div>
-			</FormCard>
-		{:else if data.membershipState === SystemState.S3_PAYMENT_FAILED}
-			<FormCard title="Pagamento non riuscito" icon="alert">
-				<div class="status-card warning">
-					<div class="status-icon-wrapper">
-						<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-						</svg>
-					</div>
-					<div class="status-content">
-						<h3 class="status-title">Il pagamento precedente non è andato a buon fine</h3>
-						<p class="status-text">Verifica i tuoi dati e riprova il pagamento.</p>
-						<a href="/membership/checkout" class="status-cta">Riprova il pagamento</a>
-					</div>
-				</div>
-			</FormCard>
-		{:else if data.membershipState === SystemState.S6_EXPIRED}
-			<FormCard title="Tessera scaduta" icon="alert">
-				<div class="status-card warning">
-					<div class="status-icon-wrapper">
-						<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-					</div>
-					<div class="status-content">
-						<h3 class="status-title">La tua tessera è scaduta</h3>
-						<p class="status-text">Rinnova la tessera per continuare a far parte della community.</p>
-						<a href="/membership/checkout" class="status-cta">Rinnova ora</a>
-					</div>
-				</div>
-			</FormCard>
-		{/if}
-
-		<!-- Collapsible Profile Section (only collapsible if profile is already complete) -->
-		{#if data.profileComplete}
-			<button
-				type="button"
-				class="profile-toggle"
-				onclick={() => formExpanded = !formExpanded}
-			>
-				<div class="profile-toggle-content">
-					<svg class="profile-toggle-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-					</svg>
-					<div class="profile-toggle-text">
-						<span class="profile-toggle-title">I tuoi dati</span>
-						<span class="profile-toggle-subtitle">
-							{data.profile?.firstName} {data.profile?.lastName}
-						</span>
-					</div>
-				</div>
-				<svg
-					class="profile-toggle-chevron {formExpanded ? 'expanded' : ''}"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-					stroke-width="2"
+			<!-- Collapsible Profile Section (only collapsible if profile is already complete) -->
+			{#if data.profileComplete}
+				<button
+					type="button"
+					class="profile-toggle {formExpanded ? 'expanded' : ''}"
+					onclick={() => formExpanded = !formExpanded}
+					aria-expanded={formExpanded}
+					aria-controls="profile-form"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-				</svg>
-			</button>
-		{/if}
-
-		{#if formExpanded || !data.profileComplete}
-		<form
-			method="POST"
-			use:enhance={() => {
-				loading = true;
-				// Clear client-side errors on submit (server will re-validate)
-				clientErrors = {};
-				return async ({ update }) => {
-					await update({ invalidateAll: true, reset: false });
-					loading = false;
-				};
-			}}
-		>
-			<!-- Dati Personali -->
-			<FormCard title="Dati Personali" icon="user" subtitle="Nome e cognome come da documento">
-				{#if form?.errors?._form}
-					<ErrorMessage>{form.errors._form}</ErrorMessage>
-				{/if}
-
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<Input
-						name="firstName"
-						label="Nome"
-						type="text"
-						value={form?.values?.firstName || data.profile?.firstName || ''}
-						error={getFieldError('firstName')}
-						required
-						placeholder="Mario"
-						onblur={(value) => handleFieldBlur('firstName', value)}
-					/>
-
-					<Input
-						name="lastName"
-						label="Cognome"
-						type="text"
-						value={form?.values?.lastName || data.profile?.lastName || ''}
-						error={getFieldError('lastName')}
-						required
-						placeholder="Rossi"
-						onblur={(value) => handleFieldBlur('lastName', value)}
-					/>
-				</div>
-			</FormCard>
-
-			<!-- Dati di Nascita -->
-			<FormCard title="Dati di Nascita" icon="calendar" subtitle="Data e luogo di nascita">
-				<Input
-					name="birthDate"
-					label="Data di Nascita"
-					type="date"
-					value={birthDate}
-					error={getFieldError('birthDate')}
-					required
-					onblur={(value) => {
-						birthDateOverride = value;
-						handleFieldBlur('birthDate', value);
-					}}
-				/>
-
-				{#if isUnder16}
-					<div class="under16-warning">
-						<svg class="warning-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+					<div class="profile-toggle-icon">
+						<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
 						</svg>
-						<div class="warning-content">
-							<p class="warning-title">Iscrizione non disponibile per minori di 16 anni</p>
-							<p class="warning-text">Il tesseramento online e riservato ai maggiori di 16 anni. Per informazioni su come iscrivere un minore, contatta direttamente l'associazione a <a href="mailto:info@dopo.space">info@dopo.space</a></p>
-						</div>
+					</div>
+					<div class="profile-toggle-content">
+						<span class="profile-toggle-label">{m.subscription_profile_toggle_title()}</span>
+						<span class="profile-toggle-value">{data.profile?.firstName} {data.profile?.lastName}</span>
+					</div>
+					<div class="profile-toggle-action">
+						<span class="profile-toggle-action-text">{formExpanded ? m.common_close() : m.common_edit()}</span>
+						<svg
+							class="profile-toggle-chevron {formExpanded ? 'expanded' : ''}"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+						</svg>
+					</div>
+				</button>
+			{/if}
+
+			{#if formExpanded || !data.profileComplete}
+			<form
+				id="profile-form"
+				method="POST"
+				onfocusin={handleFormInteraction}
+				use:enhance={() => {
+					loading = true;
+					clientErrors = {};
+					return async ({ update, result }) => {
+						await update({ invalidateAll: true, reset: false });
+						loading = false;
+						trackProfileFormSubmit(result.type === 'success' || (result.type === 'redirect'));
+					};
+				}}
+			>
+				{#if form?.errors?._form}
+					<div class="warning-box">
+						<p>{form.errors._form}</p>
 					</div>
 				{/if}
 
-				<Listbox
-					name="nationality"
-					label="Nazionalita"
-					options={nationalityOptions}
-					value={nationality}
-					error={getFieldError('nationality')}
-					required
-					disabled={isUnder16}
-					placeholder="Seleziona..."
-					onchange={handleNationalityChange}
-					onblur={(value) => handleFieldBlur('nationality', value)}
-				/>
+				<!-- Dati Personali -->
+				<div class="form-section">
+					<h2 class="form-section-title">{m.subscription_personal_title()}</h2>
+					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_personal_subtitle()}</p>
 
-				{#if isItalian}
-					<!-- Hidden field for birthProvince (auto-filled by city autocomplete) -->
-					<input type="hidden" name="birthProvince" value={birthProvince} />
-
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div class="md:col-span-2">
-							<AddressAutocomplete
-								name="birthCity"
-								label="Comune di Nascita"
-								mode="city"
-								apiKey={data.googlePlacesApiKey}
-								value={birthCity}
-								error={getFieldError('birthCity')}
+					<div class="grid grid-cols-2">
+						<div class="form-group">
+							<label for="firstName">{m.subscription_first_name()} <span class="required">*</span></label>
+							<input
+								type="text"
+								id="firstName"
+								name="firstName"
+								value={form?.values?.firstName || data.profile?.firstName || ''}
 								required
-								disabled={isUnder16}
-								placeholder="Digita per cercare..."
-								onselect={handleBirthCitySelect}
-								onblur={(value) => handleFieldBlur('birthCity', value)}
+								placeholder={m.subscription_first_name_placeholder()}
+								onblur={(e) => handleFieldBlur('firstName', (e.target as HTMLInputElement).value)}
+								class:has-error={getFieldError('firstName')}
 							/>
+							{#if getFieldError('firstName')}
+								<p class="error">{getFieldError('firstName')}</p>
+							{/if}
 						</div>
-						<Input
-							name="birthProvinceDisplay"
-							label="Provincia"
-							type="text"
-							value={birthProvince}
-							disabled
-						/>
-					</div>
-				{:else if nationality}
-					<!-- For foreigners: EE province -->
-					<input type="hidden" name="birthProvince" value="EE" />
 
-					<AddressAutocomplete
-						name="birthCity"
-						label="Paese di Origine"
-						mode="country"
-						excludeCountries={['IT']}
-						apiKey={data.googlePlacesApiKey}
-						value={form?.values?.birthCity || data.profile?.birthCity || ''}
-						error={getFieldError('birthCity')}
+						<div class="form-group">
+							<label for="lastName">{m.subscription_last_name()} <span class="required">*</span></label>
+							<input
+								type="text"
+								id="lastName"
+								name="lastName"
+								value={form?.values?.lastName || data.profile?.lastName || ''}
+								required
+								placeholder={m.subscription_last_name_placeholder()}
+								onblur={(e) => handleFieldBlur('lastName', (e.target as HTMLInputElement).value)}
+								class:has-error={getFieldError('lastName')}
+							/>
+							{#if getFieldError('lastName')}
+								<p class="error">{getFieldError('lastName')}</p>
+							{/if}
+						</div>
+					</div>
+				</div>
+
+				<!-- Dati di Nascita -->
+				<div class="form-section">
+					<h2 class="form-section-title">{m.subscription_birth_title()}</h2>
+					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_birth_subtitle()}</p>
+
+					<DatePicker
+						name="birthDate"
+						label={m.subscription_birth_date()}
+						value={birthDate}
+						required
+						maxDate={new Date()}
+						error={getFieldError('birthDate')}
+						onchange={(value) => {
+							birthDateOverride = value;
+						}}
+						onblur={(value) => handleFieldBlur('birthDate', value)}
+					/>
+
+					{#if isUnder16}
+						<div class="warning-box">
+							<p><strong>{m.subscription_under16_title()}</strong></p>
+							<p>{@html m.subscription_under16_text({ email: '<a href="mailto:info@dopo.space">info@dopo.space</a>' })}</p>
+						</div>
+					{/if}
+
+					<Listbox
+						name="nationality"
+						label={m.subscription_nationality()}
+						options={[
+							{ value: 'IT', label: m.subscription_nationality_italian() },
+							{ value: 'XX', label: m.subscription_nationality_foreign() }
+						]}
+						value={nationality}
+						placeholder={m.common_select()}
 						required
 						disabled={isUnder16}
-						placeholder="Digita per cercare..."
-						onblur={(value) => handleFieldBlur('birthCity', value)}
-					/>
-				{/if}
-			</FormCard>
-
-			<!-- Codice Fiscale -->
-			<FormCard title="Codice Fiscale" icon="id-card" subtitle="Il tuo identificativo fiscale">
-				{#if showTaxCodeField}
-					<Input
-						name="taxCode"
-						label="Codice Fiscale"
-						type="text"
-						value={form?.values?.taxCode || data.profile?.taxCode || ''}
-						error={getFieldError('taxCode') ? 'Codice fiscale non valido' : undefined}
-						required={!isForeigner}
-						disabled={isUnder16}
-						placeholder="RSSMRA85M10H501S"
-						maxlength={16}
-						onblur={(value) => handleFieldBlur('taxCode', value)}
-					/>
-				{/if}
-
-				{#if isForeigner}
-					<Checkbox
-						name="hasForeignTaxCode"
-						label="Ho un Codice Fiscale italiano"
-						checked={hasForeignTaxCode}
-						disabled={isUnder16}
-						onchange={(checked) => hasForeignTaxCodeOverride = checked}
-						onblur={(checked) => handleCheckboxBlur('hasForeignTaxCode', checked)}
+						error={getFieldError('nationality')}
+						onchange={(value) => {
+							nationalityOverride = value;
+							birthCityOverride = '';
+						}}
+						onblur={(value) => handleFieldBlur('nationality', value)}
 					/>
 
-					{#if !hasForeignTaxCode}
-						<Listbox
-							name="gender"
-							label="Sesso"
-							options={genderOptions}
-							value={gender}
-							error={getFieldError('gender')}
+					{#if isItalian}
+						<input type="hidden" name="birthProvince" value={birthProvince} />
+						<div class="grid grid-cols-3">
+							<div class="form-group col-span-2">
+								<AddressAutocomplete
+									name="birthCity"
+									label={m.subscription_birth_city()}
+									mode="city"
+									apiKey={data.googlePlacesApiKey}
+									value={birthCity}
+									error={getFieldError('birthCity')}
+									required
+									disabled={isUnder16}
+									placeholder={m.subscription_birth_city_placeholder()}
+									onselect={handleBirthCitySelect}
+									onblur={(value) => handleFieldBlur('birthCity', value)}
+								/>
+							</div>
+							<div class="form-group">
+								<label for="birthProvinceDisplay">{m.subscription_province()}</label>
+								<input
+									type="text"
+									id="birthProvinceDisplay"
+									value={birthProvince}
+									disabled
+								/>
+							</div>
+						</div>
+					{:else if nationality}
+						<input type="hidden" name="birthProvince" value="EE" />
+						<AddressAutocomplete
+							name="birthCity"
+							label={m.subscription_birth_city_foreign()}
+							mode="country"
+							excludeCountries={['IT']}
+							apiKey={data.googlePlacesApiKey}
+							value={form?.values?.birthCity || data.profile?.birthCity || ''}
+							error={getFieldError('birthCity')}
 							required
 							disabled={isUnder16}
-							placeholder="Seleziona..."
-							onchange={(value) => genderOverride = value}
-							onblur={(value) => handleFieldBlur('gender', value)}
+							placeholder={m.subscription_birth_city_placeholder()}
+							onblur={(value) => handleFieldBlur('birthCity', value)}
 						/>
-
-						<input type="hidden" name="taxCode" value="" />
 					{/if}
-				{/if}
-			</FormCard>
+				</div>
 
-			<!-- Residenza -->
-			<FormCard title="Residenza" icon="home" subtitle="Indirizzo di residenza attuale">
-				<!-- Hidden field for residence country -->
-				<input type="hidden" name="residenceCountry" value={residenceCountry} />
+				<!-- Codice Fiscale -->
+				<div class="form-section">
+					<h2 class="form-section-title">{m.subscription_tax_title()}</h2>
+					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_tax_subtitle()}</p>
 
-				<AddressAutocomplete
-					name="address"
-					label="Indirizzo"
-					mode="address"
-					apiKey={data.googlePlacesApiKey}
-					value={address}
-					error={getFieldError('address')}
-					required
-					disabled={isUnder16}
-					placeholder="Digita per cercare..."
-					onselect={handleAddressSelect}
-					onblur={(value) => handleFieldBlur('address', value)}
-				/>
-
-				{#if isForeignResidence}
-					<!-- Hidden fields for foreign residence -->
-					<input type="hidden" name="postalCode" value="00000" />
-					<input type="hidden" name="province" value="EE" />
-					<input type="hidden" name="city" value={city} />
-
-					<Input
-						name="residenceCountryDisplay"
-						label="Paese di Residenza"
-						type="text"
-						value={getCountryName(residenceCountry)}
-						disabled
-					/>
-				{:else}
-					<!-- Hidden fields populated from address autocomplete -->
-					<input type="hidden" name="postalCode" value={postalCode} />
-					<input type="hidden" name="province" value={province} />
-					<input type="hidden" name="city" value={city} />
-
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<Input
-							name="postalCodeDisplay"
-							label="CAP"
-							type="text"
-							value={postalCode}
-							disabled
-						/>
-						<Input
-							name="cityDisplay"
-							label="Comune"
-							type="text"
-							value={city}
-							disabled
-						/>
-						<Input
-							name="provinceDisplay"
-							label="Provincia"
-							type="text"
-							value={province}
-							disabled
-						/>
-					</div>
-				{/if}
-			</FormCard>
-
-			<!-- Contatti -->
-			<FormCard title="Contatti" icon="phone" subtitle="Come possiamo contattarti">
-				<PhoneInput
-					name="phone"
-					label="Cellulare (opzionale)"
-					value={form?.values?.phone || data.profile?.phone || ''}
-					error={getFieldError('phone')}
-					disabled={isUnder16}
-					onblur={(value) => handleFieldBlur('phone', value)}
-				/>
-			</FormCard>
-
-			<!-- Consensi -->
-			<FormCard title="Privacy e Consensi" icon="shield" subtitle="Protezione dei tuoi dati">
-				<ConsentSection
-					privacyConsent={form?.values?.privacyConsent || data.profile?.privacyConsent || false}
-					dataConsent={form?.values?.dataConsent || data.profile?.dataConsent || false}
-					privacyError={getFieldError('privacyConsent')}
-					dataError={getFieldError('dataConsent')}
-					disabled={isUnder16}
-					onPrivacyBlur={(checked) => handleCheckboxBlur('privacyConsent', checked)}
-					onDataBlur={(checked) => handleCheckboxBlur('dataConsent', checked)}
-				/>
-			</FormCard>
-
-			<div class="submit-section">
-				<Button type="submit" variant="primary" {loading} disabled={isUnder16} fullWidth>
-					{#if loading}
-						Salvataggio...
-					{:else if data.membershipState === SystemState.S4_AWAITING_NUMBER || data.membershipState === SystemState.S5_ACTIVE}
-						Salva modifiche
-					{:else if data.profileComplete}
-						Salva modifiche
-					{:else}
-						Salva e continua
+					{#if showTaxCodeField}
+						<div class="form-group">
+							<label for="taxCode">{m.subscription_tax_code()} {#if !isForeigner}<span class="required">*</span>{/if}</label>
+							<input
+								type="text"
+								id="taxCode"
+								name="taxCode"
+								value={form?.values?.taxCode || data.profile?.taxCode || ''}
+								required={!isForeigner}
+								disabled={isUnder16}
+								placeholder={m.subscription_tax_code_placeholder()}
+								maxlength={16}
+								onblur={(e) => handleFieldBlur('taxCode', (e.target as HTMLInputElement).value)}
+								class:has-error={getFieldError('taxCode')}
+							/>
+							{#if getFieldError('taxCode')}
+								<p class="error">{m.validation_tax_code_invalid()}</p>
+							{/if}
+						</div>
 					{/if}
-				</Button>
-			</div>
-		</form>
-		{/if}
 
-		<!-- Payment CTA - Show only if profile is complete and payment is possible -->
-		{#if data.canProceedToPayment}
-			<div class="payment-section">
-				<a href="/membership/checkout" class="payment-link">
-					<Button variant="secondary" fullWidth>
-						{#if data.membershipState === SystemState.S6_EXPIRED}
-							Rinnova la tessera
-						{:else if data.membershipState === SystemState.S3_PAYMENT_FAILED}
-							Riprova il pagamento
-						{:else}
-							Procedi al pagamento
+					{#if isForeigner}
+						<div class="checkbox-group">
+							<input
+								type="checkbox"
+								id="hasForeignTaxCode"
+								name="hasForeignTaxCode"
+								checked={hasForeignTaxCode}
+								disabled={isUnder16}
+								value="true"
+								onchange={(e) => hasForeignTaxCodeOverride = (e.target as HTMLInputElement).checked}
+								onblur={(e) => handleCheckboxBlur('hasForeignTaxCode', (e.target as HTMLInputElement).checked)}
+							/>
+							<label for="hasForeignTaxCode" class="checkbox-label">{m.subscription_has_foreign_tax_code()}</label>
+						</div>
+
+						{#if !hasForeignTaxCode}
+							<div style="margin-top: 1.5rem;">
+								<Listbox
+									name="gender"
+									label={m.subscription_gender()}
+									options={[
+										{ value: 'M', label: m.subscription_gender_male() },
+										{ value: 'F', label: m.subscription_gender_female() }
+									]}
+									value={gender}
+									placeholder={m.common_select()}
+									required
+									disabled={isUnder16}
+									error={getFieldError('gender')}
+									onchange={(value) => genderOverride = value}
+									onblur={(value) => handleFieldBlur('gender', value)}
+								/>
+							</div>
+							<input type="hidden" name="taxCode" value="" />
 						{/if}
-					</Button>
-				</a>
-			</div>
-		{/if}
+					{/if}
+				</div>
 
-		<div class="back-link">
-			<a href="/">Torna alla home</a>
-		</div>
+				<!-- Residenza -->
+				<div class="form-section">
+					<h2 class="form-section-title">{m.subscription_residence_title()}</h2>
+					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_residence_subtitle()}</p>
+
+					<input type="hidden" name="residenceCountry" value={residenceCountry} />
+
+					<AddressAutocomplete
+						name="address"
+						label={m.subscription_address()}
+						mode="address"
+						apiKey={data.googlePlacesApiKey}
+						value={address}
+						error={getFieldError('address')}
+						required
+						disabled={isUnder16}
+						placeholder={m.subscription_address_placeholder()}
+						onselect={handleAddressSelect}
+						onblur={(value) => handleFieldBlur('address', value)}
+					/>
+
+					{#if isForeignResidence}
+						<input type="hidden" name="postalCode" value="00000" />
+						<input type="hidden" name="province" value="EE" />
+						<input type="hidden" name="city" value={city} />
+
+						<div class="form-group">
+							<label for="residenceCountryDisplay">{m.subscription_residence_country()}</label>
+							<input
+								type="text"
+								id="residenceCountryDisplay"
+								value={getCountryName(residenceCountry)}
+								disabled
+							/>
+						</div>
+					{:else}
+						<input type="hidden" name="postalCode" value={postalCode} />
+						<input type="hidden" name="province" value={province} />
+						<input type="hidden" name="city" value={city} />
+
+						<div class="grid grid-cols-3">
+							<div class="form-group">
+								<label for="postalCodeDisplay">{m.subscription_postal_code()}</label>
+								<input type="text" id="postalCodeDisplay" value={postalCode} disabled />
+							</div>
+							<div class="form-group">
+								<label for="cityDisplay">{m.subscription_city()}</label>
+								<input type="text" id="cityDisplay" value={city} disabled />
+							</div>
+							<div class="form-group">
+								<label for="provinceDisplay">{m.subscription_province()}</label>
+								<input type="text" id="provinceDisplay" value={province} disabled />
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Contatti -->
+				<div class="form-section">
+					<h2 class="form-section-title">{m.subscription_contact_title()}</h2>
+					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_contact_subtitle()}</p>
+
+					<PhoneInput
+						name="phone"
+						label={m.subscription_phone()}
+						value={form?.values?.phone || data.profile?.phone || ''}
+						error={getFieldError('phone')}
+						disabled={isUnder16}
+						onblur={(value) => handleFieldBlur('phone', value)}
+					/>
+				</div>
+
+				<!-- Consensi -->
+				<div class="form-section">
+					<h2 class="form-section-title">{m.subscription_consent_title()}</h2>
+					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_consent_subtitle()}</p>
+
+					<div class="info-box" style="margin-bottom: 1.5rem;">
+						<p>{m.consent_intro()}</p>
+					</div>
+
+					<div class="consent-item">
+						<div class="checkbox-group">
+							<input
+								type="checkbox"
+								id="privacyConsent"
+								name="privacyConsent"
+								checked={form?.values?.privacyConsent || data.profile?.privacyConsent || false}
+								required
+								disabled={isUnder16}
+								value="true"
+								onblur={(e) => handleCheckboxBlur('privacyConsent', (e.target as HTMLInputElement).checked)}
+								class:has-error={getFieldError('privacyConsent')}
+							/>
+							<label for="privacyConsent" class="checkbox-label">
+								{@html m.consent_privacy_label().replace('Privacy Policy', '<a href="/legal/privacy" target="_blank">Privacy Policy</a>')}
+								<span class="required">*</span>
+							</label>
+						</div>
+						{#if getFieldError('privacyConsent')}
+							<p class="error">{getFieldError('privacyConsent')}</p>
+						{/if}
+					</div>
+
+					<div class="consent-item">
+						<div class="checkbox-group">
+							<input
+								type="checkbox"
+								id="dataConsent"
+								name="dataConsent"
+								checked={form?.values?.dataConsent || data.profile?.dataConsent || false}
+								required
+								disabled={isUnder16}
+								value="true"
+								onblur={(e) => handleCheckboxBlur('dataConsent', (e.target as HTMLInputElement).checked)}
+								class:has-error={getFieldError('dataConsent')}
+							/>
+							<label for="dataConsent" class="checkbox-label">
+								{m.consent_data_label()}
+								<span class="required">*</span>
+							</label>
+						</div>
+						{#if getFieldError('dataConsent')}
+							<p class="error">{getFieldError('dataConsent')}</p>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Submit -->
+				<button type="submit" disabled={loading || isUnder16}>
+					{#if loading}
+						{m.subscription_submit_saving()}
+					{:else if data.membershipState === SystemState.S4_AWAITING_NUMBER || data.membershipState === SystemState.S5_ACTIVE}
+						{m.subscription_submit_save()}
+					{:else if data.profileComplete}
+						{m.subscription_submit_save()}
+					{:else}
+						{m.subscription_submit_continue()}
+					{/if}
+				</button>
+			</form>
+			{/if}
+
+			<!-- Payment CTA - Show only if profile is complete and payment is possible -->
+			{#if data.canProceedToPayment}
+				<a href="/membership/checkout" class="payment-cta">
+					<button type="button" class="secondary">
+						{#if data.membershipState === SystemState.S6_EXPIRED}
+							{m.subscription_renew_card()}
+						{:else if data.membershipState === SystemState.S3_PAYMENT_FAILED}
+							{m.subscription_retry_payment()}
+						{:else}
+							{m.subscription_proceed_payment()}
+						{/if}
+					</button>
+				</a>
+			{/if}
+		</TextContainer>
 	</div>
-</div>
+</PublicPageLayout>
 
 {#if showSuccessToast}
 	<Toast
-		message="Profilo salvato con successo!"
+		message={m.subscription_toast_success()}
 		type="success"
 		onclose={() => showSuccessToast = false}
 	/>
@@ -698,7 +708,7 @@
 
 {#if showErrorToast}
 	<Toast
-		message="Si è verificato un errore. Controlla i campi evidenziati."
+		message={m.subscription_toast_error()}
 		type="error"
 		duration={5000}
 		onclose={() => showErrorToast = false}
@@ -710,157 +720,259 @@
 
 	.subscription-page {
 		@apply min-h-screen;
-		background-color: var(--color-dopoRed);
 	}
 
-	.form-container {
-		@apply w-full max-w-6xl mx-auto px-4 py-12 md:px-8 md:py-16 lg:px-12;
+	.form-group {
+		@apply mb-6;
 	}
 
-	.field-hint {
-		@apply text-sm text-gray-500 -mt-4 mb-6;
+	.required {
+		@apply text-amber-300;
 	}
 
-	.info-box {
-		@apply flex gap-3 p-4 bg-blue-50 border border-blue-100 rounded-lg text-blue-700 text-sm;
+	.has-error {
+		@apply border-amber-400;
 	}
 
-	.info-icon {
-		@apply w-5 h-5 flex-shrink-0 mt-0.5;
+	.consent-item {
+		@apply mb-4;
 	}
 
-	.info-box p {
-		@apply m-0;
-	}
-
-	.submit-section {
-		@apply mt-8;
-	}
-
-	.back-link {
-		@apply mt-8 text-center;
-	}
-
-	.back-link a {
-		@apply text-white/80 hover:text-white underline hover:no-underline transition-colors;
-	}
-
-	.under16-warning {
-		@apply flex gap-4 p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6;
-	}
-
-	.warning-icon {
-		@apply w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5;
-	}
-
-	.warning-content {
-		@apply flex-1;
-	}
-
-	.warning-title {
-		@apply font-semibold text-amber-800 mb-1;
-	}
-
-	.warning-text {
-		@apply text-amber-700 text-sm leading-relaxed;
-	}
-
-	.warning-text a {
-		@apply text-amber-800 underline hover:no-underline;
-	}
-
-	/* Membership Status Cards */
-	.status-card {
-		@apply flex gap-4 p-4 rounded-lg;
-	}
-
-	.status-card.success {
-		@apply bg-green-50;
-	}
-
-	.status-card.warning {
-		@apply bg-amber-50;
-	}
-
-	.status-icon-wrapper {
-		@apply flex-shrink-0;
-	}
-
-	.status-icon {
-		@apply w-8 h-8;
-	}
-
-	.status-card.success .status-icon {
-		@apply text-green-500;
-	}
-
-	.status-card.warning .status-icon {
-		@apply text-amber-500;
-	}
-
-	.status-content {
-		@apply flex-1;
-	}
-
-	.status-title {
-		@apply font-semibold text-gray-900 mb-1;
-	}
-
-	.status-number {
-		@apply text-green-700 mb-2;
-	}
-
-	.status-text {
-		@apply text-gray-600 text-sm;
-	}
-
-	.status-cta {
-		@apply inline-block mt-3 text-amber-700 font-medium hover:text-amber-800 underline hover:no-underline;
-	}
-
-	/* Payment Section */
-	.payment-section {
-		@apply mt-4;
-	}
-
-	.payment-link {
-		@apply block;
-	}
-
-	/* Profile Toggle (collapsible section) */
+	/* Profile Toggle - Improved accordion design */
 	.profile-toggle {
-		@apply w-full flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100 mb-6 cursor-pointer transition-all;
+		@apply w-full flex items-center gap-4 p-5;
+		@apply bg-white/5 border-2 border-white/50 rounded-lg;
+		@apply cursor-pointer transition-all duration-200 my-8;
+		@apply hover:bg-white/10 hover:border-white/70;
+		@apply focus:outline-none;
 	}
 
-	.profile-toggle:hover {
-		@apply shadow-md border-gray-200;
-	}
-
-	.profile-toggle-content {
-		@apply flex items-center gap-4;
+	.profile-toggle.expanded {
+		@apply bg-white/10 border-white;
 	}
 
 	.profile-toggle-icon {
-		@apply w-10 h-10 p-2 rounded-lg bg-blue-100 text-blue-600;
+		@apply w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0;
+		@apply transition-colors duration-200;
 	}
 
-	.profile-toggle-text {
-		@apply flex flex-col items-start;
+	.profile-toggle:hover .profile-toggle-icon {
+		@apply bg-white/20;
 	}
 
-	.profile-toggle-title {
-		@apply font-semibold text-gray-900;
+	.profile-toggle-icon svg {
+		@apply w-6 h-6 text-white/80;
 	}
 
-	.profile-toggle-subtitle {
-		@apply text-sm text-gray-500;
+	.profile-toggle-content {
+		@apply flex-1 flex flex-col items-start gap-0.5 text-left min-w-0;
+	}
+
+	.profile-toggle-label {
+		@apply text-sm font-medium text-white/60 uppercase tracking-wide;
+	}
+
+	.profile-toggle-value {
+		@apply text-xl font-semibold text-white truncate w-full;
+	}
+
+	.profile-toggle-action {
+		@apply flex items-center gap-2 flex-shrink-0;
+	}
+
+	.profile-toggle-action-text {
+		@apply text-sm font-medium text-white/60 hidden sm:block;
+	}
+
+	.profile-toggle:hover .profile-toggle-action-text {
+		@apply text-white/80;
 	}
 
 	.profile-toggle-chevron {
-		@apply w-5 h-5 text-gray-400 transition-transform duration-200;
+		@apply w-5 h-5 text-white/60 transition-transform duration-200;
+	}
+
+	.profile-toggle:hover .profile-toggle-chevron {
+		@apply text-white/80;
 	}
 
 	.profile-toggle-chevron.expanded {
 		@apply rotate-180;
+	}
+
+	.payment-cta {
+		@apply block mt-4;
+	}
+
+	.payment-cta a {
+		@apply no-underline;
+	}
+
+	.grid {
+		@apply grid gap-4;
+	}
+
+	.grid-cols-2 {
+		@apply grid-cols-1 md:grid-cols-2;
+	}
+
+	.grid-cols-3 {
+		@apply grid-cols-1 md:grid-cols-3;
+	}
+
+	.col-span-2 {
+		@apply md:col-span-2;
+	}
+
+	/* Override AddressAutocomplete and PhoneInput styles for dark theme */
+	:global(.subscription-page .mb-6) {
+		@apply mb-6;
+	}
+
+	:global(.subscription-page .label) {
+		@apply block text-lg md:text-xl text-white/90 mb-2;
+	}
+
+	:global(.subscription-page .input),
+	:global(.subscription-page input[type="text"]:not([disabled]):not(.listbox-search)),
+	:global(.subscription-page input[type="tel"]:not([disabled])) {
+		@apply w-full px-4 text-xl md:text-2xl;
+		@apply bg-transparent border-2 border-white/50 rounded-lg;
+		@apply text-white placeholder-white/50;
+		@apply focus:border-white focus:outline-none focus:ring-0;
+		min-height: 68px;
+	}
+
+	/* Listbox (custom select) styling */
+	:global(.subscription-page .listbox-button) {
+		@apply w-full pl-4 pr-10 text-xl md:text-2xl;
+		@apply bg-transparent border-2 border-white/50 rounded-lg;
+		@apply text-white cursor-pointer;
+		@apply focus:border-white focus:outline-none focus:ring-0;
+		min-height: 68px;
+		display: flex;
+		align-items: center;
+	}
+
+	:global(.subscription-page .listbox-button span.text-gray-400) {
+		@apply text-white/50;
+	}
+
+	:global(.subscription-page .listbox-button span.text-gray-900) {
+		@apply text-white;
+	}
+
+	:global(.subscription-page .listbox-button svg) {
+		@apply text-white/70;
+	}
+
+	:global(.subscription-page .listbox-dropdown) {
+		@apply bg-white border-2 border-gray-200 rounded-lg;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	:global(.subscription-page .listbox-options) {
+		@apply list-none m-0 p-0;
+	}
+
+	:global(.subscription-page .listbox-search) {
+		@apply w-full px-3 py-2 text-sm rounded-md;
+		@apply bg-gray-50 border border-gray-200;
+		@apply focus:border-orange-400 focus:outline-none focus:ring-0;
+		color: #111827 !important;
+		min-height: auto !important;
+	}
+
+	:global(.subscription-page .listbox-search::placeholder) {
+		color: #9ca3af !important;
+	}
+
+	/* Search container styling */
+	:global(.subscription-page .listbox-dropdown > div:first-child) {
+		@apply p-2 bg-gray-50 border-b border-gray-200;
+	}
+
+	:global(.subscription-page .listbox-option) {
+		@apply text-gray-900;
+	}
+
+	:global(.subscription-page .listbox-option:hover),
+	:global(.subscription-page .listbox-option.highlighted) {
+		@apply bg-orange-50;
+	}
+
+	:global(.subscription-page .listbox-option.selected) {
+		@apply bg-orange-100 font-medium;
+	}
+
+	:global(.subscription-page .listbox-option.selected .text-blue-600) {
+		@apply text-orange-600;
+	}
+
+	/* Phone prefix dropdown - wider to show full country names */
+	:global(.subscription-page .prefix-wrapper .listbox-dropdown) {
+		@apply min-w-72;
+	}
+
+	:global(.subscription-page .prefix-wrapper .listbox-option span) {
+		@apply whitespace-nowrap;
+	}
+
+	/* Ensure prefix button text doesn't overlap chevron */
+	:global(.subscription-page .prefix-wrapper .listbox-button) {
+		@apply pr-8;
+	}
+
+	:global(.subscription-page .prefix-wrapper .listbox-button span:first-child) {
+		@apply truncate;
+	}
+
+	:global(.subscription-page .text-gray-700) {
+		@apply text-white/90;
+	}
+
+	:global(.subscription-page .text-gray-400) {
+		@apply text-white/50;
+	}
+
+	:global(.subscription-page .text-red-600) {
+		@apply text-amber-300;
+	}
+
+	/* Google Places Autocomplete dropdown styling */
+	:global(.pac-container) {
+		@apply bg-white border-2 border-white/50 rounded-lg mt-1 shadow-xl;
+		font-family: inherit;
+	}
+
+	:global(.pac-item) {
+		@apply px-4 py-3 cursor-pointer border-b border-gray-200;
+		@apply text-gray-900 text-base;
+	}
+
+	:global(.pac-item:hover),
+	:global(.pac-item.pac-item-selected) {
+		@apply bg-orange-50;
+	}
+
+	:global(.pac-item-query) {
+		@apply text-gray-900 font-medium;
+	}
+
+	:global(.pac-matched) {
+		@apply font-semibold;
+	}
+
+	:global(.pac-icon) {
+		@apply hidden;
+	}
+
+	/* Nominatim dropdown styling for dark theme */
+	:global(.subscription-page ul[role="listbox"]) {
+		@apply bg-white border-2 border-white/50 rounded-lg shadow-xl;
+	}
+
+	:global(.subscription-page ul[role="listbox"] li) {
+		@apply border-gray-200;
 	}
 </style>

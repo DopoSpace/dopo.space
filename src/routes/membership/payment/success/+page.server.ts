@@ -7,6 +7,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getMembershipSummary } from '$lib/server/services/membership';
+import { getMembershipFee } from '$lib/server/services/settings';
 import { SystemState } from '$lib/types/membership';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -29,12 +30,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(303, '/membership/subscription');
 	}
 
+	// Get current membership fee for tracking
+	const fee = await getMembershipFee();
+
 	return {
 		membershipState: summary.systemState,
 		italianLabel: summary.italianLabel,
 		membershipNumber: summary.membershipNumber,
 		isProcessing: summary.systemState === SystemState.S2_PROCESSING_PAYMENT,
 		isAwaitingNumber: summary.systemState === SystemState.S4_AWAITING_NUMBER,
-		isActive: summary.systemState === SystemState.S5_ACTIVE
+		isActive: summary.systemState === SystemState.S5_ACTIVE,
+		fee
 	};
 };
