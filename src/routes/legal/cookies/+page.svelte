@@ -1,130 +1,165 @@
 <script lang="ts">
-	import LegalPageLayout from '$lib/components/LegalPageLayout.svelte';
+	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
+	import TextContainer from '$lib/components/TextContainer.svelte';
+	import { cookieConsent } from '$lib/stores/cookieConsent';
+	import * as m from '$lib/paraglide/messages';
 </script>
 
 <svelte:head>
-	<title>Cookie Policy - DOPO? ASD</title>
-	<meta name="description" content="Informativa sui cookie di DOPO? ASD" />
+	<title>{m.cookie_policy_title()} - DOPO? ASD</title>
+	<meta name="description" content={m.cookie_policy_intro()} />
 </svelte:head>
 
-<LegalPageLayout title="Cookie Policy" lastUpdated="21 Gennaio 2026">
-	<h2>1. Cosa sono i Cookie</h2>
-	<p>
-		I cookie sono piccoli file di testo che vengono memorizzati sul tuo dispositivo (computer, smartphone, tablet) quando visiti un sito web. I cookie permettono al sito di riconoscerti e memorizzare alcune informazioni sulle tue preferenze o azioni precedenti.
-	</p>
+<PublicPageLayout>
+	<div class="legal-page">
+		<TextContainer>
+			<h1>{m.cookie_policy_title()}</h1>
+			<p style="opacity: 0.7; font-size: 1rem;">{m.cookie_policy_last_updated({ date: '24 Gennaio 2026' })}</p>
 
-	<h2>2. Tipologie di Cookie Utilizzati</h2>
+			<h2>1. {m.cookie_policy_what_title()}</h2>
+			<p>{m.cookie_policy_what_text()}</p>
 
-	<h3>2.1 Cookie Tecnici (essenziali)</h3>
-	<p>
-		Questi cookie sono necessari per il funzionamento del sito e non possono essere disattivati. Vengono impostati in risposta ad azioni da te effettuate, come l'impostazione delle preferenze di privacy, l'accesso o la compilazione di moduli.
-	</p>
-	<table class="cookie-table">
-		<thead>
-			<tr>
-				<th>Nome</th>
-				<th>Finalita</th>
-				<th>Durata</th>
-			</tr>
-		</thead>
-		<tbody>
-			<tr>
-				<td><code>session</code></td>
-				<td>Gestione della sessione utente autenticato</td>
-				<td>Sessione (7 giorni)</td>
-			</tr>
-			<tr>
-				<td><code>admin_session</code></td>
-				<td>Gestione della sessione amministratore</td>
-				<td>Sessione (7 giorni)</td>
-			</tr>
-			<tr>
-				<td><code>cookie_consent</code></td>
-				<td>Memorizza le tue preferenze sui cookie</td>
-				<td>1 anno</td>
-			</tr>
-		</tbody>
-	</table>
+			<h2>2. {m.cookie_policy_technical_title()}</h2>
+			<p>{m.cookie_policy_technical_desc()}</p>
 
-	<h3>2.2 Cookie di Terze Parti</h3>
+			<table>
+				<thead>
+					<tr>
+						<th>{m.cookie_table_name()}</th>
+						<th>{m.cookie_table_purpose()}</th>
+						<th>{m.cookie_table_duration()}</th>
+						<th>{m.cookie_table_consent()}</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>dopo_session</code></td>
+						<td>{m.cookie_dopo_session_purpose()}</td>
+						<td>{m.cookie_table_7days()}</td>
+						<td>{m.cookie_table_no()}</td>
+					</tr>
+					<tr>
+						<td><code>dopo_admin_session</code></td>
+						<td>{m.cookie_dopo_admin_session_purpose()}</td>
+						<td>{m.cookie_table_7days()}</td>
+						<td>{m.cookie_table_no()}</td>
+					</tr>
+					<tr>
+						<td><code>cookie_consent</code></td>
+						<td>{m.cookie_consent_purpose()}</td>
+						<td>{m.cookie_table_1year()}</td>
+						<td>{m.cookie_table_no()}</td>
+					</tr>
+					<tr>
+						<td><code>dopo_locale</code></td>
+						<td>{m.cookie_dopo_locale_purpose()}</td>
+						<td>{m.cookie_table_1year()}</td>
+						<td>{m.cookie_table_no()}</td>
+					</tr>
+				</tbody>
+			</table>
 
-	<h4>PayPal</h4>
-	<p>
-		Quando procedi al pagamento della quota associativa, PayPal potrebbe impostare cookie per garantire la sicurezza della transazione e prevenire frodi.
-	</p>
-	<p>
-		<a href="https://www.paypal.com/it/legalhub/privacy-full" target="_blank" rel="noopener">Privacy e Cookie Policy di PayPal</a>
-	</p>
+			<h2>3. {m.cookie_policy_analytics_title()}</h2>
+			<p>{m.cookie_policy_analytics_desc()}</p>
 
-	<h4>Google Places API</h4>
-	<p>
-		Utilizziamo Google Places API per l'autocompletamento degli indirizzi nel modulo di registrazione. Google potrebbe impostare cookie tecnici per il funzionamento del servizio.
-	</p>
-	<p>
-		<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy di Google</a>
-	</p>
+			<table>
+				<thead>
+					<tr>
+						<th>{m.cookie_table_name()}</th>
+						<th>{m.cookie_table_purpose()}</th>
+						<th>{m.cookie_table_duration()}</th>
+						<th>{m.cookie_table_consent()}</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>_ga</code>, <code>_ga_*</code></td>
+						<td>{m.cookie_ga_purpose()}</td>
+						<td>{m.cookie_table_2years()}</td>
+						<td><strong>{m.cookie_table_yes()}</strong></td>
+					</tr>
+					<tr>
+						<td><code>_gid</code></td>
+						<td>{m.cookie_ga_purpose()}</td>
+						<td>{m.cookie_table_24hours()}</td>
+						<td><strong>{m.cookie_table_yes()}</strong></td>
+					</tr>
+				</tbody>
+			</table>
 
-	<h2>3. Come Gestire i Cookie</h2>
+			<h2>4. {m.cookie_policy_thirdparty_title()}</h2>
 
-	<h3>3.1 Tramite il tuo browser</h3>
-	<p>
-		Puoi gestire le preferenze sui cookie direttamente dal tuo browser. Di seguito i link alle guide dei principali browser:
-	</p>
-	<ul>
-		<li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener">Google Chrome</a></li>
-		<li><a href="https://support.mozilla.org/it/kb/protezione-antitracciamento-avanzata-firefox-desktop" target="_blank" rel="noopener">Mozilla Firefox</a></li>
-		<li><a href="https://support.apple.com/it-it/guide/safari/sfri11471/mac" target="_blank" rel="noopener">Safari</a></li>
-		<li><a href="https://support.microsoft.com/it-it/microsoft-edge/eliminare-i-cookie-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener">Microsoft Edge</a></li>
-	</ul>
+			<h2>{m.cookie_policy_paypal_title()}</h2>
+			<p>{m.cookie_policy_paypal_desc()}</p>
 
-	<h3>3.2 Conseguenze della disabilitazione</h3>
-	<div class="warning-box">
-		<p>
-			<strong>Attenzione:</strong> La disabilitazione dei cookie tecnici potrebbe compromettere il funzionamento del sito, in particolare le funzionalita di autenticazione e pagamento.
-		</p>
+			<table>
+				<thead>
+					<tr>
+						<th>{m.cookie_table_name()}</th>
+						<th>{m.cookie_table_purpose()}</th>
+						<th>{m.cookie_table_duration()}</th>
+						<th>{m.cookie_table_consent()}</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>PayPal cookies</td>
+						<td>{m.cookie_paypal_purpose()}</td>
+						<td>{m.cookie_table_session()}</td>
+						<td>{m.cookie_table_implicit()}</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<p>
+				<a href="https://www.paypal.com/it/legalhub/privacy-full" target="_blank" rel="noopener">Privacy e Cookie Policy di PayPal</a>
+			</p>
+
+			<h2>{m.cookie_policy_google_title()}</h2>
+			<p>{m.cookie_policy_google_desc()}</p>
+			<p>
+				<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy di Google</a>
+			</p>
+
+			<h2>5. {m.cookie_policy_manage_title()}</h2>
+			<p>{m.cookie_policy_manage_text()}</p>
+
+			<button type="button" class="secondary" onclick={() => cookieConsent.reopenBanner()}>
+				{m.cookie_policy_manage_button()}
+			</button>
+
+			<h2>{m.cookie_policy_browser_title()}</h2>
+			<p>{m.cookie_policy_browser_text()}</p>
+			<ul>
+				<li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener">Google Chrome</a></li>
+				<li><a href="https://support.mozilla.org/it/kb/protezione-antitracciamento-avanzata-firefox-desktop" target="_blank" rel="noopener">Mozilla Firefox</a></li>
+				<li><a href="https://support.apple.com/it-it/guide/safari/sfri11471/mac" target="_blank" rel="noopener">Safari</a></li>
+				<li><a href="https://support.microsoft.com/it-it/microsoft-edge/eliminare-i-cookie-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener">Microsoft Edge</a></li>
+			</ul>
+
+			<div class="warning-box">
+				<p><strong>Attenzione:</strong> {m.cookie_policy_disable_warning()}</p>
+			</div>
+
+			<h2>6. {m.cookie_policy_gdpr_title()}</h2>
+			<p>{m.cookie_policy_gdpr_text()}</p>
+
+			<h2>7. {m.cookie_policy_updates_title()}</h2>
+			<p>{m.cookie_policy_updates_text()}</p>
+
+			<h2>8. {m.cookie_policy_contact_title()}</h2>
+			<p>{m.cookie_policy_contact_text()}</p>
+			<ul>
+				<li>Email: <a href="mailto:privacy@dopo.space">privacy@dopo.space</a></li>
+			</ul>
+		</TextContainer>
 	</div>
-
-	<h2>4. Cookie e GDPR</h2>
-	<p>
-		In conformita con il Regolamento UE 2016/679 (GDPR) e la Direttiva ePrivacy, questo sito:
-	</p>
-	<ul>
-		<li>Utilizza solo cookie tecnici essenziali per il funzionamento</li>
-		<li>Non utilizza cookie di profilazione o tracciamento</li>
-		<li>Non cede dati raccolti tramite cookie a terze parti per finalita di marketing</li>
-	</ul>
-
-	<h2>5. Aggiornamenti alla Cookie Policy</h2>
-	<p>
-		Questa Cookie Policy potrebbe essere aggiornata periodicamente. Ti invitiamo a consultare questa pagina regolarmente per essere informato su eventuali modifiche. La data dell'ultimo aggiornamento e indicata in cima a questa pagina.
-	</p>
-
-	<h2>6. Contatti</h2>
-	<p>
-		Per qualsiasi domanda relativa all'uso dei cookie su questo sito, puoi contattarci a:
-	</p>
-	<ul>
-		<li>Email: <a href="mailto:privacy@dopo.space">privacy@dopo.space</a></li>
-	</ul>
-</LegalPageLayout>
+</PublicPageLayout>
 
 <style>
 	@reference "tailwindcss";
 
-	:global(.cookie-table) {
-		@apply w-full border-collapse my-6;
-	}
-
-	:global(.cookie-table th),
-	:global(.cookie-table td) {
-		@apply border border-gray-200 px-4 py-2 text-left;
-	}
-
-	:global(.cookie-table th) {
-		@apply bg-gray-50 font-semibold text-gray-900;
-	}
-
-	:global(.cookie-table code) {
-		@apply bg-gray-100 px-2 py-0.5 rounded text-sm font-mono;
+	.legal-page {
+		@apply min-h-screen;
 	}
 </style>
