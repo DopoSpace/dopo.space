@@ -45,3 +45,4 @@ docs/
 
 # Test artifacts
 **/__screenshots__/
+.data/

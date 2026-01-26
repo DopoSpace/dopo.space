@@ -90,7 +90,7 @@
 		@apply w-full px-4 py-4 text-xl md:text-2xl;
 		@apply bg-transparent border-2 border-white/50 rounded-lg;
 		@apply text-white placeholder-white/50;
-		@apply focus:border-white focus:outline-none;
+		@apply focus:border-white focus:outline-none focus:ring-0;
 	}
 
 	:global(.text-container label) {
@@ -122,7 +122,7 @@
 		@apply w-full px-4 py-4 text-xl md:text-2xl;
 		@apply bg-transparent border-2 border-white/50 rounded-lg;
 		@apply text-white;
-		@apply focus:border-white focus:outline-none;
+		@apply focus:border-white focus:outline-none focus:ring-0;
 		@apply appearance-none cursor-pointer;
 		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
 		background-repeat: no-repeat;
@@ -141,7 +141,7 @@
 		@apply w-full px-4 py-4 text-xl md:text-2xl;
 		@apply bg-transparent border-2 border-white/50 rounded-lg;
 		@apply text-white;
-		@apply focus:border-white focus:outline-none;
+		@apply focus:border-white focus:outline-none focus:ring-0;
 	}
 
 	:global(.text-container input[type='date']::-webkit-calendar-picker-indicator) {
