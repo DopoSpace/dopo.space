@@ -31,20 +31,15 @@ FROM node:24-slim AS production
 # Install OpenSSL for Prisma
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm
-RUN npm install -g pnpm
-
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy package.json (needed for node to resolve modules)
+COPY package.json ./
 COPY prisma ./prisma/
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy generated Prisma client from builder (prisma CLI is a devDependency)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy node_modules from builder (includes generated Prisma client)
+# Using full node_modules avoids pnpm symlink issues with --prod
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built application from builder
 COPY --from=builder /app/build ./build
