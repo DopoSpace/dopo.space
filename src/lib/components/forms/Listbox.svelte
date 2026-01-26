@@ -211,7 +211,7 @@
 		<label for={name} class="label text-gray-700">
 			{label}
 			{#if required}
-				<span class="text-red-600">*</span>
+				<span class="required">*</span>
 			{/if}
 		</label>
 	{/if}
@@ -307,7 +307,7 @@
 	{/if}
 
 	{#if error}
-		<p id="{name}-error" class="text-red-600 text-sm mt-2">{error}</p>
+		<p id="{name}-error" class="error-message">{error}</p>
 	{/if}
 </div>
 
@@ -347,5 +347,13 @@
 
 	.listbox-option.selected.highlighted {
 		@apply bg-blue-100;
+	}
+
+	.error-message {
+		@apply text-amber-300 text-base mt-2;
+	}
+
+	.required {
+		@apply text-amber-400;
 	}
 </style>

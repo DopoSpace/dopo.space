@@ -366,7 +366,7 @@
 	<label for={name} class="label text-gray-700">
 		{label}
 		{#if required}
-			<span class="text-red-500">*</span>
+			<span class="required">*</span>
 		{/if}
 	</label>
 
@@ -442,6 +442,18 @@
 	{/if}
 
 	{#if error}
-		<p class="text-red-600 text-sm mt-1">{error}</p>
+		<p class="error-message">{error}</p>
 	{/if}
 </div>
+
+<style>
+	@reference "tailwindcss";
+
+	.error-message {
+		@apply text-amber-300 text-base mt-2;
+	}
+
+	.required {
+		@apply text-amber-400;
+	}
+</style>

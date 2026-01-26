@@ -106,7 +106,7 @@
 	}
 
 	:global(.text-container .error) {
-		@apply text-white bg-white/20 px-4 py-2 rounded-lg text-base mt-2;
+		@apply text-amber-300 text-base mt-2;
 	}
 
 	:global(.text-container .form-group) {
