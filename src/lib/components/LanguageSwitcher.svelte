@@ -43,8 +43,9 @@
 		}
 
 		// Set cookie for locale preference (wrapped in try-catch)
+		// Cookie name must match Paraglide's cookieName in runtime.js
 		try {
-			document.cookie = `dopo_locale=${locale}; path=/; max-age=31536000; SameSite=Lax`;
+			document.cookie = `PARAGLIDE_LOCALE=${locale}; path=/; max-age=31536000; SameSite=Lax`;
 		} catch {
 			// Cookie setting failure should not block navigation
 			console.warn('Failed to set locale cookie');

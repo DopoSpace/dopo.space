@@ -9,6 +9,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db/prisma';
 import { capturePayPalOrder } from '$lib/server/integrations/paypal';
+import { getMembershipFee } from '$lib/server/services/settings';
 import { PaymentStatus } from '@prisma/client';
 import { createLogger } from '$lib/server/utils/logger';
 
@@ -72,6 +73,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				'PayPal capture returned non-COMPLETED status'
 			);
 			throw error(400, 'Il pagamento non è stato completato');
+		}
+
+		// Validate captured amount matches expected fee (defense in depth)
+		try {
+			const expectedFee = await getMembershipFee();
+			if (capture.amount !== expectedFee) {
+				logger.warn(
+					{
+						membershipId: membership.id,
+						orderId,
+						capturedAmount: capture.amount,
+						expectedFee
+					},
+					'Payment amount mismatch: captured amount differs from expected fee'
+				);
+			}
+		} catch (feeErr) {
+			// Non-blocking: log but don't fail the capture
+			logger.warn({ feeErr, membershipId: membership.id }, 'Could not validate payment amount');
 		}
 
 		// Update membership with payment success and amount
