@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import MenuItem from './MenuItem.svelte';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import { navigationItems } from '$lib/config/navigation';
@@ -16,7 +15,6 @@
 
 	// Mobile menu state
 	let menuOpen = $state(false);
-	let logoutError = $state<string | null>(null);
 
 	// Navigation label lookup - maps labelKey to translated string
 	const navLabels: Record<string, () => string> = {
@@ -27,15 +25,11 @@
 	};
 
 	/**
-	 * Safely get navigation label with fallback
+	 * Get navigation label with fallback to key
 	 */
 	function getNavLabel(labelKey: string): string {
-		try {
-			const labelFn = navLabels[labelKey];
-			return labelFn ? labelFn() : labelKey;
-		} catch {
-			return labelKey;
-		}
+		const labelFn = navLabels[labelKey];
+		return labelFn ? labelFn() : labelKey;
 	}
 
 	/**
@@ -90,20 +84,6 @@
 			closeMenu();
 		}
 	}
-
-	/**
-	 * Handle logout form submission with error handling
-	 */
-	function handleLogoutSubmit() {
-		logoutError = null;
-		return async ({ result }: { result: { type: string; location?: string } }) => {
-			if (result.type === 'error' || result.type === 'failure') {
-				logoutError = safeMessage(m.common_logout_error, 'Logout failed. Please try again.');
-			} else if (result.type === 'redirect' && result.location) {
-				window.location.href = result.location;
-			}
-		};
-	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -150,14 +130,11 @@
 			<!-- Desktop only: auth buttons -->
 			<div class="hidden md:flex items-center gap-4">
 				{#if isAuthenticated}
-					<form method="POST" action={logoutAction} use:enhance={handleLogoutSubmit}>
+					<form method="POST" action={logoutAction}>
 						<button type="submit" class="auth-button">
 							{safeMessage(m.common_logout, 'Logout')}
 						</button>
 					</form>
-					{#if logoutError}
-						<span class="text-red-200 text-xs">{logoutError}</span>
-					{/if}
 				{:else if !isLoginPage}
 					<MenuItem to="/auth/login" item={safeMessage(m.common_login, 'Login')} />
 				{/if}
@@ -190,14 +167,11 @@
 			</div>
 			<div class="mobile-auth">
 				{#if isAuthenticated}
-					<form method="POST" action={logoutAction} use:enhance={handleLogoutSubmit}>
-						<button type="submit" class="mobile-auth-button" onclick={closeMenu}>
+					<form method="POST" action={logoutAction}>
+						<button type="submit" class="mobile-auth-button">
 							{safeMessage(m.common_logout, 'Logout')}
 						</button>
 					</form>
-					{#if logoutError}
-						<span class="text-red-200 text-xs block mt-2 text-center">{logoutError}</span>
-					{/if}
 				{:else if !isLoginPage}
 					<a href={localizeHref('/auth/login')} class="mobile-auth-button" onclick={closeMenu} role="menuitem">
 						{safeMessage(m.common_login, 'Login')}

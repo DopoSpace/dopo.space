@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { enhance } from '$app/forms';
 
 	interface AdminInfo {
 		email: string;
@@ -33,10 +32,8 @@
 		return $page.url.pathname.startsWith(href);
 	}
 
-	function handleNavClick() {
-		if (onClose) {
-			onClose();
-		}
+	function handleNavClick(): void {
+		onClose?.();
 	}
 </script>
 
@@ -110,7 +107,7 @@
 				<p class="text-sm font-medium text-white truncate">{admin.email}</p>
 			</div>
 		{/if}
-		<form method="POST" action="/logout" use:enhance>
+		<form method="POST" action="/admin/logout">
 			<button
 				type="submit"
 				class="logout-button {isCollapsed ? 'collapsed' : ''}"
