@@ -29,8 +29,11 @@
 		@apply text-2xl md:text-3xl font-bold text-white mt-12 mb-4 leading-tight;
 	}
 
-	.text-container :global(h2:first-child),
-	.text-container :global(h1 + h2) {
+	.text-container :global(h2:first-child) {
+		@apply mt-0;
+	}
+
+	:global(.text-container h1 + h2) {
 		@apply mt-0;
 	}
 
