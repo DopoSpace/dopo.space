@@ -1,49 +1,14 @@
-import { redirect, error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { USER_SESSION_COOKIE_NAME } from '$lib/server/config/constants';
-import { APP_URL } from '$env/static/private';
+import { USER_SESSION_COOKIE_NAME, getUserCookieOptions } from '$lib/server/config/constants';
 
-/**
- * Validate CSRF protection via Origin header
- * Ensures logout requests come from our own site, not from malicious third-party sites
- */
-function validateOrigin(request: Request): boolean {
-	const origin = request.headers.get('origin');
-
-	// If no origin header, check referer as fallback
-	if (!origin) {
-		const referer = request.headers.get('referer');
-		if (!referer) {
-			// Browser may not send origin/referer for same-origin requests
-			// Allow these since SameSite cookies provide protection
-			return true;
-		}
-		try {
-			const refererUrl = new URL(referer);
-			const appUrl = new URL(APP_URL);
-			return refererUrl.origin === appUrl.origin;
-		} catch {
-			return false;
-		}
-	}
-
-	try {
-		const appUrl = new URL(APP_URL);
-		return origin === appUrl.origin;
-	} catch {
-		return false;
-	}
-}
-
-export const POST: RequestHandler = async ({ request, cookies }) => {
-	// CSRF protection: validate that the request comes from our own site
-	if (!validateOrigin(request)) {
-		throw error(403, 'Invalid request origin');
-	}
-
-	// Delete user session cookie
+export const POST: RequestHandler = async ({ cookies }) => {
+	// Delete user session cookie with same options used to set it
+	// Note: SameSite=lax cookie attribute provides CSRF protection
+	const cookieOptions = getUserCookieOptions();
 	cookies.delete(USER_SESSION_COOKIE_NAME, {
-		path: '/'
+		path: cookieOptions.path,
+		...(cookieOptions.domain && { domain: cookieOptions.domain })
 	});
 
 	// Redirect to home page
