@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs (will be created during build)
+build
+.svelte-kit
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+*.test.ts
+*.spec.ts
+vitest.config.ts
+vitest.browser.config.ts
+playwright.config.ts
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Logs
+*.log
+logs
+pids
+
+# Misc
+.npmrc
+.prettierrc
+.eslintrc*
+tsconfig*.json
