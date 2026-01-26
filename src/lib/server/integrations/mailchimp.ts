@@ -78,11 +78,10 @@ export interface SubscriberProfile {
  */
 function getMemberTag(): string {
 	const customTag = dynamicEnv.MAILCHIMP_MEMBER_TAG;
-	if (customTag && customTag.length > 0) {
+	if (customTag) {
 		return customTag;
 	}
-	const year = new Date().getFullYear();
-	return `TESSERATI AICS ${year}`;
+	return `TESSERATI AICS ${new Date().getFullYear()}`;
 }
 
 /**
@@ -114,35 +113,57 @@ function truncate(value: string | undefined, maxLength: number): string {
  * - MMERGE7: Codice Fiscale
  * - MMERGE11: Data di nascita (DD/MM/YYYY)
  * - MMERGE12: Luogo di Nascita
+ *
+ * IMPORTANT: Only include fields with actual values.
+ * Mailchimp rejects empty strings for certain field types.
  */
 function buildMergeFields(profile: SubscriberProfile): Record<string, unknown> {
-	const fields: Record<string, unknown> = {
-		FNAME: truncate(profile.firstName, 255),
-		LNAME: truncate(profile.lastName, 255)
-	};
+	const fields: Record<string, unknown> = {};
 
-	// Address (Mailchimp address object format - NOT JSON string)
-	if (profile.address) {
-		fields.ADDRESS = {
-			addr1: truncate(profile.address, 255),
-			city: truncate(profile.city, 100) || '',
-			state: truncate(profile.province, 50) || '',
-			zip: truncate(profile.postalCode, 20) || '',
-			country: profile.country || 'IT'
-		};
+	// FNAME (only if present)
+	if (profile.firstName) {
+		fields.FNAME = truncate(profile.firstName, 255);
 	}
 
-	// Codice Fiscale (MMERGE7)
+	// LNAME (only if present)
+	if (profile.lastName) {
+		fields.LNAME = truncate(profile.lastName, 255);
+	}
+
+	// Address (Mailchimp address object format - only if addr1 is present)
+	// Mailchimp requires at least addr1 for address objects
+	if (profile.address) {
+		const addressObj: Record<string, string> = {
+			addr1: truncate(profile.address, 255)
+		};
+
+		// Only add optional address fields if they have values
+		if (profile.city) {
+			addressObj.city = truncate(profile.city, 100);
+		}
+		if (profile.province) {
+			addressObj.state = truncate(profile.province, 50);
+		}
+		if (profile.postalCode) {
+			addressObj.zip = truncate(profile.postalCode, 20);
+		}
+		// Country defaults to IT if not specified
+		addressObj.country = profile.country || 'IT';
+
+		fields.ADDRESS = addressObj;
+	}
+
+	// Codice Fiscale (MMERGE7) - only if present
 	if (profile.taxCode) {
 		fields.MMERGE7 = truncate(profile.taxCode, 16);
 	}
 
-	// Data di nascita - DD/MM/YYYY (MMERGE11)
+	// Data di nascita - DD/MM/YYYY (MMERGE11) - only if present
 	if (profile.birthDate) {
 		fields.MMERGE11 = formatDateForMailchimp(profile.birthDate);
 	}
 
-	// Luogo di Nascita (MMERGE12)
+	// Luogo di Nascita (MMERGE12) - only if present
 	if (profile.birthCity) {
 		fields.MMERGE12 = truncate(profile.birthCity, 255);
 	}
@@ -168,11 +189,55 @@ async function addTagToSubscriber(subscriberHash: string, tag: string, maskedEma
 }
 
 /**
+ * Mailchimp API error structure
+ */
+interface MailchimpApiError {
+	status?: number;
+	response?: {
+		body?: {
+			title?: string;
+			detail?: string;
+			errors?: Array<{ field?: string; message?: string }>;
+		};
+	};
+}
+
+/**
+ * Extract detailed error info from Mailchimp API error for logging
+ */
+function extractMailchimpErrorDetails(error: unknown): {
+	status?: number;
+	title?: string;
+	detail?: string;
+	validationErrors?: Array<{ field?: string; message?: string }>;
+} {
+	const mailchimpError = error as MailchimpApiError;
+	return {
+		status: mailchimpError.status,
+		title: mailchimpError.response?.body?.title,
+		detail: mailchimpError.response?.body?.detail,
+		validationErrors: mailchimpError.response?.body?.errors
+	};
+}
+
+/**
  * Check if error indicates the member already exists in Mailchimp
  */
 function isMemberExistsError(error: unknown): boolean {
-	const mailchimpError = error as { status?: number; response?: { body?: { title?: string } } };
+	const mailchimpError = error as MailchimpApiError;
 	return mailchimpError.status === 400 && mailchimpError.response?.body?.title === 'Member Exists';
+}
+
+/**
+ * Check if error indicates the email was permanently deleted (GDPR/forgotten)
+ * These contacts cannot be re-added programmatically - they must manually re-subscribe
+ */
+function isForgottenEmailError(error: unknown): boolean {
+	const mailchimpError = error as MailchimpApiError;
+	return (
+		mailchimpError.status === 400 &&
+		mailchimpError.response?.body?.title === 'Forgotten Email Not Subscribed'
+	);
 }
 
 /**
@@ -187,14 +252,24 @@ function validateEmail(email: string): string {
 }
 
 /**
+ * Result of newsletter subscription attempt
+ */
+export interface SubscriptionResult {
+	subscriberId: string | null;
+	status: 'subscribed' | 'resubscribed' | 'forgotten_email' | 'failed';
+	message?: string;
+}
+
+/**
  * Subscribe a user to the newsletter
  * If the member already exists (e.g., previously unsubscribed), reactivate them
- * @throws MailchimpError if subscription fails
+ * If the email was permanently deleted (GDPR), returns a special status
+ * @throws MailchimpError if subscription fails for unexpected reasons
  */
 export async function subscribeToNewsletter(
 	email: string,
 	profile: SubscriberProfile
-): Promise<{ subscriberId: string }> {
+): Promise<SubscriptionResult> {
 	const validatedEmail = validateEmail(email);
 	const maskedEmail = maskEmail(validatedEmail);
 	const mergeFields = buildMergeFields(profile);
@@ -212,30 +287,60 @@ export async function subscribeToNewsletter(
 		});
 		subscriberId = response.id as string;
 		mailchimpLogger.info({ email: maskedEmail, subscriberId }, 'User subscribed to newsletter');
+
+		// Add tag (non-blocking)
+		await addTagToSubscriber(subscriberHash, memberTag, maskedEmail);
+
+		return { subscriberId, status: 'subscribed' };
 	} catch (error: unknown) {
-		if (!isMemberExistsError(error)) {
-			mailchimpLogger.error({ err: error, email: maskedEmail }, 'Mailchimp subscription error');
-			throw new MailchimpError('Failed to subscribe to newsletter', error);
+		// Handle "forgotten email" (GDPR deleted) - can't re-add programmatically
+		if (isForgottenEmailError(error)) {
+			mailchimpLogger.warn(
+				{ email: maskedEmail },
+				'Email was permanently deleted from Mailchimp (GDPR). User must manually re-subscribe.'
+			);
+			return {
+				subscriberId: null,
+				status: 'forgotten_email',
+				message: 'This email was previously removed from our mailing list and cannot be re-added automatically. Please subscribe manually through our newsletter form.'
+			};
 		}
 
-		// Reactivate existing subscriber and get their actual ID
-		mailchimpLogger.info({ email: maskedEmail }, 'Member exists, reactivating subscription');
+		// Handle "member exists" - reactivate existing subscriber
+		if (isMemberExistsError(error)) {
+			mailchimpLogger.info({ email: maskedEmail }, 'Member exists, reactivating subscription');
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const updateResponse = await mailchimp.lists.updateListMember(MAILCHIMP_AUDIENCE_ID, subscriberHash, {
-			status: 'subscribed',
-			merge_fields: mergeFields as any
-		});
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const updateResponse = await mailchimp.lists.updateListMember(MAILCHIMP_AUDIENCE_ID, subscriberHash, {
+				status: 'subscribed',
+				merge_fields: mergeFields as any
+			});
 
-		// Use the actual ID from the update response, not the hash
-		subscriberId = (updateResponse.id as string) || subscriberHash;
-		mailchimpLogger.info({ email: maskedEmail, subscriberId }, 'User resubscribed to newsletter');
+			// Use the actual ID from the update response, not the hash
+			subscriberId = (updateResponse.id as string) || subscriberHash;
+			mailchimpLogger.info({ email: maskedEmail, subscriberId }, 'User resubscribed to newsletter');
+
+			// Add tag (non-blocking)
+			await addTagToSubscriber(subscriberHash, memberTag, maskedEmail);
+
+			return { subscriberId, status: 'resubscribed' };
+		}
+
+		// Unknown error - log and throw
+		const errorDetails = extractMailchimpErrorDetails(error);
+		mailchimpLogger.error(
+			{
+				err: error,
+				email: maskedEmail,
+				mailchimpStatus: errorDetails.status,
+				mailchimpTitle: errorDetails.title,
+				mailchimpDetail: errorDetails.detail,
+				mailchimpValidationErrors: errorDetails.validationErrors
+			},
+			'Mailchimp subscription error'
+		);
+		throw new MailchimpError('Failed to subscribe to newsletter', error);
 	}
-
-	// Add tag (non-blocking)
-	await addTagToSubscriber(subscriberHash, memberTag, maskedEmail);
-
-	return { subscriberId };
 }
 
 /**
@@ -255,7 +360,18 @@ export async function unsubscribeFromNewsletter(email: string): Promise<void> {
 
 		mailchimpLogger.info({ email: maskedEmail }, 'User unsubscribed from newsletter');
 	} catch (error) {
-		mailchimpLogger.error({ err: error, email: maskedEmail }, 'Mailchimp unsubscribe error');
+		const errorDetails = extractMailchimpErrorDetails(error);
+		mailchimpLogger.error(
+			{
+				err: error,
+				email: maskedEmail,
+				mailchimpStatus: errorDetails.status,
+				mailchimpTitle: errorDetails.title,
+				mailchimpDetail: errorDetails.detail,
+				mailchimpValidationErrors: errorDetails.validationErrors
+			},
+			'Mailchimp unsubscribe error'
+		);
 		throw new MailchimpError('Failed to unsubscribe from newsletter', error);
 	}
 }
@@ -291,7 +407,18 @@ export async function updateSubscriber(
 
 		mailchimpLogger.info({ email: maskedEmail }, 'Subscriber info updated');
 	} catch (error) {
-		mailchimpLogger.error({ err: error, email: maskedEmail }, 'Mailchimp update error');
+		const errorDetails = extractMailchimpErrorDetails(error);
+		mailchimpLogger.error(
+			{
+				err: error,
+				email: maskedEmail,
+				mailchimpStatus: errorDetails.status,
+				mailchimpTitle: errorDetails.title,
+				mailchimpDetail: errorDetails.detail,
+				mailchimpValidationErrors: errorDetails.validationErrors
+			},
+			'Mailchimp update error'
+		);
 		throw new MailchimpError('Failed to update subscriber information', error);
 	}
 }

@@ -20,7 +20,7 @@ const logger = createLogger({ module: 'membership' });
  */
 function computeMembershipState(user: {
 	profile: { profileComplete: boolean; firstName: string | null; lastName: string | null; birthDate: Date | null; address: string | null; city: string | null; postalCode: string | null; province: string | null; privacyConsent: boolean | null; dataConsent: boolean | null } | null;
-	memberships: Array<{ status: MembershipStatus; paymentStatus: PaymentStatus; membershipNumber: string | null; endDate: Date | null }>;
+	memberships: Array<{ status: MembershipStatus; paymentStatus: PaymentStatus; membershipNumber: string | null; endDate: Date | null; paymentProviderId: string | null }>;
 }) {
 	const profile = user.profile;
 	const membership = user.memberships[0];
@@ -51,7 +51,12 @@ function computeMembershipState(user: {
 		return { systemState: SystemState.S7_CANCELED, membershipNumber: null, profileComplete };
 	}
 
-	// Check expiration
+	// Expired (check status first, before date-based expiration)
+	if (membership.status === MembershipStatus.EXPIRED) {
+		return { systemState: SystemState.S6_EXPIRED, membershipNumber: null, profileComplete };
+	}
+
+	// Check expiration by date (for ACTIVE memberships)
 	const isExpired = membership.endDate && new Date() > membership.endDate;
 
 	// Active with number
@@ -63,13 +68,24 @@ function computeMembershipState(user: {
 		};
 	}
 
-	// Payment states
-	if (membership.paymentStatus === PaymentStatus.PENDING) {
+	// S3: Payment failed or canceled
+	if (membership.paymentStatus === PaymentStatus.FAILED || membership.paymentStatus === PaymentStatus.CANCELED) {
+		return { systemState: SystemState.S3_PAYMENT_FAILED, membershipNumber: null, profileComplete };
+	}
+
+	// S2: Payment in progress (has paymentProviderId but not yet completed)
+	if (
+		membership.paymentStatus === PaymentStatus.PENDING &&
+		membership.paymentProviderId &&
+		!membership.membershipNumber
+	) {
 		return { systemState: SystemState.S2_PROCESSING_PAYMENT, membershipNumber: null, profileComplete };
 	}
 
-	if (membership.paymentStatus === PaymentStatus.FAILED) {
-		return { systemState: SystemState.S3_PAYMENT_FAILED, membershipNumber: null, profileComplete };
+	// S1 or S0: Pending payment depends on profile completeness
+	if (membership.paymentStatus === PaymentStatus.PENDING) {
+		const state = profileComplete ? SystemState.S1_PROFILE_COMPLETE : SystemState.S0_NO_MEMBERSHIP;
+		return { systemState: state, membershipNumber: null, profileComplete };
 	}
 
 	if (membership.paymentStatus === PaymentStatus.SUCCEEDED && !membership.membershipNumber) {
@@ -244,11 +260,25 @@ export const actions = {
 			try {
 				if (!wasSubscribed && newsletterConsent) {
 					const result = await subscribeToNewsletter(user.email, subscriberProfile);
-					await prisma.user.update({
-						where: { id: user.id },
-						data: { newsletterSubscribed: true, mailchimpSubscriberId: result.subscriberId }
-					});
-					logger.info({ userId: user.id }, 'User subscribed to newsletter');
+
+					if (result.status === 'forgotten_email') {
+						// Email was permanently deleted from Mailchimp (GDPR)
+						// User must manually re-subscribe - don't mark as subscribed
+						logger.warn(
+							{ userId: user.id },
+							'Newsletter subscription skipped: email was permanently deleted from Mailchimp'
+						);
+					} else {
+						// Successfully subscribed or resubscribed
+						await prisma.user.update({
+							where: { id: user.id },
+							data: {
+								newsletterSubscribed: true,
+								mailchimpSubscriberId: result.subscriberId
+							}
+						});
+						logger.info({ userId: user.id, status: result.status }, 'User subscribed to newsletter');
+					}
 				} else if (wasSubscribed && !newsletterConsent) {
 					await unsubscribeFromNewsletter(user.email);
 					await prisma.user.update({
