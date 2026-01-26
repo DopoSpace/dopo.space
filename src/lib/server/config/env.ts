@@ -15,7 +15,10 @@ import {
 	PAYPAL_CLIENT_ID,
 	PAYPAL_CLIENT_SECRET,
 	PAYPAL_MODE,
-	PAYPAL_WEBHOOK_ID
+	PAYPAL_WEBHOOK_ID,
+	MAILCHIMP_API_KEY,
+	MAILCHIMP_SERVER_PREFIX,
+	MAILCHIMP_AUDIENCE_ID
 } from '$env/static/private';
 import { env as dynamicEnv } from '$env/dynamic/private';
 
@@ -59,7 +62,14 @@ const envSchema = z.object({
 	PAYPAL_MODE: z.enum(['sandbox', 'live'], {
 		message: 'PAYPAL_MODE must be either "sandbox" or "live"'
 	}),
-	PAYPAL_WEBHOOK_ID: z.string().min(1, 'PAYPAL_WEBHOOK_ID is required')
+	PAYPAL_WEBHOOK_ID: z.string().min(1, 'PAYPAL_WEBHOOK_ID is required'),
+
+	// Mailchimp Configuration
+	MAILCHIMP_API_KEY: z.string().min(1, 'MAILCHIMP_API_KEY is required'),
+	MAILCHIMP_SERVER_PREFIX: z
+		.string()
+		.regex(/^[a-z]+\d+$/, 'MAILCHIMP_SERVER_PREFIX must be valid (e.g., us21)'),
+	MAILCHIMP_AUDIENCE_ID: z.string().min(1, 'MAILCHIMP_AUDIENCE_ID is required')
 });
 
 /**
@@ -77,7 +87,10 @@ export const env = envSchema.parse({
 	PAYPAL_CLIENT_ID,
 	PAYPAL_CLIENT_SECRET,
 	PAYPAL_MODE,
-	PAYPAL_WEBHOOK_ID
+	PAYPAL_WEBHOOK_ID,
+	MAILCHIMP_API_KEY,
+	MAILCHIMP_SERVER_PREFIX,
+	MAILCHIMP_AUDIENCE_ID
 });
 
 /**

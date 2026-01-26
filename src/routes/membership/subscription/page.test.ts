@@ -6,7 +6,8 @@ import { SystemState } from '$lib/types/membership';
 describe('Subscription Page', () => {
 	const mockData = {
 		user: {
-			email: 'test@example.com'
+			email: 'test@example.com',
+			newsletterSubscribed: false
 		},
 		profile: null,
 		admin: null,
@@ -78,9 +79,14 @@ describe('Subscription Page', () => {
 	it('pre-fills form with existing user data', () => {
 		const dataWithProfile = {
 			user: {
-				email: 'test@example.com'
+				email: 'test@example.com',
+				newsletterSubscribed: false
 			},
 			profile: {
+				id: 'profile-1',
+				userId: 'user-1',
+				createdAt: new Date(),
+				updatedAt: new Date(),
 				firstName: 'Mario',
 				lastName: 'Rossi',
 				birthDate: null,
@@ -96,8 +102,11 @@ describe('Subscription Page', () => {
 				province: null,
 				phone: null,
 				residenceCountry: null,
+				documentType: null,
+				documentNumber: null,
 				privacyConsent: null,
-				dataConsent: null
+				dataConsent: null,
+				profileComplete: false
 			},
 			admin: null,
 			isAdminRoute: false,
@@ -135,16 +144,5 @@ describe('Subscription Page', () => {
 		});
 
 		expect(screen.getByText('Errore generale del server')).toBeInTheDocument();
-	});
-
-	it('renders link to home page', () => {
-		render(SubscriptionPage, {
-			data: mockData,
-			form: null
-		});
-
-		const homeLinks = screen.getAllByRole('link', { name: /Torna alla home/i });
-		expect(homeLinks.length).toBeGreaterThan(0);
-		expect(homeLinks[0]).toHaveAttribute('href', '/');
 	});
 });

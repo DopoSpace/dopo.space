@@ -46,7 +46,7 @@ describe('Contact Page', () => {
 
 	it('includes location link with correct attributes', () => {
 		render(ContactPage);
-		const links = screen.getAllByRole('link', { name: /Via Boncompagni 51\/10, Milano/i });
+		const links = screen.getAllByRole('link', { name: /Via Boncompagni 51\/10.*Milano/i });
 		expect(links.length).toBeGreaterThan(0);
 		expect(links[0]).toHaveAttribute('href', 'https://www.google.com/maps/place/DOPO%3F/@45.4385079,9.2315244,17z/');
 		expect(links[0]).toHaveAttribute('target', '_blank');

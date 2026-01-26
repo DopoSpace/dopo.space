@@ -58,6 +58,7 @@
 		phone?: string;
 		privacyConsent?: boolean;
 		dataConsent?: boolean;
+		newsletterConsent?: boolean;
 	};
 
 	type SubscriptionFormData = {
@@ -123,6 +124,9 @@
 
 	// Track birth date for validation context
 	let birthDateOverride = $state<string | null>(null);
+
+	// Newsletter consent - computed from form values (on validation failure) or user data
+	let newsletterConsent = $derived(form?.values?.newsletterConsent ?? data.user.newsletterSubscribed ?? false);
 
 	// Derived values for address fields
 	let address = $derived(addressOverride ?? form?.values?.address ?? data.profile?.address ?? '');
@@ -663,6 +667,23 @@
 							<p class="error">{getFieldError('dataConsent')}</p>
 						{/if}
 					</div>
+
+					<div class="consent-item newsletter-consent">
+						<div class="checkbox-group">
+							<input
+								type="checkbox"
+								id="newsletterConsent"
+								name="newsletterConsent"
+								checked={newsletterConsent}
+								disabled={isUnder16}
+								value="true"
+							/>
+							<label for="newsletterConsent" class="checkbox-label">
+								{m.consent_newsletter_label()}
+								<span class="optional-tag">{m.consent_newsletter_optional()}</span>
+							</label>
+						</div>
+					</div>
 				</div>
 
 				<!-- Submit -->
@@ -736,6 +757,15 @@
 
 	.consent-item {
 		@apply mb-4;
+	}
+
+	/* Newsletter consent styling */
+	.newsletter-consent {
+		@apply mt-6 pt-6 border-t border-white/20;
+	}
+
+	.optional-tag {
+		@apply text-sm text-white/50 font-normal ml-2;
 	}
 
 	/* Profile Toggle - Improved accordion design */

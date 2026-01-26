@@ -130,6 +130,9 @@
   "consent_intro": "Per completare l'iscrizione, leggi e accetta le seguenti condizioni. I tuoi dati saranno trattati in conformita con il GDPR.",
   "consent_privacy_label": "Ho letto e accetto la Privacy Policy",
   "consent_data_label": "Acconsento al trattamento dei miei dati personali per le finalita descritte nell'informativa",
+  "consent_newsletter_label": "Desidero ricevere la newsletter con aggiornamenti su eventi e attività",
+  "consent_newsletter_optional": "Facoltativo",
+  "consent_newsletter_note": "Potrai cancellarti in qualsiasi momento",
   "consent_secure_connection": "Connessione sicura e criptata",
 
   "checkout_title": "Pagamento",

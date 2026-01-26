@@ -44,9 +44,10 @@ describe('Menu Component', () => {
 	it('renders all three navigation links', () => {
 		render(Menu);
 
+		// Uses Italian translations: Home, Chi siamo, Contatti
 		const homeLinks = screen.getAllByRole('link', { name: 'Home' });
-		const aboutLinks = screen.getAllByRole('link', { name: 'About' });
-		const contactLinks = screen.getAllByRole('link', { name: 'Contact' });
+		const aboutLinks = screen.getAllByRole('link', { name: 'Chi siamo' });
+		const contactLinks = screen.getAllByRole('link', { name: 'Contatti' });
 
 		expect(homeLinks.length).toBeGreaterThan(0);
 		expect(aboutLinks.length).toBeGreaterThan(0);
@@ -56,9 +57,10 @@ describe('Menu Component', () => {
 	it('has correct href attributes', () => {
 		render(Menu);
 
+		// Uses Italian translations: Home, Chi siamo, Contatti
 		const homeLinks = screen.getAllByRole('link', { name: 'Home' });
-		const aboutLinks = screen.getAllByRole('link', { name: 'About' });
-		const contactLinks = screen.getAllByRole('link', { name: 'Contact' });
+		const aboutLinks = screen.getAllByRole('link', { name: 'Chi siamo' });
+		const contactLinks = screen.getAllByRole('link', { name: 'Contatti' });
 
 		expect(homeLinks[0]).toHaveAttribute('href', '/');
 		expect(aboutLinks[0]).toHaveAttribute('href', '/about');

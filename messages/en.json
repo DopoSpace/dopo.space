@@ -130,6 +130,9 @@
   "consent_intro": "To complete your registration, please read and accept the following conditions. Your data will be processed in accordance with GDPR.",
   "consent_privacy_label": "I have read and accept the Privacy Policy",
   "consent_data_label": "I consent to the processing of my personal data for the purposes described in the privacy notice",
+  "consent_newsletter_label": "I would like to receive the newsletter with updates on events and activities",
+  "consent_newsletter_optional": "Optional",
+  "consent_newsletter_note": "You can unsubscribe at any time",
   "consent_secure_connection": "Secure encrypted connection",
 
   "checkout_title": "Payment",

@@ -5,82 +5,112 @@ import { extractGenderFromTaxCode } from '$lib/server/utils/tax-code';
 import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
 import { getGooglePlacesApiKey } from '$lib/server/config/env';
-import { getMembershipSummary } from '$lib/server/services/membership';
 import { SystemState } from '$lib/types/membership';
+import { MembershipStatus, PaymentStatus } from '@prisma/client';
+import {
+	subscribeToNewsletter,
+	unsubscribeFromNewsletter,
+	updateSubscriber
+} from '$lib/server/integrations/mailchimp';
 
 const logger = createLogger({ module: 'membership' });
 
+/**
+ * Compute membership state from user data (avoids redundant DB query)
+ */
+function computeMembershipState(user: {
+	profile: { profileComplete: boolean; firstName: string | null; lastName: string | null; birthDate: Date | null; address: string | null; city: string | null; postalCode: string | null; province: string | null; privacyConsent: boolean | null; dataConsent: boolean | null } | null;
+	memberships: Array<{ status: MembershipStatus; paymentStatus: PaymentStatus; membershipNumber: string | null; endDate: Date | null }>;
+}) {
+	const profile = user.profile;
+	const membership = user.memberships[0];
+
+	const profileComplete =
+		!!profile &&
+		profile.profileComplete &&
+		!!profile.firstName &&
+		!!profile.lastName &&
+		!!profile.birthDate &&
+		!!profile.address &&
+		!!profile.city &&
+		!!profile.postalCode &&
+		!!profile.province &&
+		!!profile.privacyConsent &&
+		!!profile.dataConsent;
+
+	if (!membership) {
+		return {
+			systemState: profileComplete ? SystemState.S1_PROFILE_COMPLETE : SystemState.S0_NO_MEMBERSHIP,
+			membershipNumber: null,
+			profileComplete
+		};
+	}
+
+	// Canceled
+	if (membership.status === MembershipStatus.CANCELED) {
+		return { systemState: SystemState.S7_CANCELED, membershipNumber: null, profileComplete };
+	}
+
+	// Check expiration
+	const isExpired = membership.endDate && new Date() > membership.endDate;
+
+	// Active with number
+	if (membership.status === MembershipStatus.ACTIVE && membership.membershipNumber) {
+		return {
+			systemState: isExpired ? SystemState.S6_EXPIRED : SystemState.S5_ACTIVE,
+			membershipNumber: membership.membershipNumber,
+			profileComplete
+		};
+	}
+
+	// Payment states
+	if (membership.paymentStatus === PaymentStatus.PENDING) {
+		return { systemState: SystemState.S2_PROCESSING_PAYMENT, membershipNumber: null, profileComplete };
+	}
+
+	if (membership.paymentStatus === PaymentStatus.FAILED) {
+		return { systemState: SystemState.S3_PAYMENT_FAILED, membershipNumber: null, profileComplete };
+	}
+
+	if (membership.paymentStatus === PaymentStatus.SUCCEEDED && !membership.membershipNumber) {
+		return { systemState: SystemState.S4_AWAITING_NUMBER, membershipNumber: null, profileComplete };
+	}
+
+	// Fallback
+	return {
+		systemState: profileComplete ? SystemState.S1_PROFILE_COMPLETE : SystemState.S0_NO_MEMBERSHIP,
+		membershipNumber: null,
+		profileComplete
+	};
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
-	// User is guaranteed to be authenticated by hooks.server.ts
 	const user = locals.user;
 
 	if (!user) {
 		throw redirect(303, '/auth/login');
 	}
 
-	// Load the full user profile for the form
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId: user.id },
-		select: {
-			firstName: true,
-			lastName: true,
-			birthDate: true,
-			taxCode: true,
-			nationality: true,
-			birthProvince: true,
-			birthCity: true,
-			hasForeignTaxCode: true,
-			gender: true,
-			address: true,
-			city: true,
-			postalCode: true,
-			province: true,
-			residenceCountry: true,
-			phone: true,
-			privacyConsent: true,
-			dataConsent: true
-		}
-	});
-
-	// Get membership summary to determine state
-	const membershipSummary = await getMembershipSummary(user.id);
+	// Use data already loaded in hooks.server.ts - no additional queries needed
+	const membershipState = computeMembershipState(user as Parameters<typeof computeMembershipState>[0]);
 
 	return {
 		user: {
-			email: user.email
+			email: user.email,
+			newsletterSubscribed: user.newsletterSubscribed ?? false
 		},
-		profile: profile
-			? {
-					firstName: profile.firstName,
-					lastName: profile.lastName,
-					birthDate: profile.birthDate,
-					taxCode: profile.taxCode,
-					nationality: profile.nationality,
-					birthProvince: profile.birthProvince,
-					birthCity: profile.birthCity,
-					hasForeignTaxCode: profile.hasForeignTaxCode,
-					gender: profile.gender,
-					address: profile.address,
-					city: profile.city,
-					postalCode: profile.postalCode,
-					province: profile.province,
-					residenceCountry: profile.residenceCountry,
-					phone: profile.phone,
-					privacyConsent: profile.privacyConsent,
-					dataConsent: profile.dataConsent
-				}
-			: null,
+		profile: user.profile,
 		googlePlacesApiKey: getGooglePlacesApiKey(),
-		membershipState: membershipSummary.systemState,
-		membershipNumber: membershipSummary.membershipNumber,
-		profileComplete: membershipSummary.profileComplete,
+		membershipState: membershipState.systemState,
+		membershipNumber: membershipState.membershipNumber,
+		profileComplete: membershipState.profileComplete,
 		canProceedToPayment:
-			membershipSummary.profileComplete &&
-			(membershipSummary.systemState === SystemState.S0_NO_MEMBERSHIP ||
-				membershipSummary.systemState === SystemState.S1_PROFILE_COMPLETE ||
-				membershipSummary.systemState === SystemState.S3_PAYMENT_FAILED ||
-				membershipSummary.systemState === SystemState.S6_EXPIRED ||
-				membershipSummary.systemState === SystemState.S7_CANCELED)
+			membershipState.profileComplete &&
+			(membershipState.systemState === SystemState.S0_NO_MEMBERSHIP ||
+				membershipState.systemState === SystemState.S1_PROFILE_COMPLETE ||
+				membershipState.systemState === SystemState.S3_PAYMENT_FAILED ||
+				membershipState.systemState === SystemState.S6_EXPIRED ||
+				membershipState.systemState === SystemState.S7_CANCELED)
 	};
 };
 
@@ -93,8 +123,8 @@ export const actions = {
 		}
 
 		const formData = await request.formData();
+		const newsletterConsent = formData.get('newsletterConsent') === 'true';
 
-		// Extract all form fields
 		const rawData = {
 			firstName: formData.get('firstName'),
 			lastName: formData.get('lastName'),
@@ -117,7 +147,6 @@ export const actions = {
 			dataConsent: formData.get('dataConsent') === 'true'
 		};
 
-		// Validate input
 		const validation = userProfileSchema.safeParse(rawData);
 
 		if (!validation.success) {
@@ -140,7 +169,8 @@ export const actions = {
 					province: rawData.province as string,
 					phone: rawData.phone as string,
 					privacyConsent: rawData.privacyConsent,
-					dataConsent: rawData.dataConsent
+					dataConsent: rawData.dataConsent,
+					newsletterConsent // Persist newsletter checkbox on validation failure
 				}
 			});
 		}
@@ -148,7 +178,6 @@ export const actions = {
 		try {
 			const d = validation.data;
 
-			// Check if all required AICS fields are filled to mark profile as complete
 			const isProfileComplete =
 				!!d.firstName &&
 				!!d.lastName &&
@@ -163,11 +192,9 @@ export const actions = {
 				d.privacyConsent === true &&
 				d.dataConsent === true;
 
-			// Derive gender from tax code if present, otherwise use form value
 			const derivedGender = d.taxCode ? extractGenderFromTaxCode(d.taxCode) : null;
 			const finalGender = derivedGender || d.gender || null;
 
-			// Profile data shared between create and update
 			const profileData = {
 				firstName: d.firstName,
 				lastName: d.lastName,
@@ -191,15 +218,52 @@ export const actions = {
 				profileComplete: isProfileComplete
 			};
 
-			// Use upsert to atomically create or update profile (prevents race conditions)
 			await prisma.userProfile.upsert({
 				where: { userId: user.id },
 				update: profileData,
 				create: { userId: user.id, ...profileData }
 			});
 
-			// Always return success - no auto-redirect
-			// User can click "Procedi al pagamento" separately if they want to pay
+			// Handle newsletter subscription (errors don't block profile save)
+			// Use cached value from locals.user instead of querying DB again
+			const wasSubscribed = user.newsletterSubscribed ?? false;
+
+			const subscriberProfile = {
+				firstName: d.firstName,
+				lastName: d.lastName,
+				address: d.address,
+				city: d.city,
+				postalCode: d.postalCode,
+				province: d.province,
+				country: d.residenceCountry,
+				taxCode: d.taxCode || undefined,
+				birthDate: d.birthDate,
+				birthCity: d.birthCity
+			};
+
+			try {
+				if (!wasSubscribed && newsletterConsent) {
+					const result = await subscribeToNewsletter(user.email, subscriberProfile);
+					await prisma.user.update({
+						where: { id: user.id },
+						data: { newsletterSubscribed: true, mailchimpSubscriberId: result.subscriberId }
+					});
+					logger.info({ userId: user.id }, 'User subscribed to newsletter');
+				} else if (wasSubscribed && !newsletterConsent) {
+					await unsubscribeFromNewsletter(user.email);
+					await prisma.user.update({
+						where: { id: user.id },
+						data: { newsletterSubscribed: false }
+					});
+					logger.info({ userId: user.id }, 'User unsubscribed from newsletter');
+				} else if (wasSubscribed && newsletterConsent) {
+					await updateSubscriber(user.email, subscriberProfile);
+					logger.info({ userId: user.id }, 'Newsletter subscriber info updated');
+				}
+			} catch (error) {
+				logger.error({ err: error, userId: user.id }, 'Newsletter operation failed');
+			}
+
 			return {
 				success: true,
 				values: {
@@ -213,7 +277,8 @@ export const actions = {
 				errors: { _form: 'Errore durante il salvataggio. Riprova più tardi.' },
 				values: {
 					firstName: validation.data.firstName,
-					lastName: validation.data.lastName
+					lastName: validation.data.lastName,
+					newsletterConsent // Persist on error too
 				}
 			});
 		}
