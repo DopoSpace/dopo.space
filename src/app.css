@@ -22,10 +22,7 @@ html {
 @font-face {
   font-family: 'Dopolavoro';
   src: url('/fonts/Dopolavoro.woff2') format('woff2'),
-       url('/fonts/Dopolavoro.woff') format('woff'),
-       url('/fonts/Dopolavoro.ttf') format('truetype'),
-       url('/fonts/Dopolavoro.eot') format('eot'),
-       url('/fonts/Dopolavoro.svg') format('svg');
+       url('/fonts/Dopolavoro.woff') format('woff');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
