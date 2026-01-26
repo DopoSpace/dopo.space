@@ -149,7 +149,7 @@ function getLogoSignature(): string {
 	return `
 		<hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e5e5;">
 		<a href="https://dopo.space" style="display: inline-block;">
-			<img src="https://dopo.space/logo-rosso.svg" alt="Dopo" style="height: 32px;" />
+			<img src="https://dopo.space/logo-rosso.png" alt="Dopo" style="height: 32px;" />
 		</a>
 	`;
 }
