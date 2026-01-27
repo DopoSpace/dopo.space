@@ -469,49 +469,200 @@ function generateAICSData(users: any[]): AICSRow[] {
 
 /**
  * Generate AICS Excel file
- * Columns follow the exact AICS import template structure
+ * Matches the exact official AICS import template structure with:
+ * - Row 1: Category headers with merged cells
+ * - Row 2: Column sub-headers with short names
+ * - Row 3+: Data
  */
 async function generateAICSExcel(data: AICSRow[]): Promise<Buffer> {
 	const workbook = new ExcelJS.Workbook();
 	const worksheet = workbook.addWorksheet('Soci AICS');
 
-	// AICS column headers (exact order required for import)
-	worksheet.columns = [
-		{ header: 'COGNOME', key: 'cognome', width: 20 },
-		{ header: 'NOME', key: 'nome', width: 20 },
-		{ header: 'SESSO', key: 'sesso', width: 8 },
-		{ header: 'DATA NASCITA', key: 'dataNascita', width: 15 },
-		{ header: 'PROVINCIA NASCITA', key: 'provinciaNascita', width: 18 },
-		{ header: 'COMUNE NASCITA', key: 'comuneNascita', width: 25 },
-		{ header: 'CODICE FISCALE', key: 'codiceFiscale', width: 20 },
-		{ header: 'INDIRIZZO', key: 'indirizzo', width: 30 },
-		{ header: 'CAP', key: 'cap', width: 10 },
-		{ header: 'PROVINCIA', key: 'provincia', width: 12 },
-		{ header: 'COMUNE', key: 'comune', width: 20 },
-		{ header: 'TELEFONO ABITAZIONE', key: 'telefonoAbitazione', width: 18 },
-		{ header: 'FAX ABITAZIONE', key: 'faxAbitazione', width: 15 },
-		{ header: 'TELEFONO UFFICIO', key: 'telefonoUfficio', width: 18 },
-		{ header: 'FAX UFFICIO', key: 'faxUfficio', width: 15 },
-		{ header: 'CELLULARE', key: 'cellulare', width: 15 },
-		{ header: 'EMAIL', key: 'email', width: 30 },
-		{ header: 'QUALIFICA SOCIALE', key: 'qualificaSociale', width: 18 },
-		{ header: 'ATTIVITA SOCIALE', key: 'attivitaSociale', width: 18 },
-		{ header: 'QUALIFICA SPORTIVA', key: 'qualificaSportiva', width: 18 },
-		{ header: 'ATTIVITA SPORTIVA', key: 'attivitaSportiva', width: 18 },
-		{ header: 'TIPO CERTIFICATO', key: 'tipoCertificato', width: 18 },
-		{ header: 'DATA RILASCIO CERT', key: 'dataRilascioCert', width: 18 },
-		{ header: 'DATA SCADENZA CERT', key: 'dataScadenzaCert', width: 18 },
-		{ header: 'NUMERO TESSERA', key: 'numeroTessera', width: 18 },
-		{ header: 'DATA RILASCIO TESSERA', key: 'dataRilascioTessera', width: 20 }
+	// === Category header style (row 1) ===
+	const categoryStyle: Partial<ExcelJS.Style> = {
+		font: { bold: true },
+		fill: {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFE0E0E0' }
+		},
+		alignment: { vertical: 'middle', horizontal: 'center' },
+		border: {
+			top: { style: 'thin' },
+			bottom: { style: 'thin' },
+			left: { style: 'thin' },
+			right: { style: 'thin' }
+		}
+	};
+
+	// === ROW 1: Categories with merged cells ===
+	// NOMINATIVO: A1-B1
+	worksheet.mergeCells('A1:B1');
+	worksheet.getCell('A1').value = 'NOMINATIVO';
+	Object.assign(worksheet.getCell('A1'), { style: categoryStyle });
+
+	// DATI DI NASCITA: C1-G1
+	worksheet.mergeCells('C1:G1');
+	worksheet.getCell('C1').value = 'DATI DI NASCITA';
+	Object.assign(worksheet.getCell('C1'), { style: categoryStyle });
+
+	// DATI DI RESIDENZA/DOMICILIO: H1-K1
+	worksheet.mergeCells('H1:K1');
+	worksheet.getCell('H1').value = 'DATI DI RESIDENZA/DOMICILIO';
+	Object.assign(worksheet.getCell('H1'), { style: categoryStyle });
+
+	// RECAPITI ABITAZIONE: L1-M1
+	worksheet.mergeCells('L1:M1');
+	worksheet.getCell('L1').value = 'RECAPITI ABITAZIONE';
+	Object.assign(worksheet.getCell('L1'), { style: categoryStyle });
+
+	// RECAPITI UFFICIO: N1-O1
+	worksheet.mergeCells('N1:O1');
+	worksheet.getCell('N1').value = 'RECAPITI UFFICIO';
+	Object.assign(worksheet.getCell('N1'), { style: categoryStyle });
+
+	// ALTRI RECAPITI: P1-Q1
+	worksheet.mergeCells('P1:Q1');
+	worksheet.getCell('P1').value = 'ALTRI RECAPITI';
+	Object.assign(worksheet.getCell('P1'), { style: categoryStyle });
+
+	// INQUADRAMENTO SOCIALE: R1-S1
+	worksheet.mergeCells('R1:S1');
+	worksheet.getCell('R1').value = 'INQUADRAMENTO SOCIALE';
+	Object.assign(worksheet.getCell('R1'), { style: categoryStyle });
+
+	// INQUADRAMENTO SPORTIVO: T1-U1
+	worksheet.mergeCells('T1:U1');
+	worksheet.getCell('T1').value = 'INQUADRAMENTO SPORTIVO';
+	Object.assign(worksheet.getCell('T1'), { style: categoryStyle });
+
+	// CERTIFICATO MEDICO: V1-X1
+	worksheet.mergeCells('V1:X1');
+	worksheet.getCell('V1').value = 'CERTIFICATO MEDICO';
+	Object.assign(worksheet.getCell('V1'), { style: categoryStyle });
+
+	// TESSERA: Y1-Z1
+	worksheet.mergeCells('Y1:Z1');
+	worksheet.getCell('Y1').value = 'TESSERA';
+	Object.assign(worksheet.getCell('Y1'), { style: categoryStyle });
+
+	// === ROW 2: Column sub-headers (short names matching AICS template) ===
+	const row2Headers = [
+		'COGNOME',
+		'NOME',
+		'SESSO',
+		'DATA',
+		'PROVINCIA',
+		'COMUNE',
+		'CODICE FISCALE',
+		'INDIRIZZO',
+		'CAP',
+		'PROVINCIA',
+		'COMUNE',
+		'TELEFONO',
+		'FAX',
+		'TELEFONO',
+		'FAX',
+		'CELLULARE',
+		'EMAIL',
+		'QUALIFICA',
+		'ATTIVITÀ',
+		'QUALIFICA',
+		'ATTIVITÀ',
+		'TIPO',
+		'DATA RILASCIO',
+		'DATA SCADENZA',
+		'NUMERO',
+		'DATA RILASCIO'
 	];
 
-	styleHeaderRow(worksheet);
-	data.forEach((row) => worksheet.addRow(row));
+	const headerRow = worksheet.getRow(2);
+	row2Headers.forEach((header, index) => {
+		const cell = headerRow.getCell(index + 1);
+		cell.value = header;
+		cell.font = { bold: true };
+		cell.alignment = { horizontal: 'center', vertical: 'middle' };
+		cell.border = {
+			top: { style: 'thin' },
+			bottom: { style: 'thin' },
+			left: { style: 'thin' },
+			right: { style: 'thin' }
+		};
+	});
 
+	// === ROW 3+: Data rows ===
+	data.forEach((row, index) => {
+		const dataRow = worksheet.getRow(index + 3);
+		dataRow.values = [
+			row.cognome,
+			row.nome,
+			row.sesso,
+			row.dataNascita,
+			row.provinciaNascita,
+			row.comuneNascita,
+			row.codiceFiscale,
+			row.indirizzo,
+			row.cap,
+			row.provincia,
+			row.comune,
+			row.telefonoAbitazione,
+			row.faxAbitazione,
+			row.telefonoUfficio,
+			row.faxUfficio,
+			row.cellulare,
+			row.email,
+			row.qualificaSociale,
+			row.attivitaSociale,
+			row.qualificaSportiva,
+			row.attivitaSportiva,
+			row.tipoCertificato,
+			row.dataRilascioCert,
+			row.dataScadenzaCert,
+			row.numeroTessera,
+			row.dataRilascioTessera
+		];
+	});
+
+	// === Column widths ===
+	const columnWidths = [
+		20, // A: COGNOME
+		20, // B: NOME
+		8, // C: SESSO
+		12, // D: DATA
+		12, // E: PROVINCIA (nascita)
+		25, // F: COMUNE (nascita)
+		20, // G: CODICE FISCALE
+		30, // H: INDIRIZZO
+		10, // I: CAP
+		12, // J: PROVINCIA (residenza)
+		20, // K: COMUNE (residenza)
+		15, // L: TELEFONO (abitazione)
+		12, // M: FAX (abitazione)
+		15, // N: TELEFONO (ufficio)
+		12, // O: FAX (ufficio)
+		15, // P: CELLULARE
+		30, // Q: EMAIL
+		12, // R: QUALIFICA (sociale)
+		12, // S: ATTIVITÀ (sociale)
+		12, // T: QUALIFICA (sportiva)
+		12, // U: ATTIVITÀ (sportiva)
+		10, // V: TIPO (certificato)
+		14, // W: DATA RILASCIO (cert)
+		14, // X: DATA SCADENZA (cert)
+		15, // Y: NUMERO (tessera)
+		14 // Z: DATA RILASCIO (tessera)
+	];
+	columnWidths.forEach((width, index) => {
+		worksheet.getColumn(index + 1).width = width;
+	});
+
+	// === Autofilter on row 2 (header row) ===
 	if (data.length > 0) {
-		worksheet.autoFilter = { from: 'A1', to: `Z${data.length + 1}` };
+		worksheet.autoFilter = { from: 'A2', to: `Z${data.length + 2}` };
 	}
-	worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+	// === Freeze first 2 rows ===
+	worksheet.views = [{ state: 'frozen', ySplit: 2 }];
 
 	const buffer = await workbook.xlsx.writeBuffer();
 	return Buffer.from(buffer);
