@@ -19,7 +19,7 @@ const logger = createLogger({ module: 'membership' });
  * Compute membership state from user data (avoids redundant DB query)
  */
 function computeMembershipState(user: {
-	profile: { profileComplete: boolean; firstName: string | null; lastName: string | null; birthDate: Date | null; address: string | null; city: string | null; postalCode: string | null; province: string | null; privacyConsent: boolean | null; dataConsent: boolean | null } | null;
+	profile: { profileComplete: boolean; firstName: string | null; lastName: string | null; birthDate: Date | null; privacyConsent: boolean | null; dataConsent: boolean | null } | null;
 	memberships: Array<{ status: MembershipStatus; paymentStatus: PaymentStatus; membershipNumber: string | null; endDate: Date | null; paymentProviderId: string | null }>;
 }) {
 	const profile = user.profile;
@@ -31,10 +31,6 @@ function computeMembershipState(user: {
 		!!profile.firstName &&
 		!!profile.lastName &&
 		!!profile.birthDate &&
-		!!profile.address &&
-		!!profile.city &&
-		!!profile.postalCode &&
-		!!profile.province &&
 		!!profile.privacyConsent &&
 		!!profile.dataConsent;
 
@@ -201,10 +197,6 @@ export const actions = {
 				!!d.nationality &&
 				!!d.birthProvince &&
 				!!d.birthCity &&
-				!!d.address &&
-				!!d.city &&
-				!!d.postalCode &&
-				!!d.province &&
 				d.privacyConsent === true &&
 				d.dataConsent === true;
 

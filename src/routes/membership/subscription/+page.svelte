@@ -31,10 +31,6 @@
 		hasForeignTaxCode?: string;
 		gender?: string;
 		taxCode?: string;
-		address?: string;
-		city?: string;
-		postalCode?: string;
-		province?: string;
 		phone?: string;
 		privacyConsent?: string;
 		dataConsent?: string;
@@ -51,10 +47,6 @@
 		hasForeignTaxCode?: boolean;
 		gender?: string;
 		taxCode?: string;
-		address?: string;
-		city?: string;
-		postalCode?: string;
-		province?: string;
 		phone?: string;
 		privacyConsent?: boolean;
 		dataConsent?: boolean;
@@ -111,13 +103,6 @@
 	let hasForeignTaxCodeOverride = $state<boolean | null>(null);
 	let genderOverride = $state<string | null>(null);
 
-	// Address fields (can be populated by autocomplete or manual input)
-	let addressOverride = $state<string | null>(null);
-	let cityOverride = $state<string | null>(null);
-	let postalCodeOverride = $state<string | null>(null);
-	let provinceOverride = $state<string | null>(null);
-	let residenceCountryOverride = $state<string | null>(null);
-
 	// Birth city/province fields (can be populated by autocomplete)
 	let birthCityOverride = $state<string | null>(null);
 	let birthProvinceOverride = $state<string | null>(null);
@@ -125,38 +110,21 @@
 	// Track birth date for validation context
 	let birthDateOverride = $state<string | null>(null);
 
+	// Override state for firstName and lastName (to preserve typed values across re-renders)
+	let firstNameOverride = $state<string | null>(null);
+	let lastNameOverride = $state<string | null>(null);
+
 	// Newsletter consent - computed from form values (on validation failure) or user data
 	let newsletterConsent = $derived(form?.values?.newsletterConsent ?? data.user.newsletterSubscribed ?? false);
-
-	// Derived values for address fields
-	let address = $derived(addressOverride ?? form?.values?.address ?? data.profile?.address ?? '');
-	let city = $derived(cityOverride ?? form?.values?.city ?? data.profile?.city ?? '');
-	let postalCode = $derived(postalCodeOverride ?? form?.values?.postalCode ?? data.profile?.postalCode ?? '');
-	let residenceCountry = $derived(residenceCountryOverride ?? data.profile?.residenceCountry ?? 'IT');
-
-	// Province: use "EE" for foreign residence, otherwise use the selected province
-	let isForeignResidence = $derived(residenceCountry !== 'IT');
-	let province = $derived(
-		isForeignResidence
-			? 'EE'
-			: (provinceOverride ?? form?.values?.province ?? data.profile?.province ?? '')
-	);
 
 	// Derived values for birth city/province/date fields
 	let birthCity = $derived(birthCityOverride ?? form?.values?.birthCity ?? data.profile?.birthCity ?? '');
 	let birthProvince = $derived(birthProvinceOverride ?? form?.values?.birthProvince ?? data.profile?.birthProvince ?? '');
 	let birthDate = $derived(birthDateOverride ?? form?.values?.birthDate ?? formatDateForInput(data.profile?.birthDate));
 
-	// Handle address selection from autocomplete
-	function handleAddressSelect(result: AddressResult) {
-		addressOverride = result.address;
-		if (result.city) cityOverride = result.city;
-		if (result.postalCode) postalCodeOverride = result.postalCode;
-		residenceCountryOverride = result.countryCode || 'IT';
-		if (result.countryCode === 'IT' && result.province) {
-			provinceOverride = result.province;
-		}
-	}
+	// Derived values for firstName and lastName
+	let firstName = $derived(firstNameOverride ?? form?.values?.firstName ?? data.profile?.firstName ?? '');
+	let lastName = $derived(lastNameOverride ?? form?.values?.lastName ?? data.profile?.lastName ?? '');
 
 	// Handle birth city selection from autocomplete
 	function handleBirthCitySelect(result: AddressResult) {
@@ -195,8 +163,9 @@
 	let validationContext = $derived<ValidationContext>({
 		nationality,
 		hasForeignTaxCode,
-		residenceCountry,
-		birthDate
+		birthDate,
+		firstName,
+		lastName
 	});
 
 	// Handle field blur validation
@@ -224,26 +193,6 @@
 	// Get error for a field (prefer server-side error, fall back to client-side)
 	function getFieldError(fieldName: keyof ProfileFormErrors): string | undefined {
 		return form?.errors?.[fieldName] ?? clientErrors[fieldName];
-	}
-
-	// Get country name from code
-	function getCountryName(code: string): string {
-		const countryMessages: Record<string, () => string> = {
-			IT: m.country_IT,
-			DE: m.country_DE,
-			FR: m.country_FR,
-			ES: m.country_ES,
-			UK: m.country_UK,
-			US: m.country_US,
-			CH: m.country_CH,
-			AT: m.country_AT,
-			BE: m.country_BE,
-			NL: m.country_NL,
-			PT: m.country_PT,
-			PL: m.country_PL,
-			RO: m.country_RO
-		};
-		return countryMessages[code]?.() || code;
 	}
 
 	// Format birth date for input
@@ -336,6 +285,11 @@
 						await update({ invalidateAll: true, reset: false });
 						loading = false;
 						trackProfileFormSubmit(result.type === 'success' || (result.type === 'redirect'));
+						// Reset overrides on success so derived values use fresh data from server
+						if (result.type === 'success' || result.type === 'redirect') {
+							firstNameOverride = null;
+							lastNameOverride = null;
+						}
 					};
 				}}
 			>
@@ -357,9 +311,10 @@
 								type="text"
 								id="firstName"
 								name="firstName"
-								value={form?.values?.firstName || data.profile?.firstName || ''}
+								value={firstName}
 								required
 								placeholder={m.subscription_first_name_placeholder()}
+								oninput={(e) => firstNameOverride = (e.target as HTMLInputElement).value}
 								onblur={(e) => handleFieldBlur('firstName', (e.target as HTMLInputElement).value)}
 								class:has-error={getFieldError('firstName')}
 							/>
@@ -374,9 +329,10 @@
 								type="text"
 								id="lastName"
 								name="lastName"
-								value={form?.values?.lastName || data.profile?.lastName || ''}
+								value={lastName}
 								required
 								placeholder={m.subscription_last_name_placeholder()}
+								oninput={(e) => lastNameOverride = (e.target as HTMLInputElement).value}
 								onblur={(e) => handleFieldBlur('lastName', (e.target as HTMLInputElement).value)}
 								class:has-error={getFieldError('lastName')}
 							/>
@@ -398,12 +354,16 @@
 						value={birthDate}
 						required
 						maxDate={new Date()}
+						placeholder={m.subscription_birth_date_placeholder()}
 						error={getFieldError('birthDate')}
 						onchange={(value) => {
 							birthDateOverride = value;
 						}}
 						onblur={(value) => handleFieldBlur('birthDate', value)}
 					/>
+					{#if m.subscription_birth_date_format_hint()}
+						<p class="date-format-hint">{m.subscription_birth_date_format_hint()}</p>
+					{/if}
 
 					{#if isUnder16}
 						<div class="warning-box">
@@ -538,63 +498,6 @@
 							</div>
 							<input type="hidden" name="taxCode" value="" />
 						{/if}
-					{/if}
-				</div>
-
-				<!-- Residenza -->
-				<div class="form-section">
-					<h2 class="form-section-title">{m.subscription_residence_title()}</h2>
-					<p style="opacity: 0.7; margin-bottom: 1.5rem;">{m.subscription_residence_subtitle()}</p>
-
-					<input type="hidden" name="residenceCountry" value={residenceCountry} />
-
-					<AddressAutocomplete
-						name="address"
-						label={m.subscription_address()}
-						mode="address"
-						apiKey={data.googlePlacesApiKey}
-						value={address}
-						error={getFieldError('address')}
-						required
-						disabled={isUnder16}
-						placeholder={m.subscription_address_placeholder()}
-						onselect={handleAddressSelect}
-						onblur={(value) => handleFieldBlur('address', value)}
-					/>
-
-					{#if isForeignResidence}
-						<input type="hidden" name="postalCode" value="00000" />
-						<input type="hidden" name="province" value="EE" />
-						<input type="hidden" name="city" value={city} />
-
-						<div class="form-group">
-							<label for="residenceCountryDisplay">{m.subscription_residence_country()}</label>
-							<input
-								type="text"
-								id="residenceCountryDisplay"
-								value={getCountryName(residenceCountry)}
-								disabled
-							/>
-						</div>
-					{:else}
-						<input type="hidden" name="postalCode" value={postalCode} />
-						<input type="hidden" name="province" value={province} />
-						<input type="hidden" name="city" value={city} />
-
-						<div class="grid grid-cols-3">
-							<div class="form-group">
-								<label for="postalCodeDisplay">{m.subscription_postal_code()}</label>
-								<input type="text" id="postalCodeDisplay" value={postalCode} disabled />
-							</div>
-							<div class="form-group">
-								<label for="cityDisplay">{m.subscription_city()}</label>
-								<input type="text" id="cityDisplay" value={city} disabled />
-							</div>
-							<div class="form-group">
-								<label for="provinceDisplay">{m.subscription_province()}</label>
-								<input type="text" id="provinceDisplay" value={province} disabled />
-							</div>
-						</div>
 					{/if}
 				</div>
 
@@ -1004,5 +907,10 @@
 
 	:global(.subscription-page ul[role="listbox"] li) {
 		@apply border-gray-200;
+	}
+
+	/* Date format hint for English users */
+	.date-format-hint {
+		@apply text-sm text-white/60 mt-1;
 	}
 </style>

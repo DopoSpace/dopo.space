@@ -18,9 +18,10 @@ export type FieldValidator = (value: string, context?: ValidationContext) => Val
 export type ValidationContext = {
 	nationality?: string;
 	hasForeignTaxCode?: boolean;
-	residenceCountry?: string;
 	birthDate?: string;
 	gender?: string;
+	firstName?: string;
+	lastName?: string;
 };
 
 /**
@@ -103,6 +104,41 @@ function extractBirthDateFromTaxCode(taxCode: string): { year: number; month: nu
 	const year = yearPart <= currentYearShort ? 2000 + yearPart : 1900 + yearPart;
 
 	return { year, month, day };
+}
+
+/**
+ * Extract consonants from a string
+ */
+function extractConsonants(str: string): string {
+	return str.toUpperCase().replace(/[^BCDFGHJKLMNPQRSTVWXYZ]/g, '');
+}
+
+/**
+ * Extract vowels from a string
+ */
+function extractVowels(str: string): string {
+	return str.toUpperCase().replace(/[^AEIOU]/g, '');
+}
+
+/**
+ * Generate the 3-character surname code for CF
+ */
+function generateSurnameCode(surname: string): string {
+	const combined = extractConsonants(surname) + extractVowels(surname) + 'XXX';
+	return combined.substring(0, 3);
+}
+
+/**
+ * Generate the 3-character name code for CF
+ * If 4+ consonants: use 1st, 3rd, 4th; otherwise consonants + vowels + X
+ */
+function generateNameCode(name: string): string {
+	const consonants = extractConsonants(name);
+	if (consonants.length >= 4) {
+		return consonants[0] + consonants[2] + consonants[3];
+	}
+	const combined = consonants + extractVowels(name) + 'XXX';
+	return combined.substring(0, 3);
 }
 
 // Field validators
@@ -255,70 +291,22 @@ export const validators: Record<string, FieldValidator> = {
 					}
 				}
 			}
-		}
 
-		return { valid: true };
-	},
+			// Validate name/surname consistency
+			if (context?.firstName && context?.lastName) {
+				const upper = value.toUpperCase();
+				const cfSurnameCode = upper.substring(0, 3);
+				const cfNameCode = upper.substring(3, 6);
+				const expectedSurname = generateSurnameCode(context.lastName);
+				const expectedName = generateNameCode(context.firstName);
 
-	address: (value: string): ValidationResult => {
-		if (!value || value.trim().length === 0) {
-			return { valid: false, error: m.validation_address_required() };
-		}
-		if (value.trim().length < 5) {
-			return { valid: false, error: m.validation_address_min() };
-		}
-		if (value.trim().length > 200) {
-			return { valid: false, error: m.validation_address_max() };
-		}
-		return { valid: true };
-	},
-
-	city: (value: string): ValidationResult => {
-		if (!value || value.trim().length === 0) {
-			return { valid: false, error: m.validation_city_required() };
-		}
-		if (value.trim().length < 2) {
-			return { valid: false, error: m.validation_city_min() };
-		}
-		if (value.trim().length > 100) {
-			return { valid: false, error: m.validation_city_max() };
-		}
-		return { valid: true };
-	},
-
-	postalCode: (value: string, context?: ValidationContext): ValidationResult => {
-		if (!value || value.trim().length === 0) {
-			return { valid: false, error: m.validation_postal_code_required() };
-		}
-
-		// For Italian residence, must be exactly 5 digits
-		const isItalianResidence = context?.residenceCountry === 'IT' || !context?.residenceCountry;
-		if (isItalianResidence) {
-			if (!/^\d{5}$/.test(value)) {
-				return { valid: false, error: m.validation_postal_code_format() };
+				if (cfSurnameCode !== expectedSurname || cfNameCode !== expectedName) {
+					return {
+						valid: false,
+						error: m.validation_tax_code_name_mismatch()
+					};
+				}
 			}
-		} else {
-			// For foreign residence, must be exactly "00000" (matches server-side validation)
-			if (value !== '00000') {
-				return { valid: false, error: m.validation_postal_code_foreign() };
-			}
-		}
-
-		return { valid: true };
-	},
-
-	province: (value: string, context?: ValidationContext): ValidationResult => {
-		if (!value || value.trim().length === 0) {
-			return { valid: false, error: m.validation_province_required() };
-		}
-		if (!/^[A-Z]{2}$/i.test(value)) {
-			return { valid: false, error: m.validation_province_format() };
-		}
-
-		// For foreign residence, province must be "EE"
-		const isForeignResidence = context?.residenceCountry && context.residenceCountry !== 'IT';
-		if (isForeignResidence && value.toUpperCase() !== 'EE') {
-			return { valid: false, error: m.validation_province_foreign() };
 		}
 
 		return { valid: true };
