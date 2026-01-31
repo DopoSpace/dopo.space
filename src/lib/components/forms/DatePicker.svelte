@@ -2,7 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import flatpickr from 'flatpickr';
 	import { Italian } from 'flatpickr/dist/l10n/it.js';
+	import { english } from 'flatpickr/dist/l10n/default.js';
 	import 'flatpickr/dist/flatpickr.min.css';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	interface Props {
 		name: string;
@@ -36,6 +38,12 @@
 	let flatpickrInstance: flatpickr.Instance | null = null;
 	let internalValue = $state(value);
 
+	// Get the appropriate flatpickr locale based on current language
+	function getFlatpickrLocale() {
+		const currentLocale = getLocale();
+		return currentLocale === 'en' ? english : Italian;
+	}
+
 	// Sync with external value changes
 	$effect(() => {
 		if (value !== internalValue && flatpickrInstance) {
@@ -46,10 +54,10 @@
 
 	onMount(() => {
 		flatpickrInstance = flatpickr(inputElement, {
-			locale: Italian,
+			locale: getFlatpickrLocale(),
 			dateFormat: 'Y-m-d',
 			altInput: true,
-			altFormat: 'd/m/Y',
+			altFormat: 'd/m/Y', // Always use European format (day/month/year)
 			allowInput: true,
 			maxDate: maxDate,
 			minDate: minDate,

@@ -7,6 +7,7 @@ import {
 	normalizeOmocodia,
 	validateTaxCodeFormat,
 	validateTaxCodeChecksum,
+	fixTaxCodeChecksum,
 	extractGenderFromTaxCode,
 	extractBirthDateFromTaxCode,
 	validateTaxCodeConsistency,
@@ -198,24 +199,32 @@ describe('Tax Code Utilities', () => {
 
 	describe('validateTaxCodeConsistency', () => {
 		it('should validate consistent date', () => {
-			const birthDate = new Date(1985, 7, 10); // August 10, 1985
+			// Use UTC date (as form date inputs are parsed by new Date("YYYY-MM-DD"))
+			const birthDate = new Date('1985-08-10');
 			expect(validateTaxCodeConsistency('RSSMRA85M10H501R', birthDate)).toBe(true);
 		});
 
 		it('should reject inconsistent date', () => {
-			const wrongDate = new Date(1990, 0, 1); // Different date
+			const wrongDate = new Date('1990-01-01');
 			expect(validateTaxCodeConsistency('RSSMRA85M10H501R', wrongDate)).toBe(false);
 		});
 
 		it('should handle female CFs correctly', () => {
-			const birthDate = new Date(1985, 7, 10); // August 10, 1985
+			const birthDate = new Date('1985-08-10');
 			// Female CF with day 50 (10 + 40)
 			expect(validateTaxCodeConsistency('RSSMRA85M50H501X', birthDate)).toBe(true);
 		});
 
 		it('should return false for invalid CF', () => {
-			const birthDate = new Date(1985, 7, 10);
+			const birthDate = new Date('1985-08-10');
 			expect(validateTaxCodeConsistency('INVALID', birthDate)).toBe(false);
+		});
+
+		it('should handle dates stored with timezone offset', () => {
+			// Simulates a date stored as local midnight CET (22:00 UTC previous day)
+			// This happens with imported data: new Date(1985, 7, 10) in CET = 1985-08-09T22:00:00Z
+			const birthDateUTC = new Date('1985-08-10');
+			expect(validateTaxCodeConsistency('RSSMRA85M10H501R', birthDateUTC)).toBe(true);
 		});
 	});
 
@@ -253,8 +262,8 @@ describe('Tax Code Utilities', () => {
 		});
 
 		it('should validate with birth date when provided', () => {
-			const correctDate = new Date(1985, 7, 10);
-			const wrongDate = new Date(1990, 0, 1);
+			const correctDate = new Date('1985-08-10');
+			const wrongDate = new Date('1990-01-01');
 
 			expect(validateTaxCode('RSSMRA85M10H501S', correctDate).valid).toBe(true);
 
@@ -269,6 +278,38 @@ describe('Tax Code Utilities', () => {
 
 		it('should handle whitespace', () => {
 			expect(validateTaxCode('  RSSMRA85M10H501S  ').valid).toBe(true);
+		});
+	});
+
+	describe('fixTaxCodeChecksum', () => {
+		it('should fix invalid checksum', () => {
+			// RSSMRA85M10H501X has wrong checksum (X instead of S)
+			const fixed = fixTaxCodeChecksum('RSSMRA85M10H501X');
+			expect(fixed).toBe('RSSMRA85M10H501S');
+		});
+
+		it('should keep valid checksum unchanged', () => {
+			const fixed = fixTaxCodeChecksum('RSSMRA85M10H501S');
+			expect(fixed).toBe('RSSMRA85M10H501S');
+		});
+
+		it('should return null for invalid format', () => {
+			expect(fixTaxCodeChecksum('INVALID')).toBeNull();
+			expect(fixTaxCodeChecksum('')).toBeNull();
+			expect(fixTaxCodeChecksum('12345')).toBeNull();
+		});
+
+		it('should handle lowercase input', () => {
+			const fixed = fixTaxCodeChecksum('rssmra85m10h501x');
+			expect(fixed).toBe('RSSMRA85M10H501S');
+		});
+
+		it('should handle omocodia codes', () => {
+			// Omocodia code with wrong checksum
+			// RSSMRA85M1LH5L1X should have valid format but wrong checksum
+			const fixed = fixTaxCodeChecksum('RSSMRA85M1LH5L1X');
+			expect(fixed).not.toBeNull();
+			expect(validateTaxCodeChecksum(fixed!)).toBe(true);
 		});
 	});
 });

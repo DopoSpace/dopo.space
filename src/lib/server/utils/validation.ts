@@ -7,6 +7,10 @@
 import { z } from 'zod';
 import { validateTaxCode, validateTaxCodeConsistency } from './tax-code';
 import { isValidAge } from '$lib/utils/date';
+import { isValidComuneAICS, getOfficialComuneName } from '$lib/server/data/aics-comuni';
+import { createLogger } from '$lib/server/utils/logger';
+
+const logger = createLogger({ module: 'validation' });
 
 /**
  * Tax code format regex (supports omocodia)
@@ -46,11 +50,11 @@ const userProfileBaseSchema = z.object({
 	// Residence country (ISO 2-letter code)
 	residenceCountry: z.string().length(2, 'Seleziona il paese di residenza').toUpperCase().default('IT'),
 
-	// Residence - postalCode validation depends on residence country (handled in superRefine)
-	address: z.string().min(5, "L'indirizzo deve contenere almeno 5 caratteri").max(200),
-	city: z.string().min(2, 'Il comune deve contenere almeno 2 caratteri').max(100),
-	postalCode: z.string().min(1, 'Inserisci il codice postale').max(20),
-	province: z.string().regex(/^[A-Z]{2}$/i, 'La provincia deve essere di 2 lettere'),
+	// Residence - all fields are optional
+	address: z.string().max(200).optional().or(z.literal('')),
+	city: z.string().max(100).optional().or(z.literal('')),
+	postalCode: z.string().max(20).optional().or(z.literal('')),
+	province: z.string().regex(/^[A-Z]{2}$/i, 'La provincia deve essere di 2 lettere').optional().or(z.literal('')),
 
 	// Contact (phone is optional, format: +[prefix][number])
 	phone: z
@@ -140,10 +144,13 @@ export const userProfileSchema = userProfileBaseSchema.superRefine((data, ctx) =
 		}
 	}
 
-	// Residence country validation
+	// Residence validation (only if postal code or province is provided)
+	const hasPostalCode = data.postalCode && data.postalCode.length > 0;
+	const hasProvince = data.province && data.province.length > 0;
+
 	if (isItalianResidence) {
-		// Italian residence: postalCode must be exactly 5 digits
-		if (!/^\d{5}$/.test(data.postalCode)) {
+		// Italian residence: if postalCode provided, must be exactly 5 digits
+		if (hasPostalCode && !/^\d{5}$/.test(data.postalCode!)) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: 'Il CAP deve essere di 5 cifre',
@@ -151,15 +158,16 @@ export const userProfileSchema = userProfileBaseSchema.superRefine((data, ctx) =
 			});
 		}
 	} else {
-		// Foreign residence: province must be "EE" and postalCode must be "00000"
-		if (data.province.toUpperCase() !== 'EE') {
+		// Foreign residence: if province provided, must be "EE"
+		if (hasProvince && data.province!.toUpperCase() !== 'EE') {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: 'Per residenza estera la provincia deve essere "EE"',
 				path: ['province']
 			});
 		}
-		if (data.postalCode !== '00000') {
+		// Foreign residence: if postalCode provided, must be "00000"
+		if (hasPostalCode && data.postalCode! !== '00000') {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: 'Per residenza estera il CAP deve essere "00000"',
@@ -303,4 +311,54 @@ export function formatZodErrors(errors: z.ZodError): Record<string, string> {
 		result[issue.path.join('.')] = issue.message;
 	}
 	return result;
+}
+
+/**
+ * Soft validation for comune against AICS database
+ *
+ * This is a logging-only function that warns when a comune is not found
+ * in the official AICS database. It does NOT block form submission.
+ * The export function will auto-correct comune names when generating AICS exports.
+ *
+ * @param city - The comune name to validate
+ * @param province - The 2-letter province code
+ * @param context - Optional context for logging (e.g., user email)
+ * @returns Object with isValid flag and suggested official name if found
+ */
+export function validateComuneForLogging(
+	city: string,
+	province: string,
+	context?: { email?: string; userId?: string }
+): { isValid: boolean; officialName: string | null } {
+	// Skip validation for foreign provinces
+	if (!city || !province || province.toUpperCase() === 'EE') {
+		return { isValid: true, officialName: null };
+	}
+
+	const isValid = isValidComuneAICS(city, province);
+	const officialName = getOfficialComuneName(city, province);
+
+	if (!isValid) {
+		logger.warn(
+			{
+				city,
+				province,
+				officialName,
+				...context
+			},
+			'Comune not found in AICS database - will be auto-corrected on export'
+		);
+	} else if (officialName && officialName !== city) {
+		logger.info(
+			{
+				city,
+				province,
+				officialName,
+				...context
+			},
+			'Comune name will be normalized on export'
+		);
+	}
+
+	return { isValid, officialName };
 }

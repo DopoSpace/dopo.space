@@ -130,8 +130,27 @@ export function getEmailFrom(): string {
 
 /**
  * Google Places API key (optional, loaded from dynamic env)
+ * Used for address autocomplete and Address Validation API
  */
 export function getGooglePlacesApiKey(): string | undefined {
 	const key = dynamicEnv.GOOGLE_PLACES_API_KEY;
+	return key && key.length > 0 ? key : undefined;
+}
+
+/**
+ * Google Address Validation API key (alias for Places API key)
+ * Used for validating and normalizing addresses during user import
+ */
+export function getGoogleAddressValidationApiKey(): string | undefined {
+	return getGooglePlacesApiKey();
+}
+
+/**
+ * Genderize.io API key (optional)
+ * Used for inferring gender from first names during user import
+ * Free tier: 100 requests/day without API key
+ */
+export function getGenderizeApiKey(): string | undefined {
+	const key = dynamicEnv.GENDERIZE_API_KEY;
 	return key && key.length > 0 ? key : undefined;
 }

@@ -182,14 +182,14 @@ describe('Membership Service', () => {
 	});
 
 	describe('calculateEndDate', () => {
-		it('should return date 365 days after start date', () => {
+		it('should return date 364 days after start date (365 - 1)', () => {
 			const startDate = new Date('2025-01-15');
 			const endDate = calculateEndDate(startDate);
 
-			// 365 days after 2025-01-15 is 2026-01-15
+			// 364 days after 2025-01-15 is 2026-01-14 (day before anniversary)
 			expect(endDate.getFullYear()).toBe(2026);
 			expect(endDate.getMonth()).toBe(0); // January
-			expect(endDate.getDate()).toBe(15);
+			expect(endDate.getDate()).toBe(14);
 		});
 
 		it('should handle leap years', () => {
@@ -197,10 +197,10 @@ describe('Membership Service', () => {
 			const startDate = new Date('2024-02-29');
 			const endDate = calculateEndDate(startDate);
 
-			// 365 days after 2024-02-29 is 2025-02-28
+			// 364 days after 2024-02-29 is 2025-02-27
 			expect(endDate.getFullYear()).toBe(2025);
 			expect(endDate.getMonth()).toBe(1); // February
-			expect(endDate.getDate()).toBe(28);
+			expect(endDate.getDate()).toBe(27);
 		});
 	});
 

@@ -20,8 +20,9 @@ const logger = pino({ name: 'membership' });
 
 /**
  * Membership duration in days (rolling membership)
+ * 364 days = 365 - 1, so membership expires the day before the anniversary
  */
-const MEMBERSHIP_DURATION_DAYS = 365;
+const MEMBERSHIP_DURATION_DAYS = 364;
 
 /**
  * Result of batch membership number assignment
@@ -70,9 +71,9 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 		!!profile.privacyConsent &&
 		!!profile.dataConsent;
 
-	// S0: No membership
+	// No membership: S0 (profile incomplete) or S1 (profile complete, ready to pay)
 	if (!membership) {
-		const state = SystemState.S0_NO_MEMBERSHIP;
+		const state = profileComplete ? SystemState.S1_PROFILE_COMPLETE : SystemState.S0_NO_MEMBERSHIP;
 		return {
 			systemState: state,
 			italianLabel: SystemStateLabels[state],
@@ -83,7 +84,9 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 			endDate: null,
 			profileComplete,
 			canPurchase: true,
-			message: 'No active membership. Purchase a membership to get started.'
+			message: profileComplete
+				? 'Profile complete. Please proceed with payment.'
+				: 'No active membership. Complete your profile to get started.'
 		};
 	}
 
@@ -585,7 +588,10 @@ async function assignNumbersToUsers(
 		const membershipNumber = availableNumbers[numberIndex];
 		numberIndex++;
 
-		const startDate = new Date();
+		// Date assignment rules:
+		// 1. If no startDate → use today
+		// 2. endDate is ALWAYS recalculated as startDate + 364 days
+		const startDate = membership.startDate || new Date();
 		const endDate = calculateEndDate(startDate);
 
 		await tx.membership.update({

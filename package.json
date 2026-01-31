@@ -20,6 +20,8 @@
 		"change-password": "tsx scripts/change-admin-password.ts",
 		"manage-year": "tsx scripts/manage-association-year.ts",
 		"seed-users": "tsx scripts/seed-test-users.ts",
+		"verify-cf": "tsx scripts/verify-tax-codes.ts",
+		"fix-names": "tsx scripts/fix-names-from-cf.ts",
 		"test:server": "vitest run --config vitest.config.ts",
 		"test:components": "vitest run --config vitest.browser.config.ts",
 		"test:all": "pnpm run test:server && pnpm run test:components"
@@ -65,7 +67,8 @@
 		"tsx": "^4.21.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.7",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.15",
+		"xlsx": "^0.18.5"
 	},
 	"dependencies": {
 		"@inlang/paraglide-js": "^2.9.1",

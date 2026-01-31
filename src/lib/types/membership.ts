@@ -25,11 +25,11 @@ export enum SystemState {
  * Italian labels for system states
  */
 export const SystemStateLabels: Record<SystemState, string> = {
-	[SystemState.S0_NO_MEMBERSHIP]: 'Interrotto',
+	[SystemState.S0_NO_MEMBERSHIP]: 'Profilo incompleto',
 	[SystemState.S1_PROFILE_COMPLETE]: 'In attesa di pagamento',
-	[SystemState.S2_PROCESSING_PAYMENT]: 'In attesa di pagamento',
-	[SystemState.S3_PAYMENT_FAILED]: 'Pagamento fallito',
-	[SystemState.S4_AWAITING_NUMBER]: 'Pagato',
+	[SystemState.S2_PROCESSING_PAYMENT]: 'Pagamento in corso',
+	[SystemState.S3_PAYMENT_FAILED]: 'Pagamento non riuscito',
+	[SystemState.S4_AWAITING_NUMBER]: 'Pagato - In attesa tessera',
 	[SystemState.S5_ACTIVE]: 'Attivo',
 	[SystemState.S6_EXPIRED]: 'Scaduto',
 	[SystemState.S7_CANCELED]: 'Cancellato'
