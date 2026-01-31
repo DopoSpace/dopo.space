@@ -22,6 +22,7 @@
 
 	const navItems = [
 		{ href: '/admin/users', label: 'Utenti', icon: 'users' },
+		{ href: '/admin/import', label: 'Import Utenti', icon: 'import' },
 		{ href: '/admin/assign-cards', label: 'Assegna Tessere', icon: 'assign' },
 		{ href: '/admin/card-ranges', label: 'Range Tessere', icon: 'card' },
 		{ href: '/admin/settings', label: 'Impostazioni', icon: 'settings' },
@@ -73,6 +74,10 @@
 				{#if item.icon === 'users'}
 					<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+					</svg>
+				{:else if item.icon === 'import'}
+					<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
 					</svg>
 				{:else if item.icon === 'assign'}
 					<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -9,6 +9,18 @@ const logger = pino({ name: 'admin-users' });
 // Default page size for pagination
 const PAGE_SIZE = 50;
 
+/** Status counts for the recap */
+export interface StatusCounts {
+	total: number;
+	active: number;
+	awaitingCard: number;
+	awaitingPayment: number;
+	paymentFailed: number;
+	expired: number;
+	canceled: number;
+	notMember: number;
+}
+
 /**
  * Parse date from URL param (YYYY-MM-DD format), returns null if invalid.
  * Parses in local timezone to avoid off-by-one day issues when combined with setHours().
@@ -98,6 +110,74 @@ function sortByMembershipField<T extends { membershipNumber: string | null; memb
 	return sorted;
 }
 
+/** Get user counts by status */
+async function getStatusCounts(): Promise<StatusCounts> {
+	const [total, active, awaitingCard, awaitingPayment, paymentFailed, expired, canceled, notMember] = await Promise.all([
+		prisma.user.count(),
+		prisma.user.count({
+			where: {
+				memberships: {
+					some: {
+						status: 'ACTIVE',
+						membershipNumber: { not: null }
+					}
+				}
+			}
+		}),
+		prisma.user.count({
+			where: {
+				memberships: {
+					some: {
+						paymentStatus: 'SUCCEEDED',
+						membershipNumber: null,
+						status: { notIn: ['EXPIRED', 'CANCELED'] }
+					}
+				}
+			}
+		}),
+		prisma.user.count({
+			where: {
+				memberships: {
+					some: {
+						paymentStatus: 'PENDING',
+						status: { notIn: ['EXPIRED', 'CANCELED'] }
+					}
+				}
+			}
+		}),
+		prisma.user.count({
+			where: {
+				memberships: {
+					some: {
+						paymentStatus: { in: ['FAILED', 'CANCELED'] }
+					}
+				}
+			}
+		}),
+		prisma.user.count({
+			where: {
+				memberships: {
+					some: { status: 'EXPIRED' }
+				}
+			}
+		}),
+		prisma.user.count({
+			where: {
+				memberships: {
+					some: { status: 'CANCELED' }
+				}
+			}
+		}),
+		prisma.user.count({
+			where: {
+				memberships: { none: {} }
+			}
+		})
+	]);
+
+	return { total, active, awaitingCard, awaitingPayment, paymentFailed, expired, canceled, notMember };
+}
+
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Admin is guaranteed to be authenticated by hooks.server.ts
 	const admin = locals.admin;
@@ -140,7 +220,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			OR: [
 				{ email: { contains: search, mode: 'insensitive' } },
 				{ profile: { firstName: { contains: search, mode: 'insensitive' } } },
-				{ profile: { lastName: { contains: search, mode: 'insensitive' } } }
+				{ profile: { lastName: { contains: search, mode: 'insensitive' } } },
+				{ memberships: { some: { membershipNumber: { contains: search, mode: 'insensitive' } } } }
 			]
 		});
 	}
@@ -271,15 +352,37 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const hasActiveFilters = Object.values(filters).some(v => v !== '');
 
 	try {
-		// Fetch users with profiles and latest membership (for card number) with pagination
-		const [users, totalCount] = await Promise.all([
-			prisma.user.findMany({
+		// Get status counts (cached for display)
+		const statusCounts = await getStatusCounts();
+
+		let mappedUsers: Array<{
+			id: string;
+			email: string;
+			taxCode: string | null;
+			firstName: string;
+			lastName: string;
+			profileComplete: boolean;
+			membershipNumber: string | null;
+			membershipStatus: string | null;
+			paymentStatus: string | null;
+			startDate: string | null;
+			endDate: string | null;
+			createdAt: string;
+		}>;
+		let totalCount: number;
+
+		if (isMembershipSort) {
+			// For membership field sorting, we need to sort ALL matching users first,
+			// then paginate. This ensures correct sorting across pages.
+			const allUsers = await prisma.user.findMany({
 				where: whereClause,
 				include: {
 					profile: {
 						select: {
 							firstName: true,
-							lastName: true
+							lastName: true,
+							taxCode: true,
+							profileComplete: true
 						}
 					},
 					memberships: {
@@ -295,40 +398,101 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						},
 						take: 1
 					}
-				},
-				orderBy: buildOrderBy(sort, order),
-				skip: (page - 1) * PAGE_SIZE,
-				take: PAGE_SIZE
-			}),
-			prisma.user.count({ where: whereClause })
-		]);
+				}
+			});
 
-		// Map users to response format
-		let mappedUsers = users.map((user) => ({
-			id: user.id,
-			email: user.email,
-			firstName: user.profile?.firstName || '-',
-			lastName: user.profile?.lastName || '-',
-			membershipNumber: user.memberships[0]?.membershipNumber || null,
-			membershipStatus: user.memberships[0]?.status || null,
-			paymentStatus: user.memberships[0]?.paymentStatus || null,
-			startDate: user.memberships[0]?.startDate?.toISOString() || null,
-			endDate: user.memberships[0]?.endDate?.toISOString() || null,
-			createdAt: user.createdAt.toISOString()
-		}));
+			totalCount = allUsers.length;
 
-		// Apply in-memory sorting for membership fields
-		if (isMembershipSort) {
-			mappedUsers = sortByMembershipField(mappedUsers, sort, order);
+			// Map all users
+			const allMappedUsers = allUsers.map((user) => ({
+				id: user.id,
+				email: user.email,
+				taxCode: user.profile?.taxCode || null,
+				firstName: user.profile?.firstName || '-',
+				lastName: user.profile?.lastName || '-',
+				profileComplete: user.profile?.profileComplete || false,
+				membershipNumber: user.memberships[0]?.membershipNumber || null,
+				membershipStatus: user.memberships[0]?.status || null,
+				paymentStatus: user.memberships[0]?.paymentStatus || null,
+				startDate: user.memberships[0]?.startDate?.toISOString() || null,
+				endDate: user.memberships[0]?.endDate?.toISOString() || null,
+				createdAt: user.createdAt.toISOString()
+			}));
+
+			// Sort all users by membership field
+			const sortedUsers = sortByMembershipField(allMappedUsers, sort, order);
+
+			// Paginate
+			mappedUsers = sortedUsers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+		} else {
+			// For DB-sortable fields, use efficient DB-level pagination
+			const [users, count] = await Promise.all([
+				prisma.user.findMany({
+					where: whereClause,
+					include: {
+						profile: {
+							select: {
+								firstName: true,
+								lastName: true,
+								taxCode: true,
+								profileComplete: true
+							}
+						},
+						memberships: {
+							select: {
+								membershipNumber: true,
+								status: true,
+								paymentStatus: true,
+								startDate: true,
+								endDate: true
+							},
+							orderBy: {
+								createdAt: 'desc'
+							},
+							take: 1
+						}
+					},
+					orderBy: buildOrderBy(sort, order),
+					skip: (page - 1) * PAGE_SIZE,
+					take: PAGE_SIZE
+				}),
+				prisma.user.count({ where: whereClause })
+			]);
+
+			totalCount = count;
+
+			// Map users to response format
+			mappedUsers = users.map((user) => ({
+				id: user.id,
+				email: user.email,
+				taxCode: user.profile?.taxCode || null,
+				firstName: user.profile?.firstName || '-',
+				lastName: user.profile?.lastName || '-',
+				profileComplete: user.profile?.profileComplete || false,
+				membershipNumber: user.memberships[0]?.membershipNumber || null,
+				membershipStatus: user.memberships[0]?.status || null,
+				paymentStatus: user.memberships[0]?.paymentStatus || null,
+				startDate: user.memberships[0]?.startDate?.toISOString() || null,
+				endDate: user.memberships[0]?.endDate?.toISOString() || null,
+				createdAt: user.createdAt.toISOString()
+			}));
 		}
+
+		// Get all matching user IDs for "select all" functionality
+		const allUserIds = await prisma.user.findMany({
+			where: whereClause,
+			select: { id: true }
+		}).then(users => users.map(u => u.id));
 
 		return {
 			users: mappedUsers,
+			allUserIds,
 			search,
 			filters,
 			hasActiveFilters,
 			sort,
 			order,
+			statusCounts,
 			pagination: {
 				page,
 				pageSize: PAGE_SIZE,

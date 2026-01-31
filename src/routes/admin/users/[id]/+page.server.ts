@@ -4,9 +4,10 @@ import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
 import { z } from 'zod';
 import { formatZodErrors } from '$lib/server/utils/validation';
-import { validateTaxCode, validateTaxCodeConsistency, extractGenderFromTaxCode } from '$lib/server/utils/tax-code';
+import { validateTaxCode, validateTaxCodeConsistency, extractGenderFromTaxCode, validateTaxCodeNameConsistency, suggestCompoundName } from '$lib/server/utils/tax-code';
+import { ITALIAN_NAMES } from '$lib/server/data/italian-names';
 import { getGooglePlacesApiKey } from '$lib/server/config/env';
-import { cancelMembership } from '$lib/server/services/membership';
+import { cancelMembership, calculateEndDate } from '$lib/server/services/membership';
 import { MembershipStatus } from '@prisma/client';
 
 const logger = createLogger({ module: 'admin' });
@@ -113,6 +114,53 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 export const actions = {
+	updateEmail: async ({ request, params, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { emailError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const newEmail = formData.get('email');
+
+		if (!newEmail || typeof newEmail !== 'string' || !newEmail.trim()) {
+			return fail(400, { emailError: 'Email obbligatoria' });
+		}
+
+		const trimmed = newEmail.trim().toLowerCase();
+
+		// Basic format check
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+			return fail(400, { emailError: 'Formato email non valido' });
+		}
+
+		try {
+			const existing = await prisma.user.findUnique({
+				where: { email: trimmed }
+			});
+
+			if (existing && existing.id !== params.id) {
+				return fail(409, { emailError: `L'email ${trimmed} è già in uso da un altro utente` });
+			}
+
+			await prisma.user.update({
+				where: { id: params.id },
+				data: { email: trimmed }
+			});
+
+			logger.info(
+				{ userId: params.id, adminEmail: admin.email, newEmail: trimmed },
+				'Admin updated user email'
+			);
+
+			return { emailSuccess: true };
+		} catch (err) {
+			logger.error({ err, userId: params.id }, 'Error updating user email');
+			return fail(500, { emailError: "Errore durante l'aggiornamento dell'email" });
+		}
+	},
+
 	update: async ({ request, params, locals }) => {
 		const admin = locals.admin;
 
@@ -228,6 +276,21 @@ export const actions = {
 
 			logger.info({ userId: user.id, adminEmail: admin.email }, 'Admin updated user profile');
 
+			// Check name/CF consistency and suggest fix
+			if (d.taxCode && d.firstName && d.lastName) {
+				const nameWarning = validateTaxCodeNameConsistency(d.taxCode, d.firstName, d.lastName);
+				if (nameWarning) {
+					const suggested = suggestCompoundName(d.taxCode, d.firstName, ITALIAN_NAMES);
+					if (suggested) {
+						return {
+							success: true,
+							warning: `${nameWarning} Suggerimento: "${suggested}"`
+						};
+					}
+					return { success: true, warning: nameWarning };
+				}
+			}
+
 			return { success: true };
 		} catch (err) {
 			logger.error({ err }, 'Error updating user');
@@ -332,6 +395,216 @@ export const actions = {
 		} catch (err) {
 			logger.error({ err, membershipId }, 'Error updating membership status');
 			return fail(500, { statusError: 'Errore durante l\'aggiornamento dello stato' });
+		}
+	},
+
+	updateNumber: async ({ request, params, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { numberError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const membershipId = formData.get('membershipId');
+		const newNumber = formData.get('membershipNumber');
+
+		if (!membershipId || typeof membershipId !== 'string') {
+			return fail(400, { numberError: 'ID membership mancante' });
+		}
+
+		if (!newNumber || typeof newNumber !== 'string' || !newNumber.trim()) {
+			return fail(400, { numberError: 'Numero tessera obbligatorio' });
+		}
+
+		const trimmedNumber = newNumber.trim();
+
+		try {
+			// Check if number is already assigned to another membership
+			const existing = await prisma.membership.findFirst({
+				where: {
+					membershipNumber: trimmedNumber,
+					id: { not: membershipId }
+				},
+				include: { user: { select: { email: true } } }
+			});
+
+			if (existing) {
+				return fail(409, {
+					numberError: `Il numero ${trimmedNumber} è già assegnato a ${existing.user.email}`
+				});
+			}
+
+			const membership = await prisma.membership.findUnique({
+				where: { id: membershipId }
+			});
+
+			if (!membership) {
+				return fail(404, { numberError: 'Membership non trovata' });
+			}
+
+			await prisma.membership.update({
+				where: { id: membershipId },
+				data: {
+					membershipNumber: trimmedNumber,
+					updatedBy: admin.id
+				}
+			});
+
+			logger.info(
+				{
+					userId: params.id,
+					membershipId,
+					adminEmail: admin.email,
+					oldNumber: membership.membershipNumber,
+					newNumber: trimmedNumber
+				},
+				'Admin updated membership number'
+			);
+
+			return { numberSuccess: true };
+		} catch (err) {
+			logger.error({ err, membershipId }, 'Error updating membership number');
+			return fail(500, { numberError: "Errore durante l'aggiornamento del numero tessera" });
+		}
+	},
+
+	removeNumber: async ({ request, params, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { numberError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const membershipId = formData.get('membershipId');
+
+		if (!membershipId || typeof membershipId !== 'string') {
+			return fail(400, { numberError: 'ID membership mancante' });
+		}
+
+		try {
+			const membership = await prisma.membership.findUnique({
+				where: { id: membershipId }
+			});
+
+			if (!membership) {
+				return fail(404, { numberError: 'Membership non trovata' });
+			}
+
+			await prisma.membership.update({
+				where: { id: membershipId },
+				data: {
+					membershipNumber: null,
+					cardAssignedAt: null,
+					startDate: null,
+					endDate: null,
+					updatedBy: admin.id
+				}
+			});
+
+			logger.info(
+				{
+					userId: params.id,
+					membershipId,
+					adminEmail: admin.email,
+					removedNumber: membership.membershipNumber
+				},
+				'Admin removed membership number'
+			);
+
+			return { numberSuccess: true };
+		} catch (err) {
+			logger.error({ err, membershipId }, 'Error removing membership number');
+			return fail(500, { numberError: "Errore durante la rimozione del numero tessera" });
+		}
+	},
+
+	deleteUser: async ({ params, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { deleteError: 'Non autorizzato' });
+		}
+
+		try {
+			const user = await prisma.user.findUnique({
+				where: { id: params.id },
+				select: { id: true, email: true }
+			});
+
+			if (!user) {
+				return fail(404, { deleteError: 'Utente non trovato' });
+			}
+
+			// Cascade delete handles profile + memberships
+			await prisma.user.delete({ where: { id: params.id } });
+
+			logger.info(
+				{ userId: params.id, userEmail: user.email, adminEmail: admin.email },
+				'Admin deleted user'
+			);
+		} catch (err) {
+			logger.error({ err, userId: params.id }, 'Error deleting user');
+			return fail(500, { deleteError: "Errore durante l'eliminazione dell'utente" });
+		}
+
+		throw redirect(303, '/admin/users');
+	},
+
+	updateStartDate: async ({ request, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { dateError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const membershipId = formData.get('membershipId');
+		const startDateStr = formData.get('startDate');
+
+		if (!membershipId || typeof membershipId !== 'string') {
+			return fail(400, { dateError: 'ID membership mancante' });
+		}
+
+		if (!startDateStr || typeof startDateStr !== 'string') {
+			return fail(400, { dateError: 'Data inizio mancante' });
+		}
+
+		const startDate = new Date(startDateStr);
+		if (isNaN(startDate.getTime())) {
+			return fail(400, { dateError: 'Data non valida' });
+		}
+
+		try {
+			const membership = await prisma.membership.findUnique({
+				where: { id: membershipId }
+			});
+
+			if (!membership) {
+				return fail(404, { dateError: 'Membership non trovata' });
+			}
+
+			const endDate = calculateEndDate(startDate);
+
+			await prisma.membership.update({
+				where: { id: membershipId },
+				data: {
+					startDate,
+					endDate,
+					updatedBy: admin.id
+				}
+			});
+
+			logger.info(
+				{ membershipId, adminEmail: admin.email, startDate: startDateStr, endDate: endDate.toISOString() },
+				'Admin updated membership start date'
+			);
+
+			return { dateSuccess: true };
+		} catch (err) {
+			logger.error({ err, membershipId }, 'Error updating membership start date');
+			return fail(500, { dateError: 'Errore durante l\'aggiornamento della data' });
 		}
 	}
 } satisfies Actions;

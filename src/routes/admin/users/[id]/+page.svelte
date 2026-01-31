@@ -31,6 +31,7 @@
 		errors?: Record<string, string>;
 		values?: FormValues;
 		success?: boolean;
+		warning?: string;
 		// Cancel action fields
 		cancelError?: string;
 		cancelSuccess?: boolean;
@@ -38,6 +39,17 @@
 		// Status update action fields
 		statusError?: string;
 		statusSuccess?: boolean;
+		// Date update action fields
+		dateError?: string;
+		dateSuccess?: boolean;
+		// Email update action fields
+		emailError?: string;
+		emailSuccess?: boolean;
+		// Number update action fields
+		numberError?: string;
+		numberSuccess?: boolean;
+		// Delete action fields
+		deleteError?: string;
 	} | null;
 
 	let { data, form }: { data: PageData; form: FormData } = $props();
@@ -45,6 +57,15 @@
 	let showCancelDialog = $state(false);
 	let cancelLoading = $state(false);
 	let statusLoading = $state(false);
+	let dateLoading = $state(false);
+	let exportLoading = $state(false);
+	let exportError = $state(false);
+	let numberLoading = $state(false);
+	let editingNumber = $state(false);
+	let emailLoading = $state(false);
+	let editingEmail = $state(false);
+	let showDeleteDialog = $state(false);
+	let deleteLoading = $state(false);
 
 	// Status form state
 	let selectedStatus = $state(data.user.membership?.status ?? 'PENDING');
@@ -115,6 +136,35 @@
 
 	// Derived values for foreign users
 	let isForeign = $derived(nationality !== 'IT' && nationality !== '');
+
+	async function downloadAICSExport() {
+		exportLoading = true;
+		exportError = false;
+		try {
+			const response = await fetch('/admin/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ format: 'aics', userIds: [data.user.id] })
+			});
+			if (!response.ok) {
+				exportError = true;
+				return;
+			}
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			const lastName = (data.user.profile?.lastName ?? 'utente').toLowerCase();
+			const firstName = (data.user.profile?.firstName ?? '').toLowerCase();
+			a.download = `aics-${lastName}-${firstName}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch {
+			exportError = true;
+		} finally {
+			exportLoading = false;
+		}
+	}
 
 	function formatDate(isoString: string): string {
 		return new Date(isoString).toLocaleDateString('it-IT', {
@@ -210,13 +260,99 @@
 		{/if}
 
 		{#if data.user.membership}
+			{#if form?.numberError}
+				<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+					<p class="text-sm text-red-700">{form.numberError}</p>
+				</div>
+			{/if}
+
+			{#if form?.numberSuccess}
+				<div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+					<p class="text-sm text-green-700">Numero tessera aggiornato con successo</p>
+				</div>
+			{/if}
+
 			<dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div>
 					<dt class="text-sm font-medium text-gray-500">Numero Tessera</dt>
 					<dd class="mt-1">
-						{#if data.user.membership.membershipNumber}
-							<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
-								{data.user.membership.membershipNumber}
+						{#if editingNumber}
+							<form
+								method="POST"
+								action="?/updateNumber"
+								use:enhance={() => {
+									numberLoading = true;
+									return async ({ result, update }) => {
+										await update({ invalidateAll: true, reset: false });
+										numberLoading = false;
+										if (result.type === 'success') {
+											editingNumber = false;
+										}
+									};
+								}}
+								class="flex items-center gap-2"
+							>
+								<input type="hidden" name="membershipId" value={data.user.membership.id} />
+								<input
+									type="text"
+									name="membershipNumber"
+									value={data.user.membership.membershipNumber ?? ''}
+									class="w-36 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								/>
+								<button
+									type="submit"
+									disabled={numberLoading}
+									class="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+								>
+									{numberLoading ? '...' : 'Salva'}
+								</button>
+								<button
+									type="button"
+									onclick={() => editingNumber = false}
+									class="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+								>
+									Annulla
+								</button>
+							</form>
+						{:else if data.user.membership.membershipNumber}
+							<span class="inline-flex items-center gap-2">
+								<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+									{data.user.membership.membershipNumber}
+								</span>
+								<button
+									type="button"
+									onclick={() => editingNumber = true}
+									class="text-gray-400 hover:text-blue-600"
+									title="Modifica numero tessera"
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+									</svg>
+								</button>
+								<form
+									method="POST"
+									action="?/removeNumber"
+									use:enhance={() => {
+										numberLoading = true;
+										return async ({ update }) => {
+											await update({ invalidateAll: true, reset: false });
+											numberLoading = false;
+										};
+									}}
+									class="inline"
+								>
+									<input type="hidden" name="membershipId" value={data.user.membership.id} />
+									<button
+										type="submit"
+										disabled={numberLoading}
+										class="text-gray-400 hover:text-red-600 disabled:opacity-50"
+										title="Rimuovi numero tessera"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										</svg>
+									</button>
+								</form>
 							</span>
 						{:else}
 							<span class="text-sm text-yellow-600">In attesa di assegnazione</span>
@@ -285,17 +421,68 @@
 					</dd>
 				</div>
 
-				{#if data.user.membership.startDate || data.user.membership.endDate}
-					<div>
-						<dt class="text-sm font-medium text-gray-500">Validità</dt>
-						<dd class="mt-1 text-sm text-gray-900">
-							{#if data.user.membership.startDate}
-								{new Date(data.user.membership.startDate).toLocaleDateString('it-IT')}
+				{#if data.user.membership.startDate}
+					<div class="md:col-span-2">
+						<dt class="text-sm font-medium text-gray-500 mb-1">Validità</dt>
+						<dd>
+							{#if form?.dateError}
+								<div class="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
+									<p class="text-sm text-red-700">{form.dateError}</p>
+								</div>
 							{/if}
-							{#if data.user.membership.startDate && data.user.membership.endDate} - {/if}
-							{#if data.user.membership.endDate}
-								{new Date(data.user.membership.endDate).toLocaleDateString('it-IT')}
+
+							{#if form?.dateSuccess}
+								<div class="mb-2 p-2 bg-green-50 border border-green-200 rounded-md">
+									<p class="text-sm text-green-700">Data aggiornata con successo</p>
+								</div>
 							{/if}
+
+							<form
+								method="POST"
+								action="?/updateStartDate"
+								use:enhance={() => {
+									dateLoading = true;
+									return async ({ update }) => {
+										await update({ invalidateAll: true, reset: false });
+										dateLoading = false;
+									};
+								}}
+								class="flex flex-wrap items-end gap-3"
+							>
+								<input type="hidden" name="membershipId" value={data.user.membership.id} />
+
+								<div>
+									<label for="startDate" class="block text-xs font-medium text-gray-500 mb-1">
+										Data Inizio
+									</label>
+									<input
+										id="startDate"
+										type="date"
+										name="startDate"
+										value={formatDateForInput(data.user.membership.startDate)}
+										class="px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									/>
+								</div>
+
+								<div>
+									<label class="block text-xs font-medium text-gray-500 mb-1">
+										Data Fine
+									</label>
+									<span class="inline-block px-3 py-2 text-sm text-gray-900">
+										{#if data.user.membership.endDate}
+											{new Date(data.user.membership.endDate).toLocaleDateString('it-IT')}
+										{/if}
+									</span>
+								</div>
+
+								<button
+									type="submit"
+									disabled={dateLoading}
+									class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+								>
+									{dateLoading ? 'Salvataggio...' : 'Aggiorna Data'}
+								</button>
+							</form>
 						</dd>
 					</div>
 				{/if}
@@ -424,19 +611,38 @@
 				</form>
 			</div>
 
-			<!-- Cancel Membership Action -->
-			{#if data.user.membership.status !== 'CANCELED' && data.user.membership.status !== 'EXPIRED'}
-				<div class="mt-6 pt-4 border-t border-gray-200">
-					<button
-						type="button"
-						onclick={() => showCancelDialog = true}
-						class="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-					>
-						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-						</svg>
-						Annulla Tessera
-					</button>
+			<!-- Membership Actions -->
+			{#if data.user.membership.membershipNumber || (data.user.membership.status !== 'CANCELED' && data.user.membership.status !== 'EXPIRED')}
+				<div class="mt-6 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-3">
+					{#if data.user.membership.membershipNumber}
+						{#if exportError}
+							<p class="w-full text-sm text-red-600 mb-1">Errore durante l'export. Riprova.</p>
+						{/if}
+						<button
+							type="button"
+							onclick={downloadAICSExport}
+							disabled={exportLoading}
+							class="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+						>
+							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+							{exportLoading ? 'Export in corso...' : 'Esporta AICS'}
+						</button>
+					{/if}
+
+					{#if data.user.membership.status !== 'CANCELED' && data.user.membership.status !== 'EXPIRED'}
+						<button
+							type="button"
+							onclick={() => showCancelDialog = true}
+							class="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+						>
+							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+							</svg>
+							Annulla Tessera
+						</button>
+					{/if}
 				</div>
 			{/if}
 		{:else}
@@ -513,6 +719,18 @@
 	<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
 		<h2 class="text-xl font-bold text-gray-900 mb-4">Modifica Dati Profilo</h2>
 
+		{#if form?.success}
+			<div id="profile-form-feedback" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+				<p class="text-sm text-green-700">Profilo aggiornato con successo</p>
+			</div>
+		{/if}
+
+		{#if form?.warning}
+			<div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+				<p class="text-sm text-yellow-800">{form.warning}</p>
+			</div>
+		{/if}
+
 		{#if form?.errors?._form}
 			<ErrorMessage>{form.errors._form}</ErrorMessage>
 		{/if}
@@ -522,9 +740,12 @@
 			action="?/update"
 			use:enhance={() => {
 				loading = true;
-				return async ({ update }) => {
+				return async ({ result, update }) => {
 					await update({ invalidateAll: true, reset: false });
 					loading = false;
+					if (result.type === 'success') {
+						document.getElementById('profile-form-feedback')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					}
 				};
 			}}
 		>
@@ -799,17 +1020,81 @@
 					/>
 
 					<div>
-						<label for="email-readonly" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="email-field" class="block text-sm font-medium text-gray-700 mb-1">
 							Email
 						</label>
-						<input
-							id="email-readonly"
-							type="email"
-							value={data.user.email}
-							disabled
-							class="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500"
-						/>
-						<p class="mt-1 text-xs text-gray-500">L'email non può essere modificata</p>
+
+						{#if form?.emailError}
+							<div class="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
+								<p class="text-sm text-red-700">{form.emailError}</p>
+							</div>
+						{/if}
+
+						{#if form?.emailSuccess}
+							<div class="mb-2 p-2 bg-green-50 border border-green-200 rounded-md">
+								<p class="text-sm text-green-700">Email aggiornata con successo</p>
+							</div>
+						{/if}
+
+						{#if editingEmail}
+							<form
+								method="POST"
+								action="?/updateEmail"
+								use:enhance={() => {
+									emailLoading = true;
+									return async ({ result, update }) => {
+										await update({ invalidateAll: true, reset: false });
+										emailLoading = false;
+										if (result.type === 'success') {
+											editingEmail = false;
+										}
+									};
+								}}
+								class="flex items-center gap-2"
+							>
+								<input
+									id="email-field"
+									type="email"
+									name="email"
+									value={data.user.email}
+									class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								/>
+								<button
+									type="submit"
+									disabled={emailLoading}
+									class="px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+								>
+									{emailLoading ? '...' : 'Salva'}
+								</button>
+								<button
+									type="button"
+									onclick={() => editingEmail = false}
+									class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+								>
+									Annulla
+								</button>
+							</form>
+						{:else}
+							<div class="flex items-center gap-2">
+								<input
+									id="email-field"
+									type="email"
+									value={data.user.email}
+									disabled
+									class="flex-1 px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500"
+								/>
+								<button
+									type="button"
+									onclick={() => editingEmail = true}
+									class="text-gray-400 hover:text-blue-600"
+									title="Modifica email"
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+									</svg>
+								</button>
+							</div>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -855,4 +1140,91 @@
 			</div>
 		</form>
 	</div>
+
+	<!-- Danger Zone -->
+	<div class="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+		<h2 class="text-xl font-bold text-red-700 mb-2">Zona Pericolosa</h2>
+		<p class="text-sm text-gray-600 mb-4">L'eliminazione dell'utente è irreversibile. Tutti i dati associati (profilo, tessere) verranno rimossi.</p>
+
+		{#if form?.deleteError}
+			<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+				<p class="text-sm text-red-700">{form.deleteError}</p>
+			</div>
+		{/if}
+
+		<button
+			type="button"
+			onclick={() => showDeleteDialog = true}
+			class="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+		>
+			<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+			</svg>
+			Elimina Utente
+		</button>
+	</div>
+
+	<!-- Delete User Confirmation Dialog -->
+	{#if showDeleteDialog}
+		<div class="fixed inset-0 z-50 overflow-y-auto">
+			<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+				<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick={() => showDeleteDialog = false}></div>
+
+				<div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+					<div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+						<div class="sm:flex sm:items-start">
+							<div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+								<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+								</svg>
+							</div>
+							<div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+								<h3 class="text-base font-semibold leading-6 text-gray-900">Elimina Utente</h3>
+								<div class="mt-2">
+									<p class="text-sm text-gray-500">
+										Sei sicuro di voler eliminare <strong>{data.user.profile?.firstName || ''} {data.user.profile?.lastName || data.user.email}</strong>?
+										Questa azione è irreversibile.
+									</p>
+									{#if data.user.membership?.membershipNumber}
+										<p class="text-sm text-red-600 mt-2">
+											Attenzione: l'utente ha la tessera <strong>{data.user.membership.membershipNumber}</strong> assegnata.
+										</p>
+									{/if}
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+						<form
+							method="POST"
+							action="?/deleteUser"
+							use:enhance={() => {
+								deleteLoading = true;
+								return async ({ update }) => {
+									await update();
+									deleteLoading = false;
+									showDeleteDialog = false;
+								};
+							}}
+						>
+							<button
+								type="submit"
+								disabled={deleteLoading}
+								class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto disabled:opacity-50"
+							>
+								{deleteLoading ? 'Eliminazione...' : 'Conferma Eliminazione'}
+							</button>
+						</form>
+						<button
+							type="button"
+							onclick={() => showDeleteDialog = false}
+							class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+						>
+							Annulla
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>

@@ -7,6 +7,7 @@
 	type AssignCardsFormData = {
 		success?: boolean;
 		result?: AssignmentResult;
+		assignedUserIds?: string[];
 		errors?: {
 			_form?: string;
 			userIds?: string;
@@ -26,6 +27,8 @@
 	// Batch assignment state
 	let selectedUserIds = $state<string[]>([]);
 	let loading = $state(false);
+	let exportCompleted = $state(false);
+	let exportError = $state(false);
 
 	// Range mode inputs
 	let startNumber = $state('');
@@ -99,6 +102,30 @@
 			selectedUserIds = [...selectedUserIds, userId];
 		}
 	}
+
+	async function downloadAICSExport(userIds: string[]) {
+		try {
+			const response = await fetch('/admin/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ format: 'aics', userIds })
+			});
+			if (!response.ok) {
+				exportError = true;
+				return;
+			}
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `aics-tessere-${new Date().toISOString().slice(0, 10)}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+			exportCompleted = true;
+		} catch {
+			exportError = true;
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -138,31 +165,27 @@
 						Range configurati e numeri disponibili:
 					</p>
 					<div class="space-y-2">
-						{#each data.cardRanges as range (range.id)}
-							<div class="bg-white border {data.availableNumbersCount > 0 ? 'border-green-300' : 'border-yellow-300'} rounded-md p-2">
+						{#each data.cardRanges.filter(r => r.availableNumbers > 0) as range (range.id)}
+							<div class="bg-white border border-green-300 rounded-md p-2">
 								<div class="flex items-center justify-between">
-									<span class="text-xs font-medium {data.availableNumbersCount > 0 ? 'text-green-800' : 'text-yellow-800'}">
+									<span class="text-xs font-medium text-green-800">
 										Range {range.startNumber}–{range.endNumber}
 									</span>
 									<span class="text-xs text-gray-500">
 										{range.availableNumbers}/{range.totalNumbers} disponibili
 									</span>
 								</div>
-								{#if range.availableSubRanges.length > 0}
-									<div class="mt-1.5 flex flex-wrap gap-1">
-										{#each range.availableSubRanges as subRange}
-											<span class="inline-block px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 font-mono">
-												{#if subRange.start === subRange.end}
-													{subRange.start}
-												{:else}
-													{subRange.start}–{subRange.end}
-												{/if}
-											</span>
-										{/each}
-									</div>
-								{:else}
-									<p class="mt-1 text-xs text-gray-400 italic">Nessun numero disponibile</p>
-								{/if}
+								<div class="mt-1.5 flex flex-wrap gap-1">
+									{#each range.availableSubRanges as subRange}
+										<span class="inline-block px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 font-mono">
+											{#if subRange.start === subRange.end}
+												{subRange.start}
+											{:else}
+												{subRange.start}–{subRange.end}
+											{/if}
+										</span>
+									{/each}
+								</div>
 							</div>
 						{/each}
 					</div>
@@ -179,7 +202,9 @@
 		<!-- Success Result -->
 		{#if form?.success && form?.result}
 			<div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
-				<h3 class="text-lg font-semibold text-green-800 mb-3">Assegnazione completata</h3>
+				<h3 class="text-lg font-semibold text-green-800 mb-3">
+					{exportCompleted ? 'Assegnazione ed export completato' : 'Assegnazione completata'}
+				</h3>
 
 				{#if form.result.mode === 'auto' || form.result.mode === 'range'}
 					{@const resultData = form.result.data}
@@ -226,6 +251,24 @@
 						</li>
 					</ul>
 				{/if}
+
+				{#if form?.assignedUserIds?.length}
+					<div class="mt-3 pt-3 border-t border-green-200">
+						{#if exportError}
+							<p class="text-sm text-red-700 mb-2">Errore durante il download del file AICS. Riprova:</p>
+						{/if}
+						<button
+							type="button"
+							onclick={() => { exportError = false; downloadAICSExport(form?.assignedUserIds ?? []); }}
+							class="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-900 underline"
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+							Scarica file AICS
+						</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 
@@ -250,10 +293,20 @@
 				action="?/assignCards"
 				use:enhance={() => {
 					loading = true;
-					return async ({ update }) => {
+					exportCompleted = false;
+					exportError = false;
+					return async ({ result, update }) => {
 						await update({ invalidateAll: true, reset: false });
 						loading = false;
 						selectedUserIds = [];
+						window.scrollTo({ top: 0, behavior: 'smooth' });
+						if (result.type === 'success') {
+							const data = result.data as Record<string, unknown> | undefined;
+							const userIds = data?.assignedUserIds as string[] | undefined;
+							if (userIds && userIds.length > 0) {
+								downloadAICSExport(userIds);
+							}
+						}
 					};
 				}}
 			>

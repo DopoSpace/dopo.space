@@ -127,9 +127,22 @@ export const actions: Actions = {
 				}
 			}
 
+			// Extract IDs of users who actually got a card assigned
+			let assignedUserIds: string[] = [];
+			switch (result.mode) {
+				case 'auto':
+				case 'range':
+					assignedUserIds = result.data.assigned.map((a) => a.userId);
+					break;
+				case 'single':
+					assignedUserIds = [validation.data.userIds[0]];
+					break;
+			}
+
 			return {
 				success: true,
-				result
+				result,
+				assignedUserIds
 			};
 		} catch (error) {
 			logger.error({ err: error, mode, userIds }, 'Failed to assign membership numbers');
