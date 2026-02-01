@@ -17,7 +17,7 @@
 
 			<h2>1. Titolare del Trattamento</h2>
 			<p>
-				Il Titolare del trattamento dei dati personali e <strong>APS Dopolavoro</strong> (Associazione di Promozione Sociale), con sede legale in Via Boncompagni 51/10, 20139 Milano (MI), Italia.
+				Il Titolare del trattamento dei dati personali e <strong>APS Dopolavoro</strong> (Associazione di Promozione Sociale), con sede legale in Via Boncompagni 51/10, 20139 Milano (MI), Italia. P.IVA 13537230966.
 			</p>
 			<p>
 				Per qualsiasi domanda relativa al trattamento dei tuoi dati personali, puoi contattarci all'indirizzo email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>
@@ -163,6 +163,7 @@
 			<ul>
 				<li>Email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a></li>
 				<li>Indirizzo: APS Dopolavoro, Via Boncompagni 51/10, 20139 Milano (MI), Italia</li>
+				<li>P.IVA: 13537230966</li>
 			</ul>
 		</TextContainer>
 	</div>

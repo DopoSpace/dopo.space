@@ -14,7 +14,7 @@
 
 		<h2>1. Premessa</h2>
 		<p>
-			I presenti Termini e Condizioni (di seguito "Termini") regolano l'utilizzo della piattaforma online di <strong>APS Dopolavoro</strong> (Associazione di Promozione Sociale) per la gestione delle iscrizioni e del tesseramento associativo.
+			I presenti Termini e Condizioni (di seguito "Termini") regolano l'utilizzo della piattaforma online di <strong>APS Dopolavoro</strong> (Associazione di Promozione Sociale), con sede legale in Via Boncompagni 51/10, 20139 Milano (MI), P.IVA 13537230966, per la gestione delle iscrizioni e del tesseramento associativo.
 		</p>
 		<p>
 			L'utilizzo della piattaforma e il completamento della procedura di iscrizione comportano l'accettazione integrale dei presenti Termini.
@@ -145,6 +145,7 @@
 		<ul>
 			<li>Email: <a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a></li>
 			<li>Indirizzo: APS Dopolavoro, Via Boncompagni 51/10, 20139 Milano (MI), Italia</li>
+			<li>P.IVA: 13537230966</li>
 		</ul>
 	</TextContainer>
 </PublicPageLayout>
