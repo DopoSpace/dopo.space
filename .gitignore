@@ -30,6 +30,7 @@ npm-debug.log*
 # Database
 *.sqlite
 *.db
+scripts/seed-*.sql
 
 # Backups
 backups/
