@@ -33,7 +33,7 @@
   "auth_success_title": "Email sent!",
   "auth_success_subtitle": "Check your inbox",
   "auth_success_message": "We've sent a login link to {email}",
-  "auth_success_hint": "Click the link in the email to log in. The link will expire in 15 minutes.",
+  "auth_success_hint": "Click the link in the email to log in. The link will expire in 30 minutes.",
   "auth_success_tips_title": "Can't find the email?",
   "auth_success_tip_spam": "Check your spam or junk folder",
   "auth_success_tip_verify": "Make sure the email address is correct",
@@ -44,6 +44,7 @@
   "auth_verify_request_link": "Request new link",
   "auth_verify_loading_title": "Verifying...",
   "auth_verify_loading_text": "Please wait while we verify your access.",
+  "auth_verify_confirm_button": "Log in",
 
   "subscription_title": "Membership",
   "subscription_subtitle_no_membership": "Complete your profile to activate your card",
@@ -225,7 +226,7 @@
   "email_magic_link_text": "Click the link below to login:",
   "email_magic_link_button": "Login",
   "email_magic_link_or": "Or copy this link:",
-  "email_magic_link_expires": "This link will expire in 15 minutes.",
+  "email_magic_link_expires": "This link will expire in 30 minutes.",
 
   "email_payment_subject": "Payment Confirmation - Dopo Space Membership",
   "email_payment_title": "Payment Confirmed!",

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	generateMagicLinkToken,
+	peekMagicLinkToken,
 	verifyMagicLinkToken,
 	generateSessionToken,
 	verifySessionToken
@@ -58,6 +59,41 @@ describe('Magic Link Authentication', () => {
 			const decoded = await verifyMagicLinkToken(token);
 
 			expect(decoded?.email).toBe('test@example.com');
+		});
+	});
+
+	describe('peekMagicLinkToken', () => {
+		it('should return email for a valid token without consuming it', () => {
+			const email = 'test@example.com';
+			const token = generateMagicLinkToken(email);
+			const result = peekMagicLinkToken(token);
+
+			expect(result).toBeTruthy();
+			expect(result?.email).toBe(email);
+		});
+
+		it('should return null for invalid token', () => {
+			const result = peekMagicLinkToken('invalid-token');
+			expect(result).toBeNull();
+		});
+
+		it('should return null for session token (wrong type)', () => {
+			const sessionToken = generateSessionToken('user-id', 'test@example.com');
+			const result = peekMagicLinkToken(sessionToken);
+			expect(result).toBeNull();
+		});
+
+		it('should not mark token as used (peek only)', async () => {
+			const email = 'test@example.com';
+			const token = generateMagicLinkToken(email);
+
+			// Peek should not consume the token
+			const peekResult = peekMagicLinkToken(token);
+			expect(peekResult?.email).toBe(email);
+
+			// Full verification should still work after peek
+			const verifyResult = await verifyMagicLinkToken(token);
+			expect(verifyResult?.email).toBe(email);
 		});
 	});
 

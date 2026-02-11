@@ -1,7 +1,8 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 import {
 	verifyMagicLinkToken,
+	peekMagicLinkToken,
 	authenticateUser,
 	generateSessionToken
 } from '$lib/server/auth/magic-link';
@@ -9,82 +10,77 @@ import { USER_SESSION_COOKIE_NAME, getUserCookieOptions } from '$lib/server/conf
 import { authLogger } from '$lib/server/utils/logger';
 import { prisma } from '$lib/server/db/prisma';
 
-export const load: PageServerLoad = async ({ url, cookies, locals }) => {
+export const load: PageServerLoad = async ({ url }) => {
 	const token = url.searchParams.get('token');
-	const email = url.searchParams.get('email');
 
-	// Validate token and email presence
-	if (!token || !email) {
-		authLogger.warn({
-			event: 'magic_link_verification_failed',
-			reason: 'missing_params',
-			hasToken: !!token,
-			hasEmail: !!email
-		}, 'Magic link verification failed - missing parameters');
-		return {
-			error: 'Link non valido. Token o email mancanti.'
-		};
+	if (!token) {
+		authLogger.warn({ event: 'magic_link_peek_failed', reason: 'missing_token' },
+			'Magic link verification failed - missing token');
+		return { error: 'Link non valido. Token mancante.' };
 	}
 
-	// Normalize email for comparison
-	const normalizedEmail = email.toLowerCase().trim();
+	// Peek at token to check validity without consuming it.
+	// This prevents email client link previews from consuming one-time tokens,
+	// since verification only happens on POST (which previews don't trigger).
+	const peek = peekMagicLinkToken(token);
 
-	// Verify magic link token (one-time use enforcement)
-	const payload = await verifyMagicLinkToken(token);
-
-	if (!payload) {
-		authLogger.warn({
-			event: 'magic_link_verification_failed',
-			email: normalizedEmail,
-			reason: 'invalid_or_expired_token',
-			tokenPrefix: token.substring(0, 10) + '...'
-		}, 'Magic link verification failed - invalid or expired token');
-		return {
-			error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.'
-		};
+	if (!peek) {
+		authLogger.warn({ event: 'magic_link_peek_failed', reason: 'invalid_or_expired',
+			tokenPrefix: `${token.substring(0, 10)}...` },
+			'Magic link verification failed - invalid or expired token');
+		return { error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.' };
 	}
 
-	if (payload.email !== normalizedEmail) {
-		authLogger.warn({
-			event: 'magic_link_verification_failed',
-			expectedEmail: normalizedEmail,
-			tokenEmail: payload.email,
-			reason: 'email_mismatch'
-		}, 'Magic link verification failed - email mismatch');
-		return {
-			error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.'
-		};
-	}
-
-	// Authenticate as user (auto-creates if doesn't exist)
-	// Note: Admin login uses password-based auth on admin subdomain
-	let user;
-	try {
-		user = await authenticateUser(normalizedEmail);
-
-		// Save the user's preferred locale for future emails (e.g., payment confirmation)
-		const locale = locals.locale === 'en' ? 'en' : 'it';
-		await prisma.user.update({
-			where: { id: user.id },
-			data: { preferredLocale: locale }
-		});
-	} catch (error) {
-		authLogger.error({
-			event: 'magic_link_authentication_failed',
-			email: normalizedEmail,
-			err: error
-		}, 'Failed to authenticate user after magic link verification');
-		return {
-			error: 'Si è verificato un errore durante l\'accesso. Riprova più tardi.'
-		};
-	}
-
-	// Generate session token with user role
-	const sessionToken = generateSessionToken(user.id, user.email, 'user');
-
-	// Set user session cookie (HttpOnly, secure in production)
-	cookies.set(USER_SESSION_COOKIE_NAME, sessionToken, getUserCookieOptions());
-
-	// Redirect to membership dashboard
-	throw redirect(303, '/membership/subscription');
+	return { token };
 };
+
+export const actions = {
+	default: async ({ request, cookies, locals }) => {
+		const formData = await request.formData();
+		const token = formData.get('token') as string;
+
+		if (!token) {
+			return fail(400, {
+				error: 'Token mancante.'
+			});
+		}
+
+		// Full verification: validates JWT and marks token as used (one-time use)
+		const payload = await verifyMagicLinkToken(token);
+
+		if (!payload) {
+			authLogger.warn({ event: 'magic_link_verify_failed', reason: 'invalid_or_expired',
+				tokenPrefix: `${token.substring(0, 10)}...` },
+				'Magic link verification failed during confirmation');
+			return fail(400, { error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.' });
+		}
+
+		// Authenticate user (auto-creates if first login)
+		let user;
+		try {
+			user = await authenticateUser(payload.email);
+
+			// Save the user's preferred locale for future emails
+			const locale = locals.locale === 'en' ? 'en' : 'it';
+			await prisma.user.update({
+				where: { id: user.id },
+				data: { preferredLocale: locale }
+			});
+		} catch (error) {
+			authLogger.error({
+				event: 'magic_link_authentication_failed',
+				email: payload.email,
+				err: error
+			}, 'Failed to authenticate user after magic link verification');
+			return fail(500, {
+				error: 'Si è verificato un errore durante l\'accesso. Riprova più tardi.'
+			});
+		}
+
+		// Generate session token and set cookie
+		const sessionToken = generateSessionToken(user.id, user.email, 'user');
+		cookies.set(USER_SESSION_COOKIE_NAME, sessionToken, getUserCookieOptions());
+
+		throw redirect(303, '/membership/subscription');
+	}
+} satisfies Actions;

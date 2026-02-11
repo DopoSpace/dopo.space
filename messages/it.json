@@ -33,7 +33,7 @@
   "auth_success_title": "Email inviata!",
   "auth_success_subtitle": "Controlla la tua casella di posta",
   "auth_success_message": "Abbiamo inviato un link di accesso a {email}",
-  "auth_success_hint": "Clicca sul link nell'email per accedere. Il link scadra tra 15 minuti.",
+  "auth_success_hint": "Clicca sul link nell'email per accedere. Il link scadra tra 30 minuti.",
   "auth_success_tips_title": "Non trovi l'email?",
   "auth_success_tip_spam": "Controlla la cartella spam o posta indesiderata",
   "auth_success_tip_verify": "Verifica che l'indirizzo email sia corretto",
@@ -44,6 +44,7 @@
   "auth_verify_request_link": "Richiedi nuovo link",
   "auth_verify_loading_title": "Verifica in corso...",
   "auth_verify_loading_text": "Attendere mentre verifichiamo il tuo accesso.",
+  "auth_verify_confirm_button": "Accedi",
 
   "subscription_title": "Iscrizione",
   "subscription_subtitle_no_membership": "Completa il tuo profilo per attivare la tessera",
@@ -225,7 +226,7 @@
   "email_magic_link_text": "Clicca il link qui sotto per accedere:",
   "email_magic_link_button": "Accedi",
   "email_magic_link_or": "Oppure copia questo link:",
-  "email_magic_link_expires": "Questo link scadra tra 15 minuti.",
+  "email_magic_link_expires": "Questo link scadra tra 30 minuti.",
 
   "email_payment_subject": "Conferma Pagamento - Tessera Dopo Space",
   "email_payment_title": "Pagamento Confermato!",

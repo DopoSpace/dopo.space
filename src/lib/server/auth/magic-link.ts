@@ -12,88 +12,100 @@ import pino from 'pino';
 
 const logger = pino({ name: 'magic-link' });
 
-const MAGIC_LINK_EXPIRY = '15m'; // 15 minutes
-const SESSION_EXPIRY = '7d'; // 7 days
-const MAGIC_LINK_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
+// Keep in sync with MAGIC_LINK_EXPIRY_MINUTES in config/constants.ts
+const MAGIC_LINK_EXPIRY = '30m';
+const MAGIC_LINK_EXPIRY_MS = 30 * 60 * 1000;
+const SESSION_EXPIRY = '7d';
+
+interface MagicLinkPayload {
+	email: string;
+	type: string;
+	jti?: string;
+	exp?: number;
+}
 
 /**
- * Generate a magic link token for authentication
- * Uses jti (JWT ID) to enable one-time use enforcement
+ * Decode and validate a magic link JWT.
+ * Returns the payload if the token is a valid, unexpired magic link with a jti.
+ * Returns null otherwise.
+ */
+function decodeMagicLinkPayload(token: string): MagicLinkPayload | null {
+	try {
+		const payload = jwt.verify(token, JWT_SECRET) as MagicLinkPayload;
+
+		if (payload.type !== 'magic-link' || !payload.jti) {
+			return null;
+		}
+
+		return payload;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Generate a magic link token for authentication.
+ * Uses jti (JWT ID) to enable one-time use enforcement.
  */
 export function generateMagicLinkToken(email: string): string {
 	const normalizedEmail = email.toLowerCase().trim();
-	const tokenId = crypto.randomUUID(); // Unique token identifier
 
 	return jwt.sign(
 		{
 			email: normalizedEmail,
 			type: 'magic-link',
-			jti: tokenId // JWT ID for uniqueness tracking
+			jti: crypto.randomUUID()
 		},
 		JWT_SECRET,
-		{
-			expiresIn: MAGIC_LINK_EXPIRY
-		}
+		{ expiresIn: MAGIC_LINK_EXPIRY }
 	);
 }
 
 /**
- * Verify a magic link token and ensure it's not been used before
- * This implements one-time use security for magic links
+ * Peek at a magic link token to check validity without consuming it.
+ * Used by the verify page GET to show the confirmation form.
+ * Does NOT mark the token as used.
+ */
+export function peekMagicLinkToken(token: string): { email: string } | null {
+	const payload = decodeMagicLinkPayload(token);
+	if (!payload) return null;
+	return { email: payload.email };
+}
+
+/**
+ * Verify a magic link token and ensure it has not been used before.
+ * Marks the token as consumed on success (one-time use).
  */
 export async function verifyMagicLinkToken(token: string): Promise<{ email: string } | null> {
-	try {
-		const payload = jwt.verify(token, JWT_SECRET) as {
-			email: string;
-			type: string;
-			jti?: string;
-			exp?: number;
-		};
+	const payload = decodeMagicLinkPayload(token);
 
-		if (payload.type !== 'magic-link') {
-			return null;
-		}
-
-		// Check if token has a jti (JWT ID)
-		if (!payload.jti) {
-			// Old tokens without jti are rejected for security
-			return null;
-		}
-
-		// Check if token has already been used
-		const usedToken = await prisma.usedToken.findUnique({
-			where: { tokenId: payload.jti }
-		});
-
-		if (usedToken) {
-			// Token has already been used - reject it
-			return null;
-		}
-
-		// Mark token as used
-		const expiresAt = payload.exp
-			? new Date(payload.exp * 1000)
-			: new Date(Date.now() + MAGIC_LINK_EXPIRY_MS);
-
-		await prisma.usedToken.create({
-			data: {
-				tokenId: payload.jti,
-				tokenType: 'magic-link',
-				email: payload.email,
-				expiresAt
-			}
-		});
-
-		return { email: payload.email };
-	} catch (error) {
-		// Log at debug level to avoid flooding logs while preserving context for debugging
-		logger.debug({
-			errorType: error instanceof Error ? error.name : 'Unknown',
-			message: error instanceof Error ? error.message : String(error),
-			tokenLength: token?.length
-		}, 'Magic link token verification failed');
+	if (!payload) {
+		logger.debug({ tokenLength: token?.length }, 'Magic link token verification failed');
 		return null;
 	}
+
+	const alreadyUsed = await prisma.usedToken.findUnique({
+		where: { tokenId: payload.jti! }
+	});
+
+	if (alreadyUsed) {
+		return null;
+	}
+
+	const expiresAt = payload.exp
+		? new Date(payload.exp * 1000)
+		: new Date(Date.now() + MAGIC_LINK_EXPIRY_MS);
+
+	await prisma.usedToken.create({
+		data: {
+			tokenId: payload.jti!,
+			tokenType: 'magic-link',
+			email: payload.email,
+			expiresAt
+		}
+	});
+
+	return { email: payload.email };
 }
 
 /**

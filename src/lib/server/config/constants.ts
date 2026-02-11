@@ -10,7 +10,7 @@ import { getMainDomain, getAdminDomain } from './env';
 export const USER_SESSION_COOKIE_NAME = 'user_session';
 export const ADMIN_SESSION_COOKIE_NAME = 'admin_session';
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
-export const MAGIC_LINK_EXPIRY_MINUTES = 15;
+export const MAGIC_LINK_EXPIRY_MINUTES = 30;
 
 // Password Hashing
 export const BCRYPT_SALT_ROUNDS = 10;

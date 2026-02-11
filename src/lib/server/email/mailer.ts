@@ -22,7 +22,7 @@ const emailTranslations = {
 			clickLink: 'per loggarti su Dopo.space usa questo link qui sotto:',
 			button: 'Accedi',
 			orCopy: 'Oppure copia e incolla questo link nel tuo browser:',
-			expires: 'Il link scadrà tra 15 minuti.'
+			expires: 'Il link scadrà tra 30 minuti.'
 		},
 		payment: {
 			subject: 'Conferma Pagamento - Tessera Dopo Space',
@@ -41,7 +41,7 @@ const emailTranslations = {
 			clickLink: 'to log in to Dopo.space use the link below:',
 			button: 'Login',
 			orCopy: 'Or copy and paste this link into your browser:',
-			expires: 'This link will expire in 15 minutes.'
+			expires: 'This link will expire in 30 minutes.'
 		},
 		payment: {
 			subject: 'Payment Confirmation - Dopo Space Membership',
@@ -165,7 +165,7 @@ export async function sendMagicLinkEmail(
 	locale: EmailLocale = 'it'
 ): Promise<void> {
 	const t = emailTranslations[locale].magicLink;
-	const magicLink = `${url}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+	const magicLink = `${url}/auth/verify?token=${encodeURIComponent(token)}`;
 	const magicLinkHtml = escapeHtml(magicLink);
 
 	await sendWithErrorHandling(

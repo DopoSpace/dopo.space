@@ -11,15 +11,30 @@ const baseMockData = {
 };
 
 describe('Verify Page', () => {
-	it('shows loading state when no error', () => {
+	it('shows loading state when token is present and no error', () => {
 		render(VerifyPage, {
 			data: {
 				...baseMockData,
-				error: ''
+				token: 'valid-token-here'
 			}
 		});
 
 		expect(screen.getByText(/Verifica in corso/i)).toBeInTheDocument();
+	});
+
+	it('renders hidden form with token for auto-submit', () => {
+		render(VerifyPage, {
+			data: {
+				...baseMockData,
+				token: 'test-token-123'
+			}
+		});
+
+		const form = document.querySelector('form[method="POST"]');
+		expect(form).toBeInTheDocument();
+		const hiddenInput = form?.querySelector('input[name="token"]') as HTMLInputElement;
+		expect(hiddenInput).toBeInTheDocument();
+		expect(hiddenInput.value).toBe('test-token-123');
 	});
 
 	it('shows error message when verification fails', () => {
@@ -34,7 +49,6 @@ describe('Verify Page', () => {
 
 		const errorHeadings = screen.getAllByText('Errore');
 		expect(errorHeadings.length).toBeGreaterThan(0);
-		// Error message is now part of the paragraph, search for partial text
 		expect(screen.getByText(new RegExp(errorMessage))).toBeInTheDocument();
 	});
 
@@ -61,7 +75,22 @@ describe('Verify Page', () => {
 
 		const errorHeadings = screen.getAllByRole('heading', { name: 'Errore' });
 		expect(errorHeadings.length).toBeGreaterThan(0);
-		// Error title is now a standard h1 element
 		expect(errorHeadings[0].tagName.toLowerCase()).toBe('h1');
+	});
+
+	it('shows form error when action returns failure', () => {
+		const errorMessage = 'Link non valido o scaduto';
+
+		render(VerifyPage, {
+			data: {
+				...baseMockData,
+				token: 'some-token'
+			},
+			form: {
+				error: errorMessage
+			}
+		});
+
+		expect(screen.getByText(new RegExp(errorMessage))).toBeInTheDocument();
 	});
 });
