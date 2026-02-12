@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import PublicPageLayout from '$lib/components/PublicPageLayout.svelte';
 	import TextContainer from '$lib/components/TextContainer.svelte';
@@ -289,6 +289,11 @@
 						if (result.type === 'success' || result.type === 'redirect') {
 							firstNameOverride = null;
 							lastNameOverride = null;
+						}
+						if (result.type === 'failure') {
+							await tick();
+							const firstError = document.querySelector('.has-error, .error, .error-message');
+							firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 						}
 					};
 				}}
@@ -655,7 +660,14 @@
 	}
 
 	.has-error {
-		@apply border-amber-400;
+		@apply border-amber-300 ring-2 ring-amber-300/30;
+		background-image: repeating-linear-gradient(
+			-45deg,
+			rgba(255, 255, 255, 0.12),
+			rgba(255, 255, 255, 0.12) 8px,
+			transparent 8px,
+			transparent 16px
+		);
 	}
 
 	.consent-item {

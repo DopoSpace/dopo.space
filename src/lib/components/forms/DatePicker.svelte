@@ -146,7 +146,14 @@
 	}
 
 	.datepicker-input.has-error {
-		@apply border-amber-400;
+		@apply border-amber-300 ring-2 ring-amber-300/30;
+		background-image: repeating-linear-gradient(
+			-45deg,
+			rgba(255, 255, 255, 0.12),
+			rgba(255, 255, 255, 0.12) 8px,
+			transparent 8px,
+			transparent 16px
+		);
 	}
 
 	.datepicker-input.disabled {
