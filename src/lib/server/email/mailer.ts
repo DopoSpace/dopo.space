@@ -17,41 +17,58 @@ const logger = createLogger({ module: 'mailer' });
 const emailTranslations = {
 	it: {
 		magicLink: {
-			subject: 'Entra in Dopo.space',
+			subject: 'Il tuo link di accesso a Dopo Space',
 			greeting: 'Ciao,',
-			clickLink: 'per loggarti su Dopo.space usa questo link qui sotto:',
-			button: 'Accedi',
-			orCopy: 'Oppure copia e incolla questo link nel tuo browser:',
-			expires: 'Il link scadrà tra 30 minuti.'
+			clickLink:
+				'hai richiesto di accedere alla tua area personale su Dopo Space. Clicca il pulsante qui sotto per entrare:',
+			button: 'Accedi a Dopo Space',
+			orCopy: 'Se il pulsante non funziona, copia e incolla questo link nel tuo browser:',
+			expires: 'Per sicurezza, il link scadrà tra 30 minuti.',
+			why: 'Ricevi questa email perché è stato richiesto un accesso con il tuo indirizzo email su dopo.space. Se non sei stato tu, puoi ignorare questo messaggio.'
 		},
 		payment: {
-			subject: 'Conferma Pagamento - Tessera Dopo Space',
-			title: 'Pagamento Confermato!',
+			subject: 'Dopo Space - Pagamento ricevuto per la tua tessera',
+			title: 'Pagamento confermato',
 			greeting: (name: string) => `Ciao ${name},`,
-			text: (amount: string) => `Il tuo pagamento di €${amount} è stato elaborato con successo.`,
+			text: (amount: string) =>
+				`abbiamo ricevuto il tuo pagamento di €${amount} per la tessera associativa Dopo Space.`,
 			cardNote:
-				"Grazie per aver completato l'iscrizione! Ti assegneremo a breve un numero di tessera e riceverai la tua tessera digitale da AICS.",
-			thanks: 'Grazie per esserti unito a Dopo Space!'
+				"Ti assegneremo a breve il numero di tessera e riceverai la tua tessera digitale da AICS.",
+			thanks: 'Grazie per far parte di Dopo Space, a presto!'
+		},
+		footer: {
+			association:
+				'Dopo Space APS — Via Carlo Boncompagni 51/10, 20139 Milano MI',
+			why: 'Ricevi questa email perché sei iscritto a Dopo Space.',
+			contact: 'Per qualsiasi domanda scrivici a ciao@dopo.space'
 		}
 	},
 	en: {
 		magicLink: {
-			subject: 'Enter Dopo.space',
+			subject: 'Your Dopo Space login link',
 			greeting: 'Hi,',
-			clickLink: 'to log in to Dopo.space use the link below:',
-			button: 'Login',
-			orCopy: 'Or copy and paste this link into your browser:',
-			expires: 'This link will expire in 30 minutes.'
+			clickLink:
+				'you requested to access your personal area on Dopo Space. Click the button below to log in:',
+			button: 'Log in to Dopo Space',
+			orCopy: "If the button doesn't work, copy and paste this link into your browser:",
+			expires: 'For security, this link will expire in 30 minutes.',
+			why: 'You received this email because a login was requested with your email address on dopo.space. If this was not you, you can safely ignore this message.'
 		},
 		payment: {
-			subject: 'Payment Confirmation - Dopo Space Membership',
-			title: 'Payment Confirmed!',
+			subject: 'Dopo Space - Payment received for your membership',
+			title: 'Payment confirmed',
 			greeting: (name: string) => `Hi ${name},`,
 			text: (amount: string) =>
-				`Your payment of €${amount} has been successfully processed.`,
+				`we received your payment of €${amount} for the Dopo Space membership card.`,
 			cardNote:
-				'Thank you for completing your registration! We will assign you a membership number shortly and you will receive your digital card from AICS.',
-			thanks: 'Thank you for joining Dopo Space!'
+				'We will assign your membership number shortly and you will receive your digital card from AICS.',
+			thanks: 'Thank you for being part of Dopo Space, see you soon!'
+		},
+		footer: {
+			association:
+				'Dopo Space APS — Via Carlo Boncompagni 51/10, 20139 Milano MI',
+			why: 'You received this email because you are a Dopo Space member.',
+			contact: 'For any questions, write to us at ciao@dopo.space'
 		}
 	}
 };
@@ -127,6 +144,7 @@ async function sendWithErrorHandling(
 	try {
 		const { error } = await resend.emails.send({
 			from: env.EMAIL_FROM,
+			replyTo: env.EMAIL_FROM,
 			...options
 		});
 
@@ -143,15 +161,29 @@ async function sendWithErrorHandling(
 	}
 }
 
-function getLogoSignature(): string {
-	if (NODE_ENV !== 'production') return '';
+function getEmailFooter(locale: EmailLocale): string {
+	const t = emailTranslations[locale].footer;
+
+	const logo =
+		NODE_ENV === 'production'
+			? `<a href="https://dopo.space" style="display: inline-block;">
+				<img src="https://dopo.space/logo-rosso.png" alt="Dopo Space" style="height: 32px;" />
+			</a><br><br>`
+			: '';
 
 	return `
-		<hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e5e5;">
-		<a href="https://dopo.space" style="display: inline-block;">
-			<img src="https://dopo.space/logo-rosso.png" alt="Dopo" style="height: 32px;" />
-		</a>
+		<div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #888888; line-height: 1.5;">
+			${logo}
+			${t.association}<br>
+			${t.contact}<br><br>
+			<em>${t.why}</em>
+		</div>
 	`;
+}
+
+function getEmailFooterText(locale: EmailLocale): string {
+	const t = emailTranslations[locale].footer;
+	return `\n---\n${t.association}\n${t.contact}\n${t.why}`;
 }
 
 /**
@@ -175,13 +207,16 @@ export async function sendMagicLinkEmail(
 			html: `
 				<p>${t.greeting}</p>
 				<p>${t.clickLink}</p>
-				<a href="${magicLinkHtml}" style="display: inline-block; padding: 12px 24px; background-color: #DC2626; color: white; text-decoration: none; border-radius: 8px;">${t.button}</a>
-				<p>${t.orCopy}</p>
-				<p style="word-break: break-all;">${magicLinkHtml}</p>
+				<p style="margin: 24px 0;">
+					<a href="${magicLinkHtml}" style="display: inline-block; padding: 12px 24px; background-color: #DC2626; color: white; text-decoration: none; border-radius: 8px;">${t.button}</a>
+				</p>
+				<p style="font-size: 13px; color: #666666;">${t.orCopy}</p>
+				<p style="word-break: break-all; font-size: 13px; color: #666666;">${magicLinkHtml}</p>
 				<p>${t.expires}</p>
-				${getLogoSignature()}
+				<p style="font-size: 12px; color: #999999; margin-top: 24px;">${t.why}</p>
+				${getEmailFooter(locale)}
 			`,
-			text: `${t.greeting}\n\n${t.clickLink}\n\n${magicLink}\n\n${t.expires}`
+			text: `${t.greeting}\n\n${t.clickLink}\n\n${magicLink}\n\n${t.expires}\n\n${t.why}${getEmailFooterText(locale)}`
 		},
 		'Failed to send magic link email',
 		{ email }
@@ -206,14 +241,14 @@ export async function sendPaymentConfirmationEmail(
 			to: email,
 			subject: t.subject,
 			html: `
-				<h1>${t.title}</h1>
+				<h2 style="color: #333333;">${t.title}</h2>
 				<p>${t.greeting(firstName)}</p>
 				<p>${t.text(formattedAmount)}</p>
 				<p>${t.cardNote}</p>
-				<br>
-				<p>${t.thanks}</p>
+				<p style="margin-top: 24px;">${t.thanks}</p>
+				${getEmailFooter(locale)}
 			`,
-			text: `${t.title}\n\n${t.greeting(firstName)}\n\n${t.text(formattedAmount)}\n\n${t.cardNote}\n\n${t.thanks}`
+			text: `${t.title}\n\n${t.greeting(firstName)}\n\n${t.text(formattedAmount)}\n\n${t.cardNote}\n\n${t.thanks}${getEmailFooterText(locale)}`
 		},
 		'Failed to send payment confirmation email',
 		{ email }

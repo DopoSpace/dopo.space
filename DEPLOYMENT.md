@@ -144,7 +144,7 @@ MAILCHIMP_AUDIENCE_ID=your-audience-id
 
 # Email (Resend)
 RESEND_API_KEY=re_xxxxxxxxxx
-EMAIL_FROM=Dopo Space <noreply@dopo.space>
+EMAIL_FROM=Dopo Space <ciao@dopo.space>
 ```
 
 ### Configure Domains

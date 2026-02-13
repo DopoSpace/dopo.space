@@ -23,7 +23,7 @@ services:
       - MAILCHIMP_SERVER_PREFIX=${MAILCHIMP_SERVER_PREFIX}
       - MAILCHIMP_AUDIENCE_ID=${MAILCHIMP_AUDIENCE_ID}
       - RESEND_API_KEY=${RESEND_API_KEY}
-      - EMAIL_FROM=${EMAIL_FROM:-Dopo Space <noreply@dopo.space>}
+      - EMAIL_FROM=${EMAIL_FROM:-Dopo Space <ciao@dopo.space>}
     depends_on:
       db:
         condition: service_healthy
