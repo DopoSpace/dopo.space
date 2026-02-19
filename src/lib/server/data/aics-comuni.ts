@@ -8337,6 +8337,12 @@ const comuniByProvincia = new Map<string, AicsComune[]>();
  */
 const comuneByCatastale = new Map<string, AicsComune>();
 
+/**
+ * Map of province name (normalized uppercase) to province code
+ * e.g., "MILANO" -> "MI", "VERONA" -> "VR"
+ */
+const provinciaByNome = new Map<string, string>();
+
 // Initialize lookup maps
 for (const comune of AICS_COMUNI) {
 	// By name (uppercase for case-insensitive lookup)
@@ -8354,6 +8360,12 @@ for (const comune of AICS_COMUNI) {
 
 	// By cadastral code
 	comuneByCatastale.set(comune.codiceCatastale, comune);
+
+	// By province name (normalized)
+	const provinciaNameKey = normalizeComuneName(comune.provinciaNome);
+	if (provinciaNameKey && !provinciaByNome.has(provinciaNameKey)) {
+		provinciaByNome.set(provinciaNameKey, comune.provinciaCode);
+	}
 }
 
 /**
@@ -8664,6 +8676,45 @@ export function getOfficialComuneName(
 ): string | null {
 	const comune = findComuneByName(nome, provincia);
 	return comune ? comune.comune : null;
+}
+
+/**
+ * Resolve a province name or city name to a 2-letter province code.
+ *
+ * Strategy:
+ * 1. If the name matches a province name (e.g., "Milano" -> "MI"), return province code
+ * 2. If the name matches a comune (e.g., "Faenza" -> comune in "RA"), return province code + comune name
+ * 3. If not found, return null (may be a foreign city, handled elsewhere)
+ */
+export function resolveProvinceFromName(name: string): {
+	provinciaCode: string;
+	comuneNome: string | null;
+	isProvinceName: boolean;
+} | null {
+	if (!name) return null;
+
+	const normalized = normalizeComuneName(name);
+	if (!normalized) return null;
+
+	// 1. Check if it matches a province name
+	const provinciaCode = provinciaByNome.get(normalized);
+	if (provinciaCode) {
+		return { provinciaCode, comuneNome: null, isProvinceName: true };
+	}
+
+	// 2. Check if it matches a comune name
+	const comuneMatches = comuneByName.get(normalized);
+	if (comuneMatches && comuneMatches.length > 0) {
+		// Use the first match (most comuni have unique names)
+		const comune = comuneMatches[0];
+		return {
+			provinciaCode: comune.provinciaCode,
+			comuneNome: comune.comune,
+			isProvinceName: false
+		};
+	}
+
+	return null;
 }
 
 /**

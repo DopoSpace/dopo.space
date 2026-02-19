@@ -1107,7 +1107,7 @@ describe('processImportRow', () => {
 	it('should keep valid foreign tax code if provided', async () => {
 		const rowWithCF: AICSImportRow = {
 			...foreignBaseRow,
-			codiceFiscale: 'MNDBTR90A62Z131Z' // Valid foreign CF
+			codiceFiscale: 'MNDBTR90A62Z131B' // Valid foreign CF (correct checksum)
 		};
 		const existingUsers = new Map<string, ExistingUserInfo>();
 		const validation = await validateImportRow(rowWithCF, 2, existingUsers, undefined);
@@ -1115,7 +1115,7 @@ describe('processImportRow', () => {
 		const processed = processImportRow(rowWithCF, validation);
 
 		expect(processed).not.toBeNull();
-		expect(processed?.taxCode).toBe('MNDBTR90A62Z131Z');
+		expect(processed?.taxCode).toBe('MNDBTR90A62Z131B');
 	});
 });
 

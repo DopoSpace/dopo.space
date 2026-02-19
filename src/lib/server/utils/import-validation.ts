@@ -30,7 +30,8 @@ import { inferGenderFromName } from '$lib/server/data/italian-names';
 import {
 	isValidComuneAICS,
 	getOfficialComuneName,
-	findComuneByName
+	findComuneByName,
+	resolveProvinceFromName
 } from '$lib/server/data/aics-comuni';
 import {
 	detectCityCountryRateLimited,
@@ -908,15 +909,32 @@ export async function validateImportRow(
 			}
 		}
 
+		// Step 2b: If still no gender, try cognome field (handles swapped nome/cognome columns)
+		if (!validatedGender && lastName) {
+			const inferredGender = inferGenderFromName(lastName);
+			if (inferredGender) {
+				validatedGender = inferredGender;
+				correctedData.sesso = inferredGender;
+				warnings.push(`Sesso dedotto dal cognome "${lastName}": ${inferredGender} (nome/cognome potrebbero essere invertiti)`);
+			}
+		}
+
 		// Step 3: If still no gender and Genderize API is available, try external API
-		if (!validatedGender && firstName && isGenderizeConfigured()) {
-			const apiResult = await genderizeNameRateLimited(firstName);
-			if (apiResult.found && apiResult.gender) {
-				validatedGender = apiResult.gender;
-				correctedData.sesso = apiResult.gender;
-				warnings.push(
-					`Sesso dedotto da API (${Math.round(apiResult.probability * 100)}%): ${apiResult.gender}`
-				);
+		if (!validatedGender && isGenderizeConfigured()) {
+			// Try firstName first, then lastName as fallback (handles swapped columns)
+			const nameToTry = firstName || lastName;
+			if (nameToTry) {
+				let apiResult = await genderizeNameRateLimited(nameToTry);
+				if (!apiResult.found && lastName && nameToTry !== lastName) {
+					apiResult = await genderizeNameRateLimited(lastName);
+				}
+				if (apiResult.found && apiResult.gender) {
+					validatedGender = apiResult.gender;
+					correctedData.sesso = apiResult.gender;
+					warnings.push(
+						`Sesso dedotto da API (${Math.round(apiResult.probability * 100)}%): ${apiResult.gender}`
+					);
+				}
 			}
 		}
 
@@ -934,6 +952,29 @@ export async function validateImportRow(
 	// use Google Geocoding API to determine the actual country
 	let birthProvince = row.provinciaNascita?.toUpperCase().trim() || '';
 	let birthCity = row.comuneNascita?.trim() || '';
+
+	// Step 0-pre: Resolve province name or city name to 2-letter province code
+	// The import file may have full names (e.g., "Milano", "Faenza") instead of codes ("MI", "RA")
+	if (birthProvince && birthProvince !== 'EE' && birthProvince.length > 2 && !KNOWN_COUNTRY_NAMES[birthProvince]) {
+		const resolved = resolveProvinceFromName(birthProvince);
+		if (resolved) {
+			const originalProvince = birthProvince;
+			birthProvince = resolved.provinciaCode;
+			correctedData.provinciaNascita = resolved.provinciaCode;
+
+			if (resolved.isProvinceName) {
+				warnings.push(`Provincia "${originalProvince}" risolta a ${resolved.provinciaCode}`);
+			} else {
+				warnings.push(`"${originalProvince}" è un comune in provincia ${resolved.provinciaCode} - provincia corretta`);
+				// If comuneNascita is empty, fill it with the resolved comune name
+				if (!birthCity && resolved.comuneNome) {
+					birthCity = resolved.comuneNome;
+					correctedData.comuneNascita = resolved.comuneNome;
+					warnings.push(`Comune di nascita impostato a "${resolved.comuneNome}"`);
+				}
+			}
+		}
+	}
 
 	// Step 0a: Check if provinciaNascita contains a country name instead of province code
 	// Examples: "France", "Germania", "UK" should be corrected to "EE"
@@ -1218,6 +1259,8 @@ export async function validateImportRow(
 			const cfValidation = validateTaxCode(taxCode);
 			if (!cfValidation.valid) {
 				warnings.push(`${IMPORT_ERROR_MESSAGES.INVALID_TAX_CODE}: ${cfValidation.error}`);
+				taxCode = '';
+				correctedData.codiceFiscale = '';
 			} else {
 				hasValidTaxCode = true;
 			}
