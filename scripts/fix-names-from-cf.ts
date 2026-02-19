@@ -1,13 +1,16 @@
 /**
- * Script per correggere i nomi che non corrispondono al Codice Fiscale.
+ * Script per correggere nome/cognome invertiti nel DB rispetto al Codice Fiscale.
  *
- * Per ogni utente con un CF valido, verifica che il codice nome/cognome
- * nel CF corrisponda al nome/cognome salvato nel DB.
- * Se non corrisponde, prova a trovare un nome composto che matchi
- * (es. "Bianca" → "Bianca Maria").
+ * Il problema principale: durante un import bulk, firstName e lastName sono stati
+ * salvati invertiti per la maggior parte degli utenti. Il CF è la fonte di verità.
+ *
+ * Logica:
+ *   1. Se i codici CF corrispondono ai dati attuali → OK, skip
+ *   2. Se i codici CF corrispondono ai dati INVERTITI → swap firstName ↔ lastName
+ *   3. Altrimenti → log per revisione manuale (nomi composti, traslitterazioni, ecc.)
  *
  * Uso:
- *   pnpm fix-names              # Dry-run: mostra discrepanze senza modificare il DB
+ *   pnpm fix-names              # Dry-run: mostra le modifiche senza applicarle
  *   pnpm fix-names -- --fix     # Applica le correzioni al DB
  */
 
@@ -44,7 +47,7 @@ function generateNameCode(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Gender extraction from CF
+// Omocodia normalization
 // ---------------------------------------------------------------------------
 
 const OMOCODIA_REVERSE: Record<string, string> = {
@@ -64,86 +67,14 @@ function normalizeOmocodia(cf: string): string {
 	return chars.join('');
 }
 
-function extractGenderFromCF(cf: string): 'M' | 'F' | null {
-	if (!cf || cf.length !== 16) return null;
-	const normalized = normalizeOmocodia(cf.toUpperCase());
-	const day = parseInt(normalized.substring(9, 11), 10);
-	if (isNaN(day)) return null;
-	return day > 40 ? 'F' : 'M';
-}
-
 // ---------------------------------------------------------------------------
-// Italian names database (loaded dynamically)
+// CF format validation
 // ---------------------------------------------------------------------------
 
-async function loadNamesDatabase(): Promise<Record<string, 'M' | 'F'>> {
-	// Import the names database using dynamic import with the actual file path
-	const path = await import('path');
-	const fs = await import('fs');
+const CF_REGEX = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/;
 
-	const namesPath = path.join(process.cwd(), 'src/lib/server/data/italian-names.ts');
-	const content = fs.readFileSync(namesPath, 'utf-8');
-
-	// Extract the ITALIAN_NAMES object from the file
-	const names: Record<string, 'M' | 'F'> = {};
-	const regex = /^\t(\w+):\s*'([MF])'/gm;
-	let match;
-	while ((match = regex.exec(content)) !== null) {
-		names[match[1]] = match[2] as 'M' | 'F';
-	}
-
-	return names;
-}
-
-// ---------------------------------------------------------------------------
-// Compound name suggestion
-// ---------------------------------------------------------------------------
-
-function suggestCompoundName(
-	cf: string,
-	firstName: string,
-	namesDatabase: Record<string, 'M' | 'F'>
-): string | null {
-	const upper = cf.toUpperCase();
-	const cfNameCode = upper.substring(3, 6);
-	const currentNameCode = generateNameCode(firstName);
-
-	if (cfNameCode === currentNameCode) return null;
-
-	const gender = extractGenderFromCF(cf);
-
-	for (const [candidateName, candidateGender] of Object.entries(namesDatabase)) {
-		if (gender && candidateGender !== gender) continue;
-		if (candidateName.toUpperCase() === firstName.toUpperCase()) continue;
-
-		const compound = `${firstName} ${candidateName}`;
-		if (generateNameCode(compound) === cfNameCode) {
-			return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase() +
-				' ' + candidateName.charAt(0).toUpperCase() + candidateName.slice(1).toLowerCase();
-		}
-	}
-
-	return null;
-}
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface NameIssue {
-	userId: string;
-	profileId: string;
-	email: string;
-	taxCode: string;
-	type: 'name' | 'surname' | 'both';
-	currentFirstName: string;
-	currentLastName: string;
-	cfNameCode: string;
-	cfSurnameCode: string;
-	expectedNameCode: string;
-	expectedSurnameCode: string;
-	suggestedFirstName: string | null;
-	fixed: boolean;
+function isValidCFFormat(cf: string): boolean {
+	return cf.length === 16 && CF_REGEX.test(cf);
 }
 
 // ---------------------------------------------------------------------------
@@ -158,188 +89,135 @@ async function main() {
 	console.log('='.repeat(70));
 	console.log();
 
-	console.log('Caricamento database nomi...');
-	const namesDatabase = await loadNamesDatabase();
-	console.log(`  ${Object.keys(namesDatabase).length} nomi caricati`);
-	console.log();
-
-	// Fetch all profiles with a valid tax code (16 chars, not all zeros)
 	const profiles = await prisma.userProfile.findMany({
 		where: {
-			taxCode: {
-				not: null,
-				notIn: ['0000000000000000', '']
-			}
+			taxCode: { not: null, notIn: ['0000000000000000', ''] }
 		},
 		include: {
 			user: { select: { email: true } }
 		}
 	});
 
-	console.log(`Trovati ${profiles.length} profili con CF valido`);
+	console.log(`Trovati ${profiles.length} profili con CF`);
 	console.log();
 
-	const issues: NameIssue[] = [];
 	let checked = 0;
-	let nameOnly = 0;
-	let surnameOnly = 0;
-	let both = 0;
-	let fixable = 0;
-	let notFixable = 0;
+	let correct = 0;
+	let swapped = 0;
+	let unclear = 0;
+	let fixedCount = 0;
+	let failedCount = 0;
+
+	const swappedList: { email: string; firstName: string; lastName: string }[] = [];
+	const unclearList: { email: string; firstName: string; lastName: string; taxCode: string; cfSurname: string; cfName: string; expSurname: string; expName: string }[] = [];
 
 	for (const profile of profiles) {
 		const cf = profile.taxCode!.toUpperCase();
 		const firstName = profile.firstName || '';
 		const lastName = profile.lastName || '';
 
-		if (!firstName || !lastName || cf.length !== 16) continue;
-
-		// Validate CF format (basic check)
-		if (!/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/.test(cf)) {
-			continue;
-		}
+		if (!firstName || !lastName) continue;
+		if (!isValidCFFormat(cf)) continue;
 
 		checked++;
 
-		const cfSurnameCode = cf.substring(0, 3);
-		const cfNameCode = cf.substring(3, 6);
-		const expectedSurnameCode = generateSurnameCode(lastName);
-		const expectedNameCode = generateNameCode(firstName);
+		const normalized = normalizeOmocodia(cf);
+		const cfSurnameCode = normalized.substring(0, 3);
+		const cfNameCode = normalized.substring(3, 6);
 
-		const surnameMismatch = cfSurnameCode !== expectedSurnameCode;
-		const nameMismatch = cfNameCode !== expectedNameCode;
+		// Check current assignment: lastName → surname code, firstName → name code
+		const currentSurnameCode = generateSurnameCode(lastName);
+		const currentNameCode = generateNameCode(firstName);
 
-		if (!surnameMismatch && !nameMismatch) continue;
-
-		const type: NameIssue['type'] = surnameMismatch && nameMismatch ? 'both'
-			: nameMismatch ? 'name'
-			: 'surname';
-
-		if (type === 'name') nameOnly++;
-		else if (type === 'surname') surnameOnly++;
-		else both++;
-
-		// Try to suggest a compound name (only for name mismatches)
-		let suggestedFirstName: string | null = null;
-		if (nameMismatch) {
-			suggestedFirstName = suggestCompoundName(cf, firstName, namesDatabase);
+		if (cfSurnameCode === currentSurnameCode && cfNameCode === currentNameCode) {
+			correct++;
+			continue;
 		}
 
-		if (suggestedFirstName) fixable++;
-		else notFixable++;
+		// Check swapped: firstName → surname code, lastName → name code
+		const swappedSurnameCode = generateSurnameCode(firstName);
+		const swappedNameCode = generateNameCode(lastName);
 
-		const issue: NameIssue = {
-			userId: profile.userId,
-			profileId: profile.id,
-			email: profile.user.email,
-			taxCode: cf,
-			type,
-			currentFirstName: firstName,
-			currentLastName: lastName,
-			cfNameCode,
-			cfSurnameCode,
-			expectedNameCode,
-			expectedSurnameCode,
-			suggestedFirstName,
-			fixed: false
-		};
+		if (cfSurnameCode === swappedSurnameCode && cfNameCode === swappedNameCode) {
+			swapped++;
+			swappedList.push({ email: profile.user.email, firstName, lastName });
 
-		issues.push(issue);
+			console.log(`  SWAP: ${profile.user.email} — "${firstName}" ↔ "${lastName}"`);
+
+			if (FIX_MODE) {
+				try {
+					await prisma.userProfile.update({
+						where: { id: profile.id },
+						data: { firstName: lastName, lastName: firstName }
+					});
+					fixedCount++;
+				} catch (err) {
+					failedCount++;
+					console.error(`    ERRORE: ${profile.user.email}`, err);
+				}
+			}
+		} else {
+			unclear++;
+			unclearList.push({
+				email: profile.user.email,
+				firstName,
+				lastName,
+				taxCode: cf,
+				cfSurname: cfSurnameCode,
+				cfName: cfNameCode,
+				expSurname: currentSurnameCode,
+				expName: currentNameCode
+			});
+		}
 	}
 
 	// ---------------------------------------------------------------------------
 	// Report
 	// ---------------------------------------------------------------------------
 
-	console.log(`Controllati: ${checked} profili`);
-	console.log(`Discrepanze trovate: ${issues.length}`);
-	console.log(`  - Solo nome: ${nameOnly}`);
-	console.log(`  - Solo cognome: ${surnameOnly}`);
-	console.log(`  - Entrambi: ${both}`);
-	console.log(`  - Correggibili (nome composto trovato): ${fixable}`);
-	console.log(`  - Non correggibili automaticamente: ${notFixable}`);
 	console.log();
+	console.log('='.repeat(70));
+	console.log('  RISULTATI');
+	console.log('='.repeat(70));
+	console.log(`  Controllati:    ${checked}`);
+	console.log(`  Corretti:       ${correct}`);
+	console.log(`  Invertiti:      ${swapped}`);
+	console.log(`  Da verificare:  ${unclear}`);
 
-	if (issues.length === 0) {
-		console.log('Nessuna discrepanza trovata. Tutti i nomi corrispondono ai CF.');
-		return;
-	}
-
-	// Print detailed report
-	console.log('-'.repeat(70));
-	console.log('DETTAGLIO DISCREPANZE');
-	console.log('-'.repeat(70));
-
-	for (const issue of issues) {
-		const icon = issue.suggestedFirstName ? '🔧' : '⚠️';
+	if (FIX_MODE && swapped > 0) {
 		console.log();
-		console.log(`${icon} ${issue.email}`);
-		console.log(`  CF: ${issue.taxCode}`);
-
-		if (issue.type === 'name' || issue.type === 'both') {
-			console.log(`  Nome DB: "${issue.currentFirstName}" → codice ${issue.expectedNameCode}`);
-			console.log(`  Nome CF: codice ${issue.cfNameCode}`);
-		}
-
-		if (issue.type === 'surname' || issue.type === 'both') {
-			console.log(`  Cognome DB: "${issue.currentLastName}" → codice ${issue.expectedSurnameCode}`);
-			console.log(`  Cognome CF: codice ${issue.cfSurnameCode}`);
-		}
-
-		if (issue.suggestedFirstName) {
-			console.log(`  ✅ Correzione: "${issue.currentFirstName}" → "${issue.suggestedFirstName}"`);
-		} else {
-			console.log(`  ❌ Nessuna correzione automatica disponibile`);
-		}
+		console.log(`  Aggiornati:     ${fixedCount}`);
+		console.log(`  Falliti:        ${failedCount}`);
 	}
 
-	// ---------------------------------------------------------------------------
-	// Apply fixes
-	// ---------------------------------------------------------------------------
+	if (unclearList.length > 0) {
+		console.log();
+		console.log('-'.repeat(70));
+		console.log('  PROFILI DA VERIFICARE MANUALMENTE');
+		console.log('-'.repeat(70));
 
-	if (FIX_MODE) {
-		const toFix = issues.filter(i => i.suggestedFirstName);
-
-		if (toFix.length === 0) {
+		for (const u of unclearList) {
 			console.log();
-			console.log('Nessuna correzione automatica da applicare.');
-			return;
+			console.log(`  ${u.email}`);
+			console.log(`    CF: ${u.taxCode}`);
+			console.log(`    DB:  firstName="${u.firstName}" lastName="${u.lastName}"`);
+			console.log(`    CF codes:  surname=${u.cfSurname} name=${u.cfName}`);
+			console.log(`    Expected:  surname=${u.expSurname} name=${u.expName}`);
 		}
+	}
 
+	if (!FIX_MODE && swapped > 0) {
 		console.log();
 		console.log('-'.repeat(70));
-		console.log(`APPLICAZIONE CORREZIONI (${toFix.length} profili)`);
-		console.log('-'.repeat(70));
-
-		let fixed = 0;
-		let failed = 0;
-
-		for (const issue of toFix) {
-			try {
-				await prisma.userProfile.update({
-					where: { id: issue.profileId },
-					data: { firstName: issue.suggestedFirstName! }
-				});
-				issue.fixed = true;
-				fixed++;
-				console.log(`  ✅ ${issue.email}: "${issue.currentFirstName}" → "${issue.suggestedFirstName}"`);
-			} catch (err) {
-				failed++;
-				console.error(`  ❌ ${issue.email}: errore durante l'aggiornamento`, err);
-			}
-		}
-
-		console.log();
-		console.log(`Risultato: ${fixed} corretti, ${failed} falliti`);
-	} else {
-		console.log();
-		console.log('-'.repeat(70));
-		console.log('Per applicare le correzioni, esegui:');
-		console.log('  pnpm fix-names -- --fix');
+		console.log('  Per applicare le correzioni, esegui:');
+		console.log('    pnpm fix-names -- --fix');
 		console.log('-'.repeat(70));
 	}
 }
 
 main()
-	.catch(console.error)
+	.catch((err) => {
+		console.error('Errore fatale:', err);
+		process.exit(1);
+	})
 	.finally(() => prisma.$disconnect());
