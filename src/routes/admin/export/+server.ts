@@ -16,7 +16,7 @@ import { prisma } from '$lib/server/db/prisma';
 import ExcelJS from 'exceljs';
 import type { MembershipStatus } from '@prisma/client';
 import { createLogger } from '$lib/server/utils/logger';
-import { extractGenderFromTaxCode, normalizeOmocodia, validateTaxCodeFormat } from '$lib/server/utils/tax-code';
+import { extractGenderFromTaxCode, normalizeOmocodia, validateTaxCodeFormat, fixTaxCodeChecksum } from '$lib/server/utils/tax-code';
 import { PROVINCE_CAP_INFO, getCityFromCap } from '$lib/server/data/italian-cap';
 import { getOfficialComuneName, isValidComuneAICS, findComuneByCatastale, searchComuni, normalizeForeignBirthCity } from '$lib/server/data/aics-comuni';
 
@@ -228,6 +228,39 @@ function fixResidenceData(
  * @param cf - The tax code
  * @returns Object with birthCity and birthProvince, or null values if not found
  */
+
+/**
+ * Cadastral codes of dissolved states mapped to their modern equivalents.
+ * AICS doesn't recognize old codes, so we replace them in the CF for export.
+ */
+const DISSOLVED_CADASTRAL_CODES: Record<string, string> = {
+	Z135: 'Z154', // URSS → Russia
+};
+
+/**
+ * Modernize a tax code by replacing dissolved-state cadastral codes with current ones.
+ * Recalculates the check digit after substitution.
+ */
+function modernizeTaxCodeForAICS(cf: string): string {
+	if (!cf || !validateTaxCodeFormat(cf)) return cf;
+
+	const normalized = normalizeOmocodia(cf.toUpperCase());
+	const cadastralCode = normalized.substring(11, 15);
+	const modernCode = DISSOLVED_CADASTRAL_CODES[cadastralCode];
+
+	if (!modernCode) return cf;
+
+	// Replace cadastral code in the ORIGINAL cf (not omocodia-normalized)
+	// Cadastral code positions 11-14 are never affected by omocodia
+	// (omocodia only affects positions 6,7,9,10,12,13,14 — but positions 12-14
+	// are the last 3 digits of the cadastral code which CAN be omocodia-encoded).
+	// However, Z-codes for foreign countries are always Z + 3 digits with no omocodia
+	// in practice, so we can safely replace in the original string.
+	const upper = cf.toUpperCase();
+	const modernized = upper.substring(0, 11) + modernCode + upper.substring(15);
+	return fixTaxCodeChecksum(modernized) || cf;
+}
+
 function extractBirthPlaceFromCF(cf: string | null | undefined): {
 	birthCity: string | null;
 	birthProvince: string | null;
@@ -962,7 +995,7 @@ function generateAICSData(users: any[]): AICSExportResult {
 				dataNascita: formatDateIT(profile?.birthDate),
 				provinciaNascita: birthProvince,
 				comuneNascita: truncate(birthCity, 65),
-				codiceFiscale: taxCode || '',
+				codiceFiscale: modernizeTaxCodeForAICS(taxCode) || '',
 				indirizzo: hasValidResidence ? truncate(profile?.address, 50) : '',
 				cap: hasValidResidence ? (profile?.postalCode || '') : '',
 				provincia: residenceData.province,
