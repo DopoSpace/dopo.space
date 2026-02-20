@@ -18,7 +18,7 @@ import type { MembershipStatus } from '@prisma/client';
 import { createLogger } from '$lib/server/utils/logger';
 import { extractGenderFromTaxCode, normalizeOmocodia, validateTaxCodeFormat } from '$lib/server/utils/tax-code';
 import { PROVINCE_CAP_INFO, getCityFromCap } from '$lib/server/data/italian-cap';
-import { getOfficialComuneName, isValidComuneAICS, findComuneByCatastale, searchComuni } from '$lib/server/data/aics-comuni';
+import { getOfficialComuneName, isValidComuneAICS, findComuneByCatastale, searchComuni, normalizeForeignBirthCity } from '$lib/server/data/aics-comuni';
 
 const logger = createLogger({ module: 'admin-export' });
 
@@ -925,25 +925,13 @@ function generateAICSData(users: any[]): AICSExportResult {
 
 			// For foreign births, ensure country name matches official AICS entry
 			if (birthProvince === 'EE' && birthCity) {
-				const officialName = getOfficialComuneName(birthCity, 'EE');
-				if (officialName) {
-					if (birthCity !== officialName) {
-						logger.info(
-							{ email: user.email, original: birthCity, corrected: officialName },
-							'Foreign birth place corrected to AICS official name'
-						);
-						birthCity = officialName;
-					}
-				} else {
-					// Try partial match - if exactly one foreign entry matches, use it
-					const matches = searchComuni(birthCity, 'EE', 2);
-					if (matches.length === 1) {
-						logger.info(
-							{ email: user.email, original: birthCity, corrected: matches[0].comune },
-							'Foreign birth place corrected via partial match to AICS official name'
-						);
-						birthCity = matches[0].comune;
-					}
+				const normalized = normalizeForeignBirthCity(birthCity);
+				if (normalized !== birthCity) {
+					logger.info(
+						{ email: user.email, original: birthCity, corrected: normalized },
+						'Foreign birth place corrected to AICS official name'
+					);
+					birthCity = normalized;
 				}
 			}
 

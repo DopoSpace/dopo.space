@@ -31,7 +31,8 @@ import {
 	isValidComuneAICS,
 	getOfficialComuneName,
 	findComuneByName,
-	resolveProvinceFromName
+	resolveProvinceFromName,
+	normalizeForeignBirthCity
 } from '$lib/server/data/aics-comuni';
 import {
 	detectCityCountryRateLimited,
@@ -1643,6 +1644,8 @@ export function processImportRow(
 	const newsletterValue = corrected.newsletter?.trim().toLowerCase() || '';
 	const subscribeToNewsletter = newsletterValue === 'sì' || newsletterValue === 'si' || newsletterValue === 'yes';
 
+	const finalBirthProvince = normalizeProvince(corrected.provinciaNascita) || (isItalian ? '' : 'EE');
+
 	return {
 		email: normalizeEmail(corrected.email),
 		firstName: normalizeName(corrected.nome),
@@ -1650,8 +1653,10 @@ export function processImportRow(
 		birthDate,
 
 		nationality,
-		birthProvince: normalizeProvince(corrected.provinciaNascita) || (isItalian ? '' : 'EE'),
-		birthCity: normalizeBirthCity(corrected.comuneNascita || ''),
+		birthProvince: finalBirthProvince,
+		birthCity: finalBirthProvince === 'EE'
+			? normalizeForeignBirthCity(normalizeBirthCity(corrected.comuneNascita || ''))
+			: normalizeBirthCity(corrected.comuneNascita || ''),
 
 		// For foreign nationals without a valid tax code, store null (same as form and admin)
 		taxCode: taxCode && !isTaxCodePlaceholder(taxCode) ? taxCode : null,

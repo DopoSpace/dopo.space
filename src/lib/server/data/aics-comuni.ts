@@ -8752,3 +8752,28 @@ export function searchComuni(
 
 	return results;
 }
+
+/**
+ * Normalize a foreign birth city to the official AICS country name.
+ *
+ * For EE (foreign) province, the birthCity field should contain the country name
+ * in the format recognized by AICS. This function resolves common variations,
+ * city names, and aliases to the official AICS entry.
+ *
+ * @param birthCity - The raw birth city/country name
+ * @returns The official AICS country name, or the original value if no match found
+ */
+export function normalizeForeignBirthCity(birthCity: string): string {
+	if (!birthCity) return birthCity;
+
+	// Try exact/alias match via findComuneByName (handles FOREIGN_COUNTRY_ALIASES)
+	const official = getOfficialComuneName(birthCity, 'EE');
+	if (official) return official;
+
+	// Try partial match - only use if exactly one result (unambiguous)
+	const matches = searchComuni(birthCity, 'EE', 2);
+	if (matches.length === 1) return matches[0].comune;
+
+	// No match found - return uppercased original
+	return birthCity.toUpperCase().trim();
+}

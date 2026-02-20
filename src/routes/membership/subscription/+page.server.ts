@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { userProfileSchema, formatZodErrors } from '$lib/server/utils/validation';
 import { extractGenderFromTaxCode } from '$lib/server/utils/tax-code';
+import { normalizeForeignBirthCity } from '$lib/server/data/aics-comuni';
 import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
 import { getGooglePlacesApiKey } from '$lib/server/config/env';
@@ -210,7 +211,9 @@ export const actions = {
 				taxCode: d.taxCode || null,
 				nationality: d.nationality,
 				birthProvince: d.birthProvince,
-				birthCity: d.birthCity,
+				birthCity: d.birthProvince === 'EE'
+					? normalizeForeignBirthCity(d.birthCity)
+					: d.birthCity,
 				hasForeignTaxCode: d.hasForeignTaxCode,
 				gender: finalGender,
 				residenceCountry: d.residenceCountry,
