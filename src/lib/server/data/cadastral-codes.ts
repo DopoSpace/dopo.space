@@ -54,6 +54,7 @@ export const FOREIGN_COUNTRIES: Record<string, MunicipalityInfo> = {
 	Z132: { name: 'Svezia', province: 'EE', isForeign: true },
 	Z133: { name: 'Svizzera', province: 'EE', isForeign: true },
 	Z134: { name: 'Ungheria', province: 'EE', isForeign: true },
+	Z135: { name: 'Russia', province: 'EE', isForeign: true }, // ex-URSS, mapped to Russia (Z154)
 	Z138: { name: 'Ucraina', province: 'EE', isForeign: true },
 	Z139: { name: 'Bielorussia', province: 'EE', isForeign: true },
 	Z140: { name: 'Moldova', province: 'EE', isForeign: true },
