@@ -57,17 +57,13 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 	const profile = user.profile;
 	const membership = user.memberships[0];
 
-	// Check profile completeness
+	// Check profile completeness (address fields are optional and not required for payment)
 	const profileComplete =
 		!!profile &&
 		profile.profileComplete &&
 		!!profile.firstName &&
 		!!profile.lastName &&
 		!!profile.birthDate &&
-		!!profile.address &&
-		!!profile.city &&
-		!!profile.postalCode &&
-		!!profile.province &&
 		!!profile.privacyConsent &&
 		!!profile.dataConsent;
 
