@@ -121,6 +121,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			membershipState.profileComplete &&
 			(membershipState.systemState === SystemState.S0_NO_MEMBERSHIP ||
 				membershipState.systemState === SystemState.S1_PROFILE_COMPLETE ||
+				membershipState.systemState === SystemState.S2_PROCESSING_PAYMENT ||
 				membershipState.systemState === SystemState.S3_PAYMENT_FAILED ||
 				membershipState.systemState === SystemState.S6_EXPIRED ||
 				membershipState.systemState === SystemState.S7_CANCELED)
