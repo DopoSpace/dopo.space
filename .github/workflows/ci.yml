@@ -22,6 +22,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Svelte type check
         run: pnpm check
 
@@ -59,6 +62,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Run server tests
         run: pnpm test:server
