@@ -27,7 +27,7 @@
 		"test:components": "vitest run --config vitest.browser.config.ts",
 		"test:all": "pnpm run test:server && pnpm run test:components",
 		"lint": "eslint src/",
-		"format:check": "prettier --check src/"
+		"format:check": "prettier --check src/ --ignore-path .prettierignore"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
