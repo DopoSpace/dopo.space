@@ -24,7 +24,6 @@ jobs:
 
       - name: Svelte type check
         run: pnpm check
-        continue-on-error: true # TODO: fix pre-existing type errors
 
       - name: ESLint
         run: pnpm lint
@@ -90,4 +89,3 @@ jobs:
 
       - name: Run component tests
         run: pnpm test:components
-        continue-on-error: true # TODO: fix 2 failing tests in verify/page.test.ts

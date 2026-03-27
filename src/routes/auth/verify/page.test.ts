@@ -16,21 +16,23 @@ describe('Verify Page', () => {
 			data: {
 				...baseMockData,
 				token: 'valid-token-here'
-			}
+			},
+			form: null
 		});
 
 		expect(screen.getByText(/Verifica in corso/i)).toBeInTheDocument();
 	});
 
 	it('renders hidden form with token for auto-submit', () => {
-		render(VerifyPage, {
+		const { container } = render(VerifyPage, {
 			data: {
 				...baseMockData,
 				token: 'test-token-123'
-			}
+			},
+			form: null
 		});
 
-		const form = document.querySelector('form[method="POST"]');
+		const form = container.querySelector('form[method="POST"]');
 		expect(form).toBeInTheDocument();
 		const hiddenInput = form?.querySelector('input[name="token"]') as HTMLInputElement;
 		expect(hiddenInput).toBeInTheDocument();
@@ -44,7 +46,8 @@ describe('Verify Page', () => {
 			data: {
 				...baseMockData,
 				error: errorMessage
-			}
+			},
+			form: null
 		});
 
 		const errorHeadings = screen.getAllByText('Errore');
@@ -57,7 +60,8 @@ describe('Verify Page', () => {
 			data: {
 				...baseMockData,
 				error: 'Token expired'
-			}
+			},
+			form: null
 		});
 
 		const links = screen.getAllByRole('link', { name: /Richiedi nuovo link/i });
@@ -70,7 +74,8 @@ describe('Verify Page', () => {
 			data: {
 				...baseMockData,
 				error: 'Test error'
-			}
+			},
+			form: null
 		});
 
 		const errorHeadings = screen.getAllByRole('heading', { name: 'Errore' });
@@ -81,7 +86,7 @@ describe('Verify Page', () => {
 	it('shows form error when action returns failure', () => {
 		const errorMessage = 'Link non valido o scaduto';
 
-		render(VerifyPage, {
+		const { container } = render(VerifyPage, {
 			data: {
 				...baseMockData,
 				token: 'some-token'
@@ -91,6 +96,6 @@ describe('Verify Page', () => {
 			}
 		});
 
-		expect(screen.getByText(new RegExp(errorMessage))).toBeInTheDocument();
+		expect(container.textContent).toContain(errorMessage);
 	});
 });

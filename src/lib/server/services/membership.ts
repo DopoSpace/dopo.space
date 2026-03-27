@@ -505,7 +505,7 @@ type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0
 interface UserWithMembership {
 	id: string;
 	email: string;
-	memberships: { id: string }[];
+	memberships: { id: string; startDate: Date | null }[];
 	profile?: { firstName: string | null } | null;
 }
 

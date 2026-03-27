@@ -347,7 +347,8 @@
 						selectedUserIds = [];
 						window.scrollTo({ top: 0, behavior: 'smooth' });
 						if (result.type === 'success') {
-							const data = result.data as Record | undefined;
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const data = result.data as any;
 							const userIds = data?.assignedUserIds as string[] | undefined;
 							if (userIds && userIds.length > 0) {
 								downloadAICSExport(userIds);
