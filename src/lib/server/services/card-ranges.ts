@@ -12,7 +12,10 @@ import pino from 'pino';
 const logger = pino({ name: 'card-ranges' });
 
 // Type for transaction client
-type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type TransactionClient = Omit<
+	typeof prisma,
+	'$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Result of adding a new card number range
@@ -75,10 +78,7 @@ function groupIntoContiguousRanges(numbers: number[]): AvailableSubRange[] {
 /**
  * Generate all membership numbers for a range
  */
-export function generateNumbersFromRange(
-	startNumber: number,
-	endNumber: number
-): string[] {
+export function generateNumbersFromRange(startNumber: number, endNumber: number): string[] {
 	const numbers: string[] = [];
 	for (let i = startNumber; i <= endNumber; i++) {
 		numbers.push(i.toString());
@@ -143,10 +143,7 @@ export async function addCardNumberRange(
 	}
 
 	// Check for conflicts with existing assigned numbers
-	const { hasConflicts, conflictingNumbers } = await checkRangeConflicts(
-		startNumber,
-		endNumber
-	);
+	const { hasConflicts, conflictingNumbers } = await checkRangeConflicts(startNumber, endNumber);
 
 	if (hasConflicts) {
 		return {
@@ -300,7 +297,8 @@ export async function isNumberInConfiguredRangesWithTx(
 	membershipNumber: string | number
 ): Promise<boolean> {
 	// Extract numeric part from the membership number (handles prefixes like "DOPO-123")
-	const numStr = typeof membershipNumber === 'string' ? membershipNumber : membershipNumber.toString();
+	const numStr =
+		typeof membershipNumber === 'string' ? membershipNumber : membershipNumber.toString();
 	const numericMatch = numStr.match(/\d+/);
 	if (!numericMatch) return false;
 

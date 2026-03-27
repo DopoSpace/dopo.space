@@ -53,6 +53,6 @@ export const POST: RequestHandler = async ({ locals }) => {
 		return json({ success: true });
 	} catch (err) {
 		logger.error({ err, userId: user.id }, 'Failed to cancel order');
-		throw error(500, 'Errore durante l\'annullamento. Riprova più tardi.');
+		throw error(500, "Errore durante l'annullamento. Riprova più tardi.");
 	}
 };

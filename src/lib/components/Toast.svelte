@@ -9,12 +9,7 @@
 		onclose?: () => void;
 	}
 
-	let {
-		message,
-		type = 'success',
-		duration = 4000,
-		onclose
-	}: Props = $props();
+	let { message, type = 'success', duration = 4000, onclose }: Props = $props();
 
 	let visible = $state(true);
 
@@ -52,11 +47,7 @@
 </script>
 
 {#if visible}
-	<div
-		class="toast-container"
-		in:fly={{ y: 50, duration: 300 }}
-		out:fade={{ duration: 200 }}
-	>
+	<div class="toast-container" in:fly={{ y: 50, duration: 300 }} out:fade={{ duration: 200 }}>
 		<div class="toast {styles[type]}">
 			<svg
 				class="toast-icon {iconColors[type]}"
@@ -68,12 +59,7 @@
 				{@html icons[type]}
 			</svg>
 			<span class="toast-message">{message}</span>
-			<button
-				type="button"
-				class="toast-close"
-				onclick={handleClose}
-				aria-label="Chiudi notifica"
-			>
+			<button type="button" class="toast-close" onclick={handleClose} aria-label="Chiudi notifica">
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
 				</svg>

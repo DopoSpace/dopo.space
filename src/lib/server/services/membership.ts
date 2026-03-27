@@ -28,7 +28,13 @@ const MEMBERSHIP_DURATION_DAYS = 364;
  * Result of batch membership number assignment
  */
 export interface BatchAssignResult {
-	assigned: { userId: string; email: string; membershipNumber: string; firstName: string; endDate: Date }[];
+	assigned: {
+		userId: string;
+		email: string;
+		membershipNumber: string;
+		firstName: string;
+		endDate: Date;
+	}[];
 	skipped: string[]; // numeri già esistenti nel DB
 	remaining: string[]; // tessere non assegnate (avanzate)
 	usersWithoutCard: { userId: string; email: string }[]; // utenti non assegnati (tessere insufficienti)
@@ -121,7 +127,10 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 	}
 
 	// S3: Payment failed
-	if (membership.paymentStatus === PaymentStatus.FAILED || membership.paymentStatus === PaymentStatus.CANCELED) {
+	if (
+		membership.paymentStatus === PaymentStatus.FAILED ||
+		membership.paymentStatus === PaymentStatus.CANCELED
+	) {
 		const state = SystemState.S3_PAYMENT_FAILED;
 		return {
 			systemState: state,
@@ -213,11 +222,7 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 	// S5: Active membership with number and not expired
 	// Must check both status and expiry date to properly distinguish from S6
 	const isExpired = membership.endDate && membership.endDate < new Date();
-	if (
-		membership.membershipNumber &&
-		membership.status === MembershipStatus.ACTIVE &&
-		!isExpired
-	) {
+	if (membership.membershipNumber && membership.status === MembershipStatus.ACTIVE && !isExpired) {
 		const state = SystemState.S5_ACTIVE;
 		return {
 			systemState: state,
@@ -253,15 +258,18 @@ export async function getMembershipSummary(userId: string): Promise<MembershipSu
 
 	// Default fallback - this should NEVER happen in normal operation
 	// Log as error for investigation
-	logger.error({
-		userId,
-		membershipId: membership.id,
-		membershipStatus: membership.status,
-		paymentStatus: membership.paymentStatus,
-		membershipNumber: membership.membershipNumber,
-		startDate: membership.startDate,
-		endDate: membership.endDate
-	}, 'CRITICAL: Membership reached unknown state - state machine logic error');
+	logger.error(
+		{
+			userId,
+			membershipId: membership.id,
+			membershipStatus: membership.status,
+			paymentStatus: membership.paymentStatus,
+			membershipNumber: membership.membershipNumber,
+			startDate: membership.startDate,
+			endDate: membership.endDate
+		},
+		'CRITICAL: Membership reached unknown state - state machine logic error'
+	);
 
 	const state = SystemState.S0_NO_MEMBERSHIP;
 	return {
@@ -344,10 +352,7 @@ export async function updateExpiredMemberships(): Promise<ExpiredMembershipsResu
 		}
 	});
 
-	logger.info(
-		{ count: processedMemberships.length },
-		'Processed expired memberships'
-	);
+	logger.info({ count: processedMemberships.length }, 'Processed expired memberships');
 
 	return {
 		processed: processedMemberships.length,
@@ -409,10 +414,7 @@ export async function cancelMembership(
 		}
 	});
 
-	logger.info(
-		{ membershipId, adminId, previousNumber },
-		'Membership canceled by admin'
-	);
+	logger.info({ membershipId, adminId, previousNumber }, 'Membership canceled by admin');
 
 	return {
 		success: true,
@@ -829,7 +831,13 @@ export async function getUsersAwaitingCard() {
  * Result of automatic card assignment
  */
 export interface AutoAssignResult {
-	assigned: { userId: string; email: string; membershipNumber: string; firstName: string; endDate: Date }[];
+	assigned: {
+		userId: string;
+		email: string;
+		membershipNumber: string;
+		firstName: string;
+		endDate: Date;
+	}[];
 	usersWithoutCard: { userId: string; email: string }[];
 	availableCount: number;
 	requestedCount: number;
@@ -845,7 +853,9 @@ export async function autoAssignMembershipNumbers(userIds: string[]): Promise<Au
 		const availableNumbers = await getAvailableNumbersWithTx(tx);
 
 		if (availableNumbers.length === 0) {
-			throw new Error('Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges');
+			throw new Error(
+				'Nessun numero disponibile. Configura i range delle tessere in /admin/card-ranges'
+			);
 		}
 
 		const users = await fetchUsersInS4State(tx, userIds);

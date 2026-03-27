@@ -27,12 +27,8 @@
 	}
 
 	// Limit user/admin data to only what Menu needs (security: prevent unnecessary data serialization)
-	const menuUser = $derived(
-		data.user ? { id: data.user.id, email: data.user.email } : null
-	);
-	const menuAdmin = $derived(
-		data.admin ? { id: data.admin.id, email: data.admin.email } : null
-	);
+	const menuUser = $derived(data.user ? { id: data.user.id, email: data.user.email } : null);
+	const menuAdmin = $derived(data.admin ? { id: data.admin.id, email: data.admin.email } : null);
 </script>
 
 {#if data.isAdminRoute}

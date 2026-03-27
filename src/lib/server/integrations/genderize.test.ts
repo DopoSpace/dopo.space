@@ -41,12 +41,8 @@ describe('genderizeName', () => {
 		expect(result.gender).toBe('M');
 		expect(result.probability).toBe(0.99);
 		expect(result.count).toBe(15234);
-		expect(mockFetch).toHaveBeenCalledWith(
-			expect.stringContaining('name=Marco')
-		);
-		expect(mockFetch).toHaveBeenCalledWith(
-			expect.stringContaining('country_id=IT')
-		);
+		expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('name=Marco'));
+		expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('country_id=IT'));
 	});
 
 	it('should return F for female names', async () => {
@@ -194,9 +190,7 @@ describe('genderizeName', () => {
 
 		await genderizeName('  Marco  ');
 
-		expect(mockFetch).toHaveBeenCalledWith(
-			expect.stringContaining('name=Marco')
-		);
+		expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('name=Marco'));
 	});
 });
 

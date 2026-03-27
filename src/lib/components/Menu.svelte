@@ -52,7 +52,9 @@
 	});
 
 	// Hide "Login" if we're already on the login page
-	const isLoginPage = $derived(currentBasePath === '/auth/login' || currentBasePath === '/admin/login');
+	const isLoginPage = $derived(
+		currentBasePath === '/auth/login' || currentBasePath === '/admin/login'
+	);
 
 	// Determine logout action based on user type (logout doesn't need localization)
 	const logoutAction = $derived(admin ? '/admin/logout' : '/auth/logout');
@@ -63,9 +65,7 @@
 
 	// Filter navigationItems for authenticated users: exclude membership CTA (filter by path, not label)
 	const filteredNavigationItems = $derived(
-		isAuthenticated
-			? navigationItems.filter(item => item.to !== '/auth/login')
-			: navigationItems
+		isAuthenticated ? navigationItems.filter((item) => item.to !== '/auth/login') : navigationItems
 	);
 
 	function toggleMenu() {
@@ -101,12 +101,24 @@
 		>
 			{#if menuOpen}
 				<!-- Close icon -->
-				<svg class="hamburger-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+				<svg
+					class="hamburger-icon"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					stroke-width="2"
+				>
 					<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
 				</svg>
 			{:else}
 				<!-- Hamburger icon -->
-				<svg class="hamburger-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+				<svg
+					class="hamburger-icon"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					stroke-width="2"
+				>
 					<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
 				</svg>
 			{/if}
@@ -118,7 +130,10 @@
 				<MenuItem {to} item={getNavLabel(labelKey)} />
 			{/each}
 			{#if user}
-				<MenuItem to="/membership/subscription" item={safeMessage(m.common_my_profile, 'My Profile')} />
+				<MenuItem
+					to="/membership/subscription"
+					item={safeMessage(m.common_my_profile, 'My Profile')}
+				/>
 			{/if}
 		</div>
 
@@ -160,7 +175,12 @@
 					</a>
 				{/each}
 				{#if user}
-					<a href={localizeHref('/membership/subscription')} class="mobile-link" onclick={closeMenu} role="menuitem">
+					<a
+						href={localizeHref('/membership/subscription')}
+						class="mobile-link"
+						onclick={closeMenu}
+						role="menuitem"
+					>
 						{safeMessage(m.common_my_profile, 'My Profile')}
 					</a>
 				{/if}
@@ -173,7 +193,12 @@
 						</button>
 					</form>
 				{:else if !isLoginPage}
-					<a href={localizeHref('/auth/login')} class="mobile-auth-button" onclick={closeMenu} role="menuitem">
+					<a
+						href={localizeHref('/auth/login')}
+						class="mobile-auth-button"
+						onclick={closeMenu}
+						role="menuitem"
+					>
 						{safeMessage(m.common_login, 'Login')}
 					</a>
 				{/if}

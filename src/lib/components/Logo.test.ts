@@ -20,7 +20,12 @@ describe('Logo Component', () => {
 
 	it('has correct layout classes for centering', () => {
 		const { container } = render(Logo);
-		testElementClasses(container, 'div', ['min-h-screen', 'flex', 'justify-center', 'items-center']);
+		testElementClasses(container, 'div', [
+			'min-h-screen',
+			'flex',
+			'justify-center',
+			'items-center'
+		]);
 	});
 
 	it('has responsive padding classes', () => {

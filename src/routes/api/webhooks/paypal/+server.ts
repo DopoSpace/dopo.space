@@ -38,7 +38,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (contentLength) {
 			const size = parseInt(contentLength, 10);
 			if (!isNaN(size) && size > MAX_BODY_SIZE) {
-				paymentLogger.warn({ contentLength: size, maxAllowed: MAX_BODY_SIZE }, 'Webhook payload too large');
+				paymentLogger.warn(
+					{ contentLength: size, maxAllowed: MAX_BODY_SIZE },
+					'Webhook payload too large'
+				);
 				return json({ error: 'Payload too large' }, { status: 413 });
 			}
 		}
@@ -53,7 +56,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Double-check actual body size (Content-Length can be spoofed)
 		if (body.length > MAX_BODY_SIZE) {
-			paymentLogger.warn({ actualSize: body.length, maxAllowed: MAX_BODY_SIZE }, 'Webhook payload too large (actual)');
+			paymentLogger.warn(
+				{ actualSize: body.length, maxAllowed: MAX_BODY_SIZE },
+				'Webhook payload too large (actual)'
+			);
 			return json({ error: 'Payload too large' }, { status: 413 });
 		}
 
@@ -80,7 +86,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Early idempotency check using PayPal event ID
 		if (await isEventAlreadyProcessed(providerEventId)) {
-			paymentLogger.info({ providerEventId, eventType }, 'Webhook event already processed, returning success');
+			paymentLogger.info(
+				{ providerEventId, eventType },
+				'Webhook event already processed, returning success'
+			);
 			return json({ success: true, duplicate: true });
 		}
 
@@ -181,13 +190,11 @@ async function createPaymentLogIdempotent(
 		return true;
 	} catch (error) {
 		// Check for unique constraint violation (P2002)
-		if (
-			error &&
-			typeof error === 'object' &&
-			'code' in error &&
-			error.code === 'P2002'
-		) {
-			paymentLogger.info({ membershipId, eventType, providerEventId }, 'Duplicate webhook event, skipping');
+		if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+			paymentLogger.info(
+				{ membershipId, eventType, providerEventId },
+				'Duplicate webhook event, skipping'
+			);
 			return false;
 		}
 		throw error;
@@ -246,7 +253,10 @@ async function handlePaymentCompleted(event: any, providerEventId: string | unde
 
 	// Check if membership is already in a final state (idempotency)
 	if (membership.paymentStatus === PaymentStatus.SUCCEEDED) {
-		paymentLogger.info({ membershipId: membership.id }, 'Payment already marked as succeeded, skipping');
+		paymentLogger.info(
+			{ membershipId: membership.id },
+			'Payment already marked as succeeded, skipping'
+		);
 		return;
 	}
 
@@ -262,7 +272,12 @@ async function handlePaymentCompleted(event: any, providerEventId: string | unde
 	});
 
 	// Log the event with idempotency handling
-	await createPaymentLogIdempotent(membership.id, 'PAYMENT.CAPTURE.COMPLETED', providerEventId, event);
+	await createPaymentLogIdempotent(
+		membership.id,
+		'PAYMENT.CAPTURE.COMPLETED',
+		providerEventId,
+		event
+	);
 
 	paymentLogger.info({ membershipId: membership.id, captureId }, 'Payment completed');
 
@@ -277,11 +292,17 @@ async function handlePaymentCompleted(event: any, providerEventId: string | unde
 			const firstName = user.profile?.firstName || 'Socio';
 			const locale = (user.preferredLocale === 'en' ? 'en' : 'it') as 'it' | 'en';
 			await sendPaymentConfirmationEmail(user.email, firstName, Math.round(amount), locale);
-			paymentLogger.info({ membershipId: membership.id, email: user.email, locale }, 'Payment confirmation email sent');
+			paymentLogger.info(
+				{ membershipId: membership.id, email: user.email, locale },
+				'Payment confirmation email sent'
+			);
 		}
 	} catch (emailError) {
 		// Log email error but don't fail the webhook
-		paymentLogger.error({ err: emailError, membershipId: membership.id }, 'Failed to send payment confirmation email');
+		paymentLogger.error(
+			{ err: emailError, membershipId: membership.id },
+			'Failed to send payment confirmation email'
+		);
 	}
 }
 
@@ -300,7 +321,10 @@ async function handlePaymentFailed(event: any, providerEventId: string | undefin
 
 	// Check if membership is already in a final state
 	if (membership.paymentStatus === PaymentStatus.FAILED) {
-		paymentLogger.info({ membershipId: membership.id }, 'Payment already marked as failed, skipping');
+		paymentLogger.info(
+			{ membershipId: membership.id },
+			'Payment already marked as failed, skipping'
+		);
 		return;
 	}
 
@@ -332,7 +356,10 @@ async function handlePaymentRefunded(event: any, providerEventId: string | undef
 
 	// Check if membership is already canceled
 	if (membership.paymentStatus === PaymentStatus.CANCELED) {
-		paymentLogger.info({ membershipId: membership.id }, 'Payment already marked as canceled, skipping');
+		paymentLogger.info(
+			{ membershipId: membership.id },
+			'Payment already marked as canceled, skipping'
+		);
 		return;
 	}
 
@@ -346,7 +373,12 @@ async function handlePaymentRefunded(event: any, providerEventId: string | undef
 	});
 
 	// Log the event with idempotency handling
-	await createPaymentLogIdempotent(membership.id, 'PAYMENT.CAPTURE.REFUNDED', providerEventId, event);
+	await createPaymentLogIdempotent(
+		membership.id,
+		'PAYMENT.CAPTURE.REFUNDED',
+		providerEventId,
+		event
+	);
 
 	paymentLogger.info({ membershipId: membership.id }, 'Payment refunded');
 }

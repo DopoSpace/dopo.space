@@ -12,14 +12,14 @@ describe('ErrorMessage Component', () => {
 	it('has alert role for accessibility', () => {
 		render(ErrorMessageTestWrapper, { text: 'Error' });
 		const alerts = screen.getAllByRole('alert');
-		const errorAlert = alerts.find(alert => alert.textContent?.includes('Error'));
+		const errorAlert = alerts.find((alert) => alert.textContent?.includes('Error'));
 		expect(errorAlert).toBeInTheDocument();
 	});
 
 	it('applies error styling classes', () => {
 		const { container } = render(ErrorMessageTestWrapper, { text: 'Error' });
 		const alerts = container.querySelectorAll('[role="alert"]');
-		const errorAlert = Array.from(alerts).find(alert => alert.textContent?.includes('Error'));
+		const errorAlert = Array.from(alerts).find((alert) => alert.textContent?.includes('Error'));
 		expect(errorAlert).toHaveClass('bg-red-50');
 		expect(errorAlert).toHaveClass('border-red-200');
 		expect(errorAlert).toHaveClass('text-red-800');

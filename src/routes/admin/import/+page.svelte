@@ -84,7 +84,7 @@
 	let filteredRows = $derived(() => {
 		if (!previewData) return [];
 		if (statusFilter === 'all') return previewData.rows;
-		return previewData.rows.filter(r => r.status === statusFilter);
+		return previewData.rows.filter((r) => r.status === statusFilter);
 	});
 
 	// Handle form response
@@ -157,9 +157,7 @@
 			'text/csv'
 		];
 		const validExtensions = ['.xlsx', '.xls', '.csv'];
-		const hasValidExtension = validExtensions.some(ext =>
-			file.name.toLowerCase().endsWith(ext)
-		);
+		const hasValidExtension = validExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
 
 		if (!validTypes.includes(file.type) && !hasValidExtension) {
 			uploadError = 'Formato file non supportato. Usa .xlsx o .csv';
@@ -243,7 +241,10 @@
 			<!-- Upload State -->
 			<div class="space-y-6">
 				<div class="flex items-center gap-2 text-sm text-gray-500">
-					<span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-medium">1</span>
+					<span
+						class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-medium"
+						>1</span
+					>
 					<span class="font-medium text-gray-700">Carica il file</span>
 				</div>
 
@@ -256,7 +257,9 @@
 
 				<!-- Drag & Drop Zone -->
 				<div
-					class="border-2 border-dashed rounded-lg p-12 text-center transition-colors {isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}"
+					class="border-2 border-dashed rounded-lg p-12 text-center transition-colors {isDragging
+						? 'border-blue-500 bg-blue-50'
+						: 'border-gray-300 hover:border-gray-400'}"
 					ondragover={handleDragOver}
 					ondragleave={handleDragLeave}
 					ondrop={handleDrop}
@@ -266,8 +269,18 @@
 					{#if selectedFile}
 						<div class="space-y-4">
 							<div class="flex items-center justify-center gap-2">
-								<svg class="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+								<svg
+									class="h-8 w-8 text-green-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
 								</svg>
 								<span class="text-lg font-medium text-gray-700">{selectedFile.name}</span>
 							</div>
@@ -276,14 +289,18 @@
 							</p>
 
 							<!-- Import option for existing users -->
-							<label class="flex items-start gap-3 cursor-pointer text-left max-w-md mx-auto p-3 bg-amber-50 border border-amber-200 rounded-lg">
+							<label
+								class="flex items-start gap-3 cursor-pointer text-left max-w-md mx-auto p-3 bg-amber-50 border border-amber-200 rounded-lg"
+							>
 								<input
 									type="checkbox"
 									bind:checked={addMembershipToExisting}
 									class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
 								/>
 								<div>
-									<span class="text-sm font-medium text-amber-800">Aggiungi membership a utenti esistenti</span>
+									<span class="text-sm font-medium text-amber-800"
+										>Aggiungi membership a utenti esistenti</span
+									>
 									<p class="text-xs text-amber-700 mt-0.5">
 										Se attivo, gli utenti già presenti nel sistema non saranno considerati errori.
 										Verrà aggiunta solo la membership (se non già attiva).
@@ -312,7 +329,11 @@
 									}}
 								>
 									<input type="file" name="file" class="hidden" id="hiddenFileInput" />
-									<input type="hidden" name="addMembershipToExisting" value={addMembershipToExisting.toString()} />
+									<input
+										type="hidden"
+										name="addMembershipToExisting"
+										value={addMembershipToExisting.toString()}
+									/>
 									<button
 										type="submit"
 										disabled={isUploading}
@@ -329,8 +350,19 @@
 									>
 										{#if isUploading}
 											<svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-												<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-												<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+												<circle
+													class="opacity-25"
+													cx="12"
+													cy="12"
+													r="10"
+													stroke="currentColor"
+													stroke-width="4"
+												></circle>
+												<path
+													class="opacity-75"
+													fill="currentColor"
+													d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+												></path>
 											</svg>
 											Analisi in corso...
 										{:else}
@@ -342,13 +374,25 @@
 						</div>
 					{:else}
 						<div class="space-y-4">
-							<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+							<svg
+								class="mx-auto h-12 w-12 text-gray-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+								/>
 							</svg>
 							<div>
 								<p class="text-lg text-gray-700">Trascina qui il file o</p>
 								<label class="mt-2 inline-block cursor-pointer">
-									<span class="text-blue-600 hover:text-blue-700 font-medium">seleziona dal computer</span>
+									<span class="text-blue-600 hover:text-blue-700 font-medium"
+										>seleziona dal computer</span
+									>
 									<input
 										type="file"
 										accept=".xlsx,.xls,.csv"
@@ -357,9 +401,7 @@
 									/>
 								</label>
 							</div>
-							<p class="text-sm text-gray-500">
-								Formati supportati: .xlsx, .csv - Max 5MB
-							</p>
+							<p class="text-sm text-gray-500">Formati supportati: .xlsx, .csv - Max 5MB</p>
 						</div>
 					{/if}
 				</div>
@@ -375,12 +417,14 @@
 					</ul>
 				</div>
 			</div>
-
 		{:else if viewState === 'preview' && previewData}
 			<!-- Preview State -->
 			<div class="space-y-6">
 				<div class="flex items-center gap-2 text-sm text-gray-500">
-					<span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-medium">2</span>
+					<span
+						class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-medium"
+						>2</span
+					>
 					<span class="font-medium text-gray-700">Verifica e importa</span>
 				</div>
 
@@ -388,15 +432,21 @@
 				{#if previewData.totalRows !== previewData.uniqueRowCount}
 					<div class="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
 						<p class="text-sm text-blue-800">
-							<strong>{previewData.totalRows}</strong> righe nel file → <strong>{previewData.uniqueRowCount}</strong> utenti unici
-							<span class="text-blue-600">({previewData.totalRows - previewData.uniqueRowCount} righe duplicate unite per email)</span>
+							<strong>{previewData.totalRows}</strong> righe nel file →
+							<strong>{previewData.uniqueRowCount}</strong>
+							utenti unici
+							<span class="text-blue-600"
+								>({previewData.totalRows - previewData.uniqueRowCount} righe duplicate unite per email)</span
+							>
 						</p>
 						{#if previewData.mergedGroups && previewData.mergedGroups.length > 0}
 							<details class="mt-2">
 								<summary class="text-sm text-blue-700 cursor-pointer hover:text-blue-900">
 									Mostra {previewData.mergedGroups.length} gruppi di righe unite
 								</summary>
-								<div class="mt-2 max-h-48 overflow-auto bg-white rounded border border-blue-200 p-2">
+								<div
+									class="mt-2 max-h-48 overflow-auto bg-white rounded border border-blue-200 p-2"
+								>
 									<ul class="text-xs space-y-1">
 										{#each previewData.mergedGroups as group}
 											<li class="py-1 border-b border-gray-100 last:border-0">
@@ -404,7 +454,9 @@
 												<span class="text-gray-500"> — righe {group.rows.join(', ')}</span>
 												{#if group.conflicts.length > 0}
 													<span class="text-amber-600 ml-1">
-														({group.conflicts.length} conflitt{group.conflicts.length === 1 ? 'o' : 'i'})
+														({group.conflicts.length} conflitt{group.conflicts.length === 1
+															? 'o'
+															: 'i'})
 													</span>
 												{/if}
 											</li>
@@ -422,24 +474,30 @@
 					</div>
 					<button
 						type="button"
-						onclick={() => statusFilter = statusFilter === 'valid' ? 'all' : 'valid'}
-						class="p-4 rounded-lg text-center transition-colors {statusFilter === 'valid' ? 'bg-green-200 ring-2 ring-green-500' : 'bg-green-50 hover:bg-green-100'}"
+						onclick={() => (statusFilter = statusFilter === 'valid' ? 'all' : 'valid')}
+						class="p-4 rounded-lg text-center transition-colors {statusFilter === 'valid'
+							? 'bg-green-200 ring-2 ring-green-500'
+							: 'bg-green-50 hover:bg-green-100'}"
 					>
 						<p class="text-2xl font-bold text-green-700">{previewData.validCount}</p>
 						<p class="text-sm text-green-600">Importabili</p>
 					</button>
 					<button
 						type="button"
-						onclick={() => statusFilter = statusFilter === 'warning' ? 'all' : 'warning'}
-						class="p-4 rounded-lg text-center transition-colors {statusFilter === 'warning' ? 'bg-yellow-200 ring-2 ring-yellow-500' : 'bg-yellow-50 hover:bg-yellow-100'}"
+						onclick={() => (statusFilter = statusFilter === 'warning' ? 'all' : 'warning')}
+						class="p-4 rounded-lg text-center transition-colors {statusFilter === 'warning'
+							? 'bg-yellow-200 ring-2 ring-yellow-500'
+							: 'bg-yellow-50 hover:bg-yellow-100'}"
 					>
 						<p class="text-2xl font-bold text-yellow-700">{previewData.warningCount}</p>
 						<p class="text-sm text-yellow-600">Con avvisi</p>
 					</button>
 					<button
 						type="button"
-						onclick={() => statusFilter = statusFilter === 'error' ? 'all' : 'error'}
-						class="p-4 rounded-lg text-center transition-colors {statusFilter === 'error' ? 'bg-red-200 ring-2 ring-red-500' : 'bg-red-50 hover:bg-red-100'}"
+						onclick={() => (statusFilter = statusFilter === 'error' ? 'all' : 'error')}
+						class="p-4 rounded-lg text-center transition-colors {statusFilter === 'error'
+							? 'bg-red-200 ring-2 ring-red-500'
+							: 'bg-red-50 hover:bg-red-100'}"
 					>
 						<p class="text-2xl font-bold text-red-700">{previewData.errorCount}</p>
 						<p class="text-sm text-red-600">Errori</p>
@@ -450,8 +508,9 @@
 				{#if addMembershipToExisting}
 					<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
 						<p class="text-sm text-amber-800">
-							<strong>Modalità "Aggiungi membership":</strong> Gli utenti già esistenti nel sistema non vengono considerati errori.
-							Per questi utenti verrà aggiunta solo la membership (se non già attiva).
+							<strong>Modalità "Aggiungi membership":</strong> Gli utenti già esistenti nel sistema non
+							vengono considerati errori. Per questi utenti verrà aggiunta solo la membership (se non
+							già attiva).
 						</p>
 					</div>
 				{/if}
@@ -463,12 +522,24 @@
 							<thead class="bg-gray-50 sticky top-0">
 								<tr>
 									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cognome</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data nascita</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stato</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Note</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+										>Cognome</th
+									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+										>Nome</th
+									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+										>Email</th
+									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+										>Data nascita</th
+									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+										>Stato</th
+									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+										>Note</th
+									>
 								</tr>
 							</thead>
 							<tbody class="bg-white divide-y divide-gray-200">
@@ -480,18 +551,28 @@
 										<td class="px-4 py-3 text-sm text-gray-900">
 											{row.original.email}
 											{#if row.isExistingUser}
-												<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700" title="Utente già esistente nel sistema">
+												<span
+													class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700"
+													title="Utente già esistente nel sistema"
+												>
 													esistente
 												</span>
 											{/if}
 										</td>
 										<td class="px-4 py-3 text-sm text-gray-900">{row.original.dataNascita}</td>
 										<td class="px-4 py-3">
-											<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {getStatusBadgeClass(row.status)}">
+											<span
+												class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {getStatusBadgeClass(
+													row.status
+												)}"
+											>
 												{getStatusIcon(row.status)}
 											</span>
 										</td>
-										<td class="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" title={[...row.errors, ...row.warnings].join(', ')}>
+										<td
+											class="px-4 py-3 text-sm text-gray-500 max-w-xs truncate"
+											title={[...row.errors, ...row.warnings].join(', ')}
+										>
 											{#if row.errors.length > 0}
 												<span class="text-red-600">{row.errors[0]}</span>
 											{:else if row.warnings.length > 0}
@@ -560,7 +641,11 @@
 					>
 						<input type="hidden" name="previewId" value={previewId} />
 						<input type="hidden" name="createMembership" value="false" />
-						<input type="hidden" name="addMembershipToExisting" value={addMembershipToExisting.toString()} />
+						<input
+							type="hidden"
+							name="addMembershipToExisting"
+							value={addMembershipToExisting.toString()}
+						/>
 						<button
 							type="submit"
 							disabled={previewData.validCount + previewData.warningCount === 0 || isImporting}
@@ -571,30 +656,57 @@
 					</form>
 				</div>
 			</div>
-
 		{:else if viewState === 'importing'}
 			<!-- Importing State -->
 			<div class="py-12 text-center">
-				<svg class="animate-spin h-12 w-12 mx-auto text-blue-600 mb-4" fill="none" viewBox="0 0 24 24">
-					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				<svg
+					class="animate-spin h-12 w-12 mx-auto text-blue-600 mb-4"
+					fill="none"
+					viewBox="0 0 24 24"
+				>
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+					></circle>
+					<path
+						class="opacity-75"
+						fill="currentColor"
+						d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+					></path>
 				</svg>
 				<h2 class="text-lg font-medium text-gray-900">Importazione in corso...</h2>
 				<p class="text-sm text-gray-500 mt-2">Non chiudere questa pagina</p>
 			</div>
-
 		{:else if viewState === 'result' && importResult}
 			<!-- Result State -->
 			<div class="space-y-6">
 				<div class="text-center py-8">
 					{#if importResult.errorCount === 0}
-						<svg class="h-16 w-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						<svg
+							class="h-16 w-16 mx-auto text-green-500 mb-4"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
 						</svg>
 						<h2 class="text-xl font-bold text-gray-900">Import completato!</h2>
 					{:else}
-						<svg class="h-16 w-16 mx-auto text-yellow-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						<svg
+							class="h-16 w-16 mx-auto text-yellow-500 mb-4"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
 						</svg>
 						<h2 class="text-xl font-bold text-gray-900">Import completato con errori</h2>
 					{/if}
@@ -624,7 +736,12 @@
 					<div class="p-4 bg-purple-50 border border-purple-200 rounded-lg">
 						<h3 class="text-sm font-medium text-purple-800 mb-3 flex items-center gap-2">
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+								/>
 							</svg>
 							Riepilogo Newsletter (Mailchimp)
 						</h3>
@@ -638,7 +755,9 @@
 								<p class="text-xs text-green-600">Iscritti</p>
 							</div>
 							<div class="text-center p-2 bg-white rounded">
-								<p class="text-lg font-bold text-blue-700">{importResult.newsletter.alreadySubscribed}</p>
+								<p class="text-lg font-bold text-blue-700">
+									{importResult.newsletter.alreadySubscribed}
+								</p>
 								<p class="text-xs text-blue-600">Già iscritti</p>
 							</div>
 							<div class="text-center p-2 bg-white rounded">
@@ -666,7 +785,9 @@
 						<ul class="text-sm text-red-700 space-y-1 max-h-48 overflow-auto">
 							{#each importResult.errors as error}
 								<li>
-									Riga {error.rowNumber}: {error.email || 'email mancante'} - {error.errors.join(', ')}
+									Riga {error.rowNumber}: {error.email || 'email mancante'} - {error.errors.join(
+										', '
+									)}
 								</li>
 							{/each}
 						</ul>

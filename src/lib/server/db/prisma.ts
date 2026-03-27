@@ -10,14 +10,15 @@ import { dev } from '$app/environment';
 
 // Declare global type for development
 declare global {
-	// eslint-disable-next-line no-var
 	var __prisma: PrismaClient | undefined;
 }
 
 // Create a single instance
-export const prisma = global.__prisma || new PrismaClient({
-	log: dev ? ['query', 'error', 'warn'] : ['error']
-});
+export const prisma =
+	global.__prisma ||
+	new PrismaClient({
+		log: dev ? ['query', 'error', 'warn'] : ['error']
+	});
 
 // In development, store the instance globally to prevent multiple instances
 if (dev) {

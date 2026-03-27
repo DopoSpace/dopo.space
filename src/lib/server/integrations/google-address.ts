@@ -365,7 +365,10 @@ export async function validateAddress(
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			logger.error({ status: response.status, error: errorText }, 'Google Address Validation API error');
+			logger.error(
+				{ status: response.status, error: errorText },
+				'Google Address Validation API error'
+			);
 			return {
 				isValid: false,
 				normalizedAddress: null,
@@ -385,11 +388,11 @@ export async function validateAddress(
 		const suggestedCorrections: string[] = [];
 
 		if (verdict.hasReplacedComponents) {
-			suggestedCorrections.push('Alcuni componenti dell\'indirizzo sono stati corretti');
+			suggestedCorrections.push("Alcuni componenti dell'indirizzo sono stati corretti");
 		}
 
 		if (verdict.hasInferredComponents) {
-			suggestedCorrections.push('Alcuni componenti dell\'indirizzo sono stati dedotti');
+			suggestedCorrections.push("Alcuni componenti dell'indirizzo sono stati dedotti");
 		}
 
 		// Consider address valid if confidence is at least MEDIUM
@@ -462,7 +465,10 @@ export async function validateBirthCity(
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			logger.error({ status: response.status, error: errorText }, 'Google Address Validation API error');
+			logger.error(
+				{ status: response.status, error: errorText },
+				'Google Address Validation API error'
+			);
 			return {
 				isValid: false,
 				normalizedName: null,
@@ -675,10 +681,7 @@ export async function detectCityCountry(cityName: string): Promise<CityCountryRe
 
 		const isItalian = countryCode === 'IT';
 
-		logger.debug(
-			{ cityName, countryCode, countryName, isItalian },
-			'City country detected'
-		);
+		logger.debug({ cityName, countryCode, countryName, isItalian }, 'City country detected');
 
 		return {
 			found: true,

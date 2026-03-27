@@ -119,9 +119,7 @@ function extractRowData(
 			const year = date.getUTCFullYear();
 			value = `${day}/${month}/${year}`;
 		} else if (cell.type === ExcelJS.ValueType.RichText) {
-			value = (cell.value as ExcelJS.CellRichTextValue).richText
-				.map((rt) => rt.text)
-				.join('');
+			value = (cell.value as ExcelJS.CellRichTextValue).richText.map((rt) => rt.text).join('');
 		} else {
 			value = cell.value?.toString() || '';
 		}
@@ -300,9 +298,7 @@ async function parseCsvFile(buffer: Buffer): Promise<FileParseResult> {
 /**
  * Parse import file (Excel or CSV)
  */
-export async function parseImportFile(
-	file: File
-): Promise<FileParseResult> {
+export async function parseImportFile(file: File): Promise<FileParseResult> {
 	// Check file size
 	if (file.size > MAX_FILE_SIZE) {
 		return {
@@ -533,7 +529,10 @@ export async function generateImportPreview(
 	rows: AICSImportRow[],
 	options: ValidateOptions = { addMembershipToExisting: false }
 ): Promise<ImportPreview> {
-	const { results: validationResults, mergedRows } = await validateImportRowsWithMapping(rows, options);
+	const { results: validationResults, mergedRows } = await validateImportRowsWithMapping(
+		rows,
+		options
+	);
 
 	let validCount = 0;
 	let warningCount = 0;
@@ -725,13 +724,16 @@ export async function importUsers(
 						processedData: processed
 					});
 				} catch (error) {
-					logger.error({ error, rowNumber, email: processed.email }, 'Failed to update membership dates for existing user');
+					logger.error(
+						{ error, rowNumber, email: processed.email },
+						'Failed to update membership dates for existing user'
+					);
 					skippedCount++;
 					errorCount++;
 					errors.push({
 						rowNumber,
 						email: processed.email,
-						errors: ['Errore durante l\'aggiornamento delle date']
+						errors: ["Errore durante l'aggiornamento delle date"]
 					});
 					results.push({
 						rowNumber,
@@ -740,7 +742,7 @@ export async function importUsers(
 						email: processed.email,
 						firstName: processed.firstName,
 						lastName: processed.lastName,
-						error: 'Errore durante l\'aggiornamento delle date',
+						error: "Errore durante l'aggiornamento delle date",
 						originalData: row,
 						processedData: processed
 					});
@@ -812,7 +814,10 @@ export async function importUsers(
 							email: processed.email,
 							error: newsletterError
 						});
-						logger.error({ error: err, email: processed.email }, 'Failed to subscribe existing user to newsletter');
+						logger.error(
+							{ error: err, email: processed.email },
+							'Failed to subscribe existing user to newsletter'
+						);
 					}
 				}
 
@@ -830,13 +835,16 @@ export async function importUsers(
 					processedData: processed
 				});
 			} catch (error) {
-				logger.error({ error, rowNumber, email: processed.email }, 'Failed to add membership to existing user');
+				logger.error(
+					{ error, rowNumber, email: processed.email },
+					'Failed to add membership to existing user'
+				);
 				skippedCount++;
 				errorCount++;
 				errors.push({
 					rowNumber,
 					email: processed.email,
-					errors: ['Errore durante l\'aggiunta della membership']
+					errors: ["Errore durante l'aggiunta della membership"]
 				});
 				results.push({
 					rowNumber,
@@ -845,7 +853,7 @@ export async function importUsers(
 					email: processed.email,
 					firstName: processed.firstName,
 					lastName: processed.lastName,
-					error: 'Errore durante l\'aggiunta della membership',
+					error: "Errore durante l'aggiunta della membership",
 					originalData: row,
 					processedData: processed
 				});
@@ -954,7 +962,10 @@ export async function importUsers(
 						email: processed.email,
 						error: newsletterError
 					});
-					logger.error({ error: err, email: processed.email }, 'Failed to subscribe user to newsletter');
+					logger.error(
+						{ error: err, email: processed.email },
+						'Failed to subscribe user to newsletter'
+					);
 				}
 			}
 
@@ -1089,9 +1100,7 @@ export async function generateErrorReport(
 /**
  * Generate success report as Excel file with separate tabs
  */
-export async function generateSuccessReport(
-	importResult: ImportResult
-): Promise<Buffer> {
+export async function generateSuccessReport(importResult: ImportResult): Promise<Buffer> {
 	const workbook = new ExcelJS.Workbook();
 
 	// Common column definitions for all data sheets
@@ -1139,7 +1148,7 @@ export async function generateSuccessReport(
 	};
 
 	// Helper to format merge info for notes
-	const formatMergeInfo = (result: typeof importResult.results[0]): string => {
+	const formatMergeInfo = (result: (typeof importResult.results)[0]): string => {
 		const mergeInfo = result.processedData?.validationResult?.mergeInfo;
 		if (!mergeInfo || mergeInfo.mergedRows.length <= 1) {
 			return '';
@@ -1149,8 +1158,9 @@ export async function generateSuccessReport(
 		parts.push(`Unione righe ${mergeInfo.mergedRows.join(', ')}`);
 
 		if (mergeInfo.conflicts.length > 0) {
-			const conflictParts = mergeInfo.conflicts.map(c =>
-				`${c.field}: usato '${c.usedValue}' (riga ${c.usedFromRow}), ignorato '${c.discardedValue}' (riga ${c.discardedFromRow})`
+			const conflictParts = mergeInfo.conflicts.map(
+				(c) =>
+					`${c.field}: usato '${c.usedValue}' (riga ${c.usedFromRow}), ignorato '${c.discardedValue}' (riga ${c.discardedFromRow})`
 			);
 			parts.push(`Conflitti: ${conflictParts.join('; ')}`);
 		}
@@ -1159,7 +1169,7 @@ export async function generateSuccessReport(
 	};
 
 	// Helper to get row data (prefers processed data, falls back to original)
-	const getRowData = (result: typeof importResult.results[0]) => {
+	const getRowData = (result: (typeof importResult.results)[0]) => {
 		const processed = result.processedData;
 		const original = result.originalData;
 
@@ -1230,16 +1240,14 @@ export async function generateSuccessReport(
 	// - Importati: successful imports
 	// - Non Importati: intentionally skipped (e.g., user already has active membership)
 	// - Errori: validation errors, database errors, etc.
-	const SKIP_MESSAGES = [
-		'Utente già presente con membership attiva'
-	];
+	const SKIP_MESSAGES = ['Utente già presente con membership attiva'];
 
-	const importedResults = importResult.results.filter(r => r.success);
-	const skippedResults = importResult.results.filter(r =>
-		!r.success && r.error && SKIP_MESSAGES.some(msg => r.error?.includes(msg))
+	const importedResults = importResult.results.filter((r) => r.success);
+	const skippedResults = importResult.results.filter(
+		(r) => !r.success && r.error && SKIP_MESSAGES.some((msg) => r.error?.includes(msg))
 	);
-	const errorResults = importResult.results.filter(r =>
-		!r.success && r.error && !SKIP_MESSAGES.some(msg => r.error?.includes(msg))
+	const errorResults = importResult.results.filter(
+		(r) => !r.success && r.error && !SKIP_MESSAGES.some((msg) => r.error?.includes(msg))
 	);
 
 	// === TAB 1: Importati ===
@@ -1341,9 +1349,18 @@ export async function generateSuccessReport(
 	// Newsletter section
 	summarySheet.addRow({ metric: '', value: '' });
 	summarySheet.addRow({ metric: '=== Newsletter (Mailchimp) ===', value: '' });
-	summarySheet.addRow({ metric: 'Richieste di iscrizione', value: importResult.newsletter.requested });
-	summarySheet.addRow({ metric: 'Iscritti con successo', value: importResult.newsletter.subscribed });
-	summarySheet.addRow({ metric: 'Già iscritti in precedenza', value: importResult.newsletter.alreadySubscribed });
+	summarySheet.addRow({
+		metric: 'Richieste di iscrizione',
+		value: importResult.newsletter.requested
+	});
+	summarySheet.addRow({
+		metric: 'Iscritti con successo',
+		value: importResult.newsletter.subscribed
+	});
+	summarySheet.addRow({
+		metric: 'Già iscritti in precedenza',
+		value: importResult.newsletter.alreadySubscribed
+	});
 	summarySheet.addRow({ metric: 'Errori di iscrizione', value: importResult.newsletter.failed });
 
 	// Add newsletter errors if any

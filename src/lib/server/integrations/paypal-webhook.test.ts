@@ -81,10 +81,13 @@ describe('PayPal Webhook Handler', () => {
 		it('should verify webhook signature', async () => {
 			mockVerifyPayPalWebhook.mockResolvedValue(true);
 			mockPrisma.membership.findUnique.mockResolvedValue({ id: 'membership-123' });
-			const request = createMockRequest({
-				event_type: 'CHECKOUT.ORDER.APPROVED',
-				resource: { id: 'ORDER-123', purchase_units: [{ reference_id: 'membership-123' }] }
-			}, { 'x-paypal-signature': 'test' });
+			const request = createMockRequest(
+				{
+					event_type: 'CHECKOUT.ORDER.APPROVED',
+					resource: { id: 'ORDER-123', purchase_units: [{ reference_id: 'membership-123' }] }
+				},
+				{ 'x-paypal-signature': 'test' }
+			);
 
 			await POST({ request } as any);
 
@@ -153,7 +156,10 @@ describe('PayPal Webhook Handler', () => {
 		});
 
 		it('should accept PAYMENT.CAPTURE.COMPLETED', async () => {
-			mockPrisma.membership.findFirst.mockResolvedValue({ id: 'membership-123', paymentStatus: 'PENDING' });
+			mockPrisma.membership.findFirst.mockResolvedValue({
+				id: 'membership-123',
+				paymentStatus: 'PENDING'
+			});
 			const event = {
 				event_type: 'PAYMENT.CAPTURE.COMPLETED',
 				resource: {
@@ -696,7 +702,10 @@ describe('PayPal Webhook Handler', () => {
 
 			expect(response.status).toBe(500);
 			expect(data).toEqual({ error: 'Webhook processing failed' });
-			expect(mockPaymentLogger.error).toHaveBeenCalledWith({ err: expect.any(Error) }, 'PayPal webhook error');
+			expect(mockPaymentLogger.error).toHaveBeenCalledWith(
+				{ err: expect.any(Error) },
+				'PayPal webhook error'
+			);
 		});
 
 		it('should handle database errors', async () => {

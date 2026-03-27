@@ -27,9 +27,8 @@ vi.mock('$lib/server/db/prisma', () => ({
 }));
 
 // Import after mocking
-const { getMembershipSummary, createMembershipForPayment, calculateEndDate } = await import(
-	'./membership'
-);
+const { getMembershipSummary, createMembershipForPayment, calculateEndDate } =
+	await import('./membership');
 
 describe('Membership Service', () => {
 	beforeEach(() => {

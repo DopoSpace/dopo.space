@@ -79,7 +79,9 @@ export async function parseFormData<T extends ZodSchema>(
 export async function parseFormDataOrFail<T extends ZodSchema>(
 	formData: FormData,
 	schema: T
-): Promise<z.infer<T> | ActionFailure<{ errors: Record<string, string>; values: Record<string, unknown> }>> {
+): Promise<
+	z.infer<T> | ActionFailure<{ errors: Record<string, string>; values: Record<string, unknown> }>
+> {
 	const result = await parseFormData(formData, schema);
 
 	if (!result.success) {
@@ -96,11 +98,7 @@ export async function parseFormDataOrFail<T extends ZodSchema>(
  * @param defaultValue - Optional default value if key not found
  * @returns The value or default
  */
-export function getFormValue(
-	formData: FormData,
-	key: string,
-	defaultValue: string = ''
-): string {
+export function getFormValue(formData: FormData, key: string, defaultValue: string = ''): string {
 	const value = formData.get(key);
 	return value ? String(value) : defaultValue;
 }
@@ -123,11 +121,7 @@ export function getFormBoolean(formData: FormData, key: string): boolean {
  * @param defaultValue - Optional default value if key not found or invalid
  * @returns The parsed number or default
  */
-export function getFormNumber(
-	formData: FormData,
-	key: string,
-	defaultValue: number = 0
-): number {
+export function getFormNumber(formData: FormData, key: string, defaultValue: number = 0): number {
 	const value = formData.get(key);
 	if (!value) return defaultValue;
 

@@ -22,11 +22,10 @@
 
 		<div class="footer-bottom">
 			<p class="footer-copyright">
-				&copy; {currentYear} {m.footer_copyright()}
+				&copy; {currentYear}
+				{m.footer_copyright()}
 			</p>
-			<p class="footer-address">
-				Via Boncompagni 51/10, 20139 Milano (MI) - P.IVA 13537230966
-			</p>
+			<p class="footer-address">Via Boncompagni 51/10, 20139 Milano (MI) - P.IVA 13537230966</p>
 			<p class="footer-address">
 				<a href="mailto:dopolavoro.milano@gmail.com">dopolavoro.milano@gmail.com</a>
 			</p>

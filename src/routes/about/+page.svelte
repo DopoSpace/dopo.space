@@ -6,19 +6,19 @@
 
 <PublicPageLayout>
 	<TextContainer>
-	<p>
-		{m.about_paragraph1()}
-	</p>
-	<p>
-		{m.about_paragraph2()}
-	</p>
-	<p>
-		{m.about_paragraph3()}
-	</p>
-	<p class="pt-8">
-		<a href="/dopo_space_trasparenza_dati.pdf" target="_blank">
-			{m.about_transparency()}
-		</a>
-	</p>
+		<p>
+			{m.about_paragraph1()}
+		</p>
+		<p>
+			{m.about_paragraph2()}
+		</p>
+		<p>
+			{m.about_paragraph3()}
+		</p>
+		<p class="pt-8">
+			<a href="/dopo_space_trasparenza_dati.pdf" target="_blank">
+				{m.about_transparency()}
+			</a>
+		</p>
 	</TextContainer>
 </PublicPageLayout>

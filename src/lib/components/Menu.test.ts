@@ -16,7 +16,7 @@ const { mockPage } = vi.hoisted(() => {
 			},
 			set(newValue: T) {
 				value = newValue;
-				subscribers.forEach(fn => fn(value));
+				subscribers.forEach((fn) => fn(value));
 			}
 		};
 	}
@@ -40,7 +40,6 @@ vi.mock('$app/stores', () => ({
 }));
 
 describe('Menu Component', () => {
-
 	it('renders all three navigation links', () => {
 		render(Menu);
 

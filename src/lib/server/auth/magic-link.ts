@@ -114,7 +114,11 @@ export async function verifyMagicLinkToken(token: string): Promise<{ email: stri
  * @param email - User or Admin email
  * @param role - 'user' or 'admin' (defaults to 'user' for backward compatibility)
  */
-export function generateSessionToken(userId: string, email: string, role: 'user' | 'admin' = 'user'): string {
+export function generateSessionToken(
+	userId: string,
+	email: string,
+	role: 'user' | 'admin' = 'user'
+): string {
 	// Explicitly include iat for consistency and session invalidation checks
 	const issuedAt = Math.floor(Date.now() / 1000);
 	return jwt.sign({ userId, email, role, type: 'session', iat: issuedAt }, JWT_SECRET, {
@@ -151,11 +155,14 @@ export function verifySessionToken(token: string): {
 		};
 	} catch (error) {
 		// Log at debug level to avoid flooding logs while preserving context for debugging
-		logger.debug({
-			errorType: error instanceof Error ? error.name : 'Unknown',
-			message: error instanceof Error ? error.message : String(error),
-			tokenLength: token?.length
-		}, 'Session token verification failed');
+		logger.debug(
+			{
+				errorType: error instanceof Error ? error.name : 'Unknown',
+				message: error instanceof Error ? error.message : String(error),
+				tokenLength: token?.length
+			},
+			'Session token verification failed'
+		);
 		return null;
 	}
 }

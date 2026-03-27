@@ -46,7 +46,9 @@
 			{required}
 			{disabled}
 			value="true"
-			class="mt-1 h-5 w-5 rounded border-gray-300 text-dopoRed focus:ring-dopoRed {error ? 'border-red-500' : ''}"
+			class="mt-1 h-5 w-5 rounded border-gray-300 text-dopoRed focus:ring-dopoRed {error
+				? 'border-red-500'
+				: ''}"
 			aria-invalid={error ? 'true' : 'false'}
 			aria-describedby={error ? `${name}-error` : undefined}
 			onchange={handleChange}

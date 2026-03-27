@@ -431,10 +431,7 @@ export function validateTaxCodeConsistency(cf: string, birthDate: Date): boolean
  * @param birthDate - Optional birth date for consistency check
  * @returns Object with validation result and error message if invalid
  */
-export function validateTaxCode(
-	cf: string,
-	birthDate?: Date
-): { valid: boolean; error?: string } {
+export function validateTaxCode(cf: string, birthDate?: Date): { valid: boolean; error?: string } {
 	if (!cf || typeof cf !== 'string') {
 		return { valid: false, error: 'Codice fiscale non fornito' };
 	}
@@ -746,8 +743,12 @@ export function suggestCompoundName(
 		const compound = `${firstName} ${candidateName}`;
 		if (generateNameCode(compound) === cfNameCode) {
 			// Format nicely: "Bianca Maria"
-			const formatted = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase() +
-				' ' + candidateName.charAt(0).toUpperCase() + candidateName.slice(1).toLowerCase();
+			const formatted =
+				firstName.charAt(0).toUpperCase() +
+				firstName.slice(1).toLowerCase() +
+				' ' +
+				candidateName.charAt(0).toUpperCase() +
+				candidateName.slice(1).toLowerCase();
 			return formatted;
 		}
 	}

@@ -33,12 +33,11 @@ const emailTranslations = {
 			text: (amount: string) =>
 				`abbiamo ricevuto il tuo pagamento di €${amount} per la tessera associativa Dopo Space.`,
 			cardNote:
-				"Ti assegneremo a breve il numero di tessera e riceverai la tua tessera digitale da AICS.",
+				'Ti assegneremo a breve il numero di tessera e riceverai la tua tessera digitale da AICS.',
 			thanks: 'Grazie per far parte di Dopo Space, a presto!'
 		},
 		footer: {
-			association:
-				'Dopo Space APS — Via Carlo Boncompagni 51/10, 20139 Milano MI',
+			association: 'Dopo Space APS — Via Carlo Boncompagni 51/10, 20139 Milano MI',
 			why: 'Ricevi questa email perché sei iscritto a Dopo Space.',
 			contact: 'Per qualsiasi domanda scrivici a ciao@dopo.space'
 		}
@@ -65,8 +64,7 @@ const emailTranslations = {
 			thanks: 'Thank you for being part of Dopo Space, see you soon!'
 		},
 		footer: {
-			association:
-				'Dopo Space APS — Via Carlo Boncompagni 51/10, 20139 Milano MI',
+			association: 'Dopo Space APS — Via Carlo Boncompagni 51/10, 20139 Milano MI',
 			why: 'You received this email because you are a Dopo Space member.',
 			contact: 'For any questions, write to us at ciao@dopo.space'
 		}

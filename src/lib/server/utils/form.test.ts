@@ -4,7 +4,13 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { parseFormData, parseFormDataOrFail, getFormValue, getFormBoolean, getFormNumber } from './form';
+import {
+	parseFormData,
+	parseFormDataOrFail,
+	getFormValue,
+	getFormBoolean,
+	getFormNumber
+} from './form';
 
 describe('parseFormData', () => {
 	it('should parse valid form data', async () => {

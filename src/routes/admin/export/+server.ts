@@ -16,9 +16,20 @@ import { prisma } from '$lib/server/db/prisma';
 import ExcelJS from 'exceljs';
 import type { MembershipStatus } from '@prisma/client';
 import { createLogger } from '$lib/server/utils/logger';
-import { extractGenderFromTaxCode, normalizeOmocodia, validateTaxCodeFormat, fixTaxCodeChecksum } from '$lib/server/utils/tax-code';
+import {
+	extractGenderFromTaxCode,
+	normalizeOmocodia,
+	validateTaxCodeFormat,
+	fixTaxCodeChecksum
+} from '$lib/server/utils/tax-code';
 import { PROVINCE_CAP_INFO, getCityFromCap } from '$lib/server/data/italian-cap';
-import { getOfficialComuneName, isValidComuneAICS, findComuneByCatastale, searchComuni, normalizeForeignBirthCity } from '$lib/server/data/aics-comuni';
+import {
+	getOfficialComuneName,
+	isValidComuneAICS,
+	findComuneByCatastale,
+	searchComuni,
+	normalizeForeignBirthCity
+} from '$lib/server/data/aics-comuni';
 
 const logger = createLogger({ module: 'admin-export' });
 
@@ -27,13 +38,116 @@ const logger = createLogger({ module: 'admin-export' });
  * Used to detect when city/province fields are swapped
  */
 const ITALIAN_PROVINCES = new Set([
-	'AG', 'AL', 'AN', 'AO', 'AR', 'AP', 'AT', 'AV', 'BA', 'BT', 'BL', 'BN', 'BG', 'BI', 'BO', 'BZ',
-	'BS', 'BR', 'CA', 'CL', 'CB', 'CI', 'CE', 'CT', 'CZ', 'CH', 'CO', 'CS', 'CR', 'KR', 'CN', 'EN',
-	'FM', 'FE', 'FI', 'FG', 'FC', 'FR', 'GE', 'GO', 'GR', 'IM', 'IS', 'SP', 'AQ', 'LT', 'LE', 'LC',
-	'LI', 'LO', 'LU', 'MC', 'MN', 'MS', 'MT', 'ME', 'MI', 'MO', 'MB', 'NA', 'NO', 'NU', 'OG', 'OT',
-	'OR', 'PD', 'PA', 'PR', 'PV', 'PG', 'PU', 'PE', 'PC', 'PI', 'PT', 'PN', 'PZ', 'PO', 'RG', 'RA',
-	'RC', 'RE', 'RI', 'RN', 'RM', 'RO', 'SA', 'SS', 'SV', 'SI', 'SR', 'SO', 'SU', 'TA', 'TE', 'TR',
-	'TO', 'TP', 'TN', 'TV', 'TS', 'UD', 'VA', 'VE', 'VB', 'VC', 'VR', 'VV', 'VI', 'VT',
+	'AG',
+	'AL',
+	'AN',
+	'AO',
+	'AR',
+	'AP',
+	'AT',
+	'AV',
+	'BA',
+	'BT',
+	'BL',
+	'BN',
+	'BG',
+	'BI',
+	'BO',
+	'BZ',
+	'BS',
+	'BR',
+	'CA',
+	'CL',
+	'CB',
+	'CI',
+	'CE',
+	'CT',
+	'CZ',
+	'CH',
+	'CO',
+	'CS',
+	'CR',
+	'KR',
+	'CN',
+	'EN',
+	'FM',
+	'FE',
+	'FI',
+	'FG',
+	'FC',
+	'FR',
+	'GE',
+	'GO',
+	'GR',
+	'IM',
+	'IS',
+	'SP',
+	'AQ',
+	'LT',
+	'LE',
+	'LC',
+	'LI',
+	'LO',
+	'LU',
+	'MC',
+	'MN',
+	'MS',
+	'MT',
+	'ME',
+	'MI',
+	'MO',
+	'MB',
+	'NA',
+	'NO',
+	'NU',
+	'OG',
+	'OT',
+	'OR',
+	'PD',
+	'PA',
+	'PR',
+	'PV',
+	'PG',
+	'PU',
+	'PE',
+	'PC',
+	'PI',
+	'PT',
+	'PN',
+	'PZ',
+	'PO',
+	'RG',
+	'RA',
+	'RC',
+	'RE',
+	'RI',
+	'RN',
+	'RM',
+	'RO',
+	'SA',
+	'SS',
+	'SV',
+	'SI',
+	'SR',
+	'SO',
+	'SU',
+	'TA',
+	'TE',
+	'TR',
+	'TO',
+	'TP',
+	'TN',
+	'TV',
+	'TS',
+	'UD',
+	'VA',
+	'VE',
+	'VB',
+	'VC',
+	'VR',
+	'VV',
+	'VI',
+	'VT',
 	'EE' // Foreign
 ]);
 
@@ -66,7 +180,7 @@ function getProvinceFromCap(cap: string | null | undefined): string | null {
 	const prefix = normalized.slice(0, 2);
 
 	// Find all provinces matching this CAP prefix
-	const matchingProvinces: Array<{ code: string; info: typeof PROVINCE_CAP_INFO[string] }> = [];
+	const matchingProvinces: Array<{ code: string; info: (typeof PROVINCE_CAP_INFO)[string] }> = [];
 	for (const [code, info] of Object.entries(PROVINCE_CAP_INFO)) {
 		if (info.capPrefix === prefix) {
 			matchingProvinces.push({ code, info });
@@ -105,7 +219,7 @@ function getProvinceFromCap(cap: string | null | undefined): string | null {
 	matchingProvinces.sort((a, b) => a.info.capoluogo.localeCompare(b.info.capoluogo));
 
 	// Prefer Milano over Monza for 20xxx range
-	const miMatch = matchingProvinces.find(p => p.code === 'MI');
+	const miMatch = matchingProvinces.find((p) => p.code === 'MI');
 	if (miMatch && prefix === '20') {
 		return 'MI';
 	}
@@ -143,7 +257,9 @@ function fixResidenceData(
 	const derivedProvince = getProvinceFromCap(capVal);
 	if (derivedProvince) {
 		if (provinceVal && provinceVal !== derivedProvince) {
-			corrections.push(`Provincia corretta da "${provinceVal}" a "${derivedProvince}" (da CAP ${capVal})`);
+			corrections.push(
+				`Provincia corretta da "${provinceVal}" a "${derivedProvince}" (da CAP ${capVal})`
+			);
 		}
 		provinceVal = derivedProvince;
 	}
@@ -199,7 +315,9 @@ function fixResidenceData(
 	if (provinceVal && provinceVal !== 'EE' && cityVal) {
 		if (!isValidComuneAICS(cityVal, provinceVal)) {
 			// Comune/Provincia not valid in AICS → clear all residence data
-			corrections.push(`Comune "${cityVal}" non valido per provincia "${provinceVal}" in AICS - rimosso`);
+			corrections.push(
+				`Comune "${cityVal}" non valido per provincia "${provinceVal}" in AICS - rimosso`
+			);
 			return { city: '', province: '', correctionApplied: corrections.join('; ') };
 		}
 	}
@@ -209,7 +327,11 @@ function fixResidenceData(
 		if (cityVal || provinceVal) {
 			corrections.push('Dati residenza incompleti - rimosso');
 		}
-		return { city: '', province: '', correctionApplied: corrections.length > 0 ? corrections.join('; ') : null };
+		return {
+			city: '',
+			province: '',
+			correctionApplied: corrections.length > 0 ? corrections.join('; ') : null
+		};
 	}
 
 	return {
@@ -234,7 +356,7 @@ function fixResidenceData(
  * AICS doesn't recognize old codes, so we replace them in the CF for export.
  */
 const DISSOLVED_CADASTRAL_CODES: Record<string, string> = {
-	Z135: 'Z154', // URSS → Russia
+	Z135: 'Z154' // URSS → Russia
 };
 
 /**
@@ -362,17 +484,20 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		// Parse userIds - comma-separated list of user IDs to export
 		const userIdsParam = url.searchParams.get('userIds') || '';
-		const userIds = userIdsParam ? userIdsParam.split(',').filter(id => id.trim()) : [];
+		const userIds = userIdsParam ? userIdsParam.split(',').filter((id) => id.trim()) : [];
 
-		logger.info({
-			admin: admin.email,
-			format,
-			search,
-			statusFilter,
-			dateFrom,
-			dateTo,
-			userIdsCount: userIds.length
-		}, 'Export requested');
+		logger.info(
+			{
+				admin: admin.email,
+				format,
+				search,
+				statusFilter,
+				dateFrom,
+				dateTo,
+				userIdsCount: userIds.length
+			},
+			'Export requested'
+		);
 
 		// Build where clause for users
 		const whereClause: any = {};
@@ -471,7 +596,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				province: profile?.province || '',
 				documentType: profile?.documentType || '',
 				documentNumber: profile?.documentNumber || '',
-				privacyConsent: profile?.privacyConsent === null ? '' : profile?.privacyConsent ? 'Yes' : 'No',
+				privacyConsent:
+					profile?.privacyConsent === null ? '' : profile?.privacyConsent ? 'Yes' : 'No',
 				dataConsent: profile?.dataConsent === null ? '' : profile?.dataConsent ? 'Yes' : 'No',
 				profileComplete: profile?.profileComplete ? 'Yes' : 'No',
 
@@ -499,17 +625,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			// AICS format for Italian sports association import
 			const aicsResult = generateAICSData(filteredUsers);
 
-			logger.info({
-				totalUsers: filteredUsers.length,
-				includedUsers: aicsResult.included.length,
-				excludedUsers: aicsResult.excluded.length
-			}, 'AICS export generated');
+			logger.info(
+				{
+					totalUsers: filteredUsers.length,
+					includedUsers: aicsResult.included.length,
+					excludedUsers: aicsResult.excluded.length
+				},
+				'AICS export generated'
+			);
 
 			const buffer = await generateAICSExcel(aicsResult);
 			return new Response(new Uint8Array(buffer), {
 				headers: {
-					'Content-Type':
-						'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 					'Content-Disposition': `attachment; filename="aics-export-${timestamp}.xlsx"`
 				}
 			});
@@ -517,8 +645,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			const buffer = await generateExcel(exportData);
 			return new Response(new Uint8Array(buffer), {
 				headers: {
-					'Content-Type':
-						'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 					'Content-Disposition': `attachment; filename="${filename}.xlsx"`
 				}
 			});
@@ -553,11 +680,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const format = body.format || 'csv';
 		const userIds: string[] = body.userIds || [];
 
-		logger.info({
-			admin: admin.email,
-			format,
-			userIdsCount: userIds.length
-		}, 'Export requested (POST)');
+		logger.info(
+			{
+				admin: admin.email,
+				format,
+				userIdsCount: userIds.length
+			},
+			'Export requested (POST)'
+		);
 
 		// Build where clause for users
 		const whereClause: any = {};
@@ -579,8 +709,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// Apply userIds order if provided
 		let filteredUsers = users;
 		if (userIds.length > 0) {
-			const userMap = new Map(users.map(u => [u.id, u]));
-			filteredUsers = userIds.map(id => userMap.get(id)).filter((u): u is typeof users[0] => u !== undefined);
+			const userMap = new Map(users.map((u) => [u.id, u]));
+			filteredUsers = userIds
+				.map((id) => userMap.get(id))
+				.filter((u): u is (typeof users)[0] => u !== undefined);
 		}
 
 		// Map users to export format
@@ -635,11 +767,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// Generate output based on format
 		if (format === 'aics') {
 			const aicsResult = generateAICSData(filteredUsers);
-			logger.info({
-				totalUsers: filteredUsers.length,
-				includedUsers: aicsResult.included.length,
-				excludedUsers: aicsResult.excluded.length
-			}, 'AICS export generated (POST)');
+			logger.info(
+				{
+					totalUsers: filteredUsers.length,
+					includedUsers: aicsResult.included.length,
+					excludedUsers: aicsResult.excluded.length
+				},
+				'AICS export generated (POST)'
+			);
 
 			const buffer = await generateAICSExcel(aicsResult);
 			return new Response(new Uint8Array(buffer), {
@@ -914,7 +1049,7 @@ function generateAICSData(users: any[]): AICSExportResult {
 			// User included - transform to AICS format
 			const isItalian = profile?.nationality === 'IT' || !profile?.nationality;
 			const hasForeignCF = profile?.hasForeignTaxCode === true;
-			const taxCode = (isItalian || hasForeignCF) ? (profile?.taxCode || '') : '';
+			const taxCode = isItalian || hasForeignCF ? profile?.taxCode || '' : '';
 
 			// Determine gender: first try from tax code, then fallback to profile.gender
 			let sesso = '';
@@ -935,7 +1070,10 @@ function generateAICSData(users: any[]): AICSExportResult {
 
 				if (cfBirthPlace.birthCity && cfBirthPlace.birthProvince) {
 					// CF provides valid birth place - use it (overrides database)
-					if (birthCity !== cfBirthPlace.birthCity || birthProvince !== cfBirthPlace.birthProvince) {
+					if (
+						birthCity !== cfBirthPlace.birthCity ||
+						birthProvince !== cfBirthPlace.birthProvince
+					) {
 						logger.info(
 							{
 								email: user.email,
@@ -997,7 +1135,7 @@ function generateAICSData(users: any[]): AICSExportResult {
 				comuneNascita: truncate(birthCity, 65),
 				codiceFiscale: modernizeTaxCodeForAICS(taxCode) || '',
 				indirizzo: hasValidResidence ? truncate(profile?.address, 50) : '',
-				cap: hasValidResidence ? (profile?.postalCode || '') : '',
+				cap: hasValidResidence ? profile?.postalCode || '' : '',
 				provincia: residenceData.province,
 				comune: truncate(residenceData.city, 65),
 				telefonoAbitazione: '',
@@ -1265,12 +1403,7 @@ async function generateAICSExcel(result: AICSExportResult): Promise<Buffer> {
 		// Data rows
 		excluded.forEach((user, index) => {
 			const row = excludedSheet.getRow(index + 3);
-			row.values = [
-				user.email,
-				user.firstName,
-				user.lastName,
-				user.reasons.join('; ')
-			];
+			row.values = [user.email, user.firstName, user.lastName, user.reasons.join('; ')];
 
 			// Light red background for data rows
 			row.eachCell((cell) => {

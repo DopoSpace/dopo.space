@@ -67,7 +67,9 @@
 		{name}
 		{required}
 		{disabled}
-		class="select text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
+		class="select text-gray-900 {error
+			? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+			: ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
 		aria-invalid={error ? 'true' : 'false'}
 		aria-describedby={error ? `${name}-error` : undefined}
 		onchange={handleChange}

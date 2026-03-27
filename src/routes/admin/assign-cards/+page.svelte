@@ -39,8 +39,7 @@
 
 	// Reactive: select all checkbox state
 	let allSelected = $derived(
-		data.usersAwaitingCard.length > 0 &&
-		selectedUserIds.length === data.usersAwaitingCard.length
+		data.usersAwaitingCard.length > 0 && selectedUserIds.length === data.usersAwaitingCard.length
 	);
 
 	// Reactive: single mode only enabled when exactly 1 user selected
@@ -132,16 +131,26 @@
 	<!-- Page Header -->
 	<div>
 		<h1 class="text-2xl font-bold text-gray-900">Assegnazione Tessere</h1>
-		<p class="text-sm text-gray-600 mt-1">Assegna automaticamente i numeri tessera agli utenti che hanno completato il pagamento</p>
+		<p class="text-sm text-gray-600 mt-1">
+			Assegna automaticamente i numeri tessera agli utenti che hanno completato il pagamento
+		</p>
 	</div>
 
 	<!-- Main Content -->
 	<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
 		<!-- Available Numbers Info -->
-		<div class="mb-6 p-4 rounded-lg {data.availableNumbersCount > 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}">
+		<div
+			class="mb-6 p-4 rounded-lg {data.availableNumbersCount > 0
+				? 'bg-green-50 border border-green-200'
+				: 'bg-yellow-50 border border-yellow-200'}"
+		>
 			<div class="flex items-center justify-between flex-wrap gap-2 mb-3">
 				<div>
-					<p class="text-sm font-medium {data.availableNumbersCount > 0 ? 'text-green-800' : 'text-yellow-800'}">
+					<p
+						class="text-sm font-medium {data.availableNumbersCount > 0
+							? 'text-green-800'
+							: 'text-yellow-800'}"
+					>
 						Numeri tessera disponibili: <strong>{data.availableNumbersCount}</strong>
 					</p>
 					{#if data.availableNumbersCount === 0}
@@ -150,22 +159,27 @@
 						</p>
 					{/if}
 				</div>
-				<a
-					href="/admin/card-ranges"
-					class="text-sm text-blue-600 hover:text-blue-800 underline"
-				>
+				<a href="/admin/card-ranges" class="text-sm text-blue-600 hover:text-blue-800 underline">
 					Gestisci Range
 				</a>
 			</div>
 
 			<!-- Configured Ranges Display -->
 			{#if data.cardRanges.length > 0}
-				<div class="border-t {data.availableNumbersCount > 0 ? 'border-green-200' : 'border-yellow-200'} pt-3 mt-3">
-					<p class="text-xs font-medium {data.availableNumbersCount > 0 ? 'text-green-700' : 'text-yellow-700'} mb-2">
+				<div
+					class="border-t {data.availableNumbersCount > 0
+						? 'border-green-200'
+						: 'border-yellow-200'} pt-3 mt-3"
+				>
+					<p
+						class="text-xs font-medium {data.availableNumbersCount > 0
+							? 'text-green-700'
+							: 'text-yellow-700'} mb-2"
+					>
 						Range configurati e numeri disponibili:
 					</p>
 					<div class="space-y-2">
-						{#each data.cardRanges.filter(r => r.availableNumbers > 0) as range (range.id)}
+						{#each data.cardRanges.filter((r) => r.availableNumbers > 0) as range (range.id)}
 							<div class="bg-white border border-green-300 rounded-md p-2">
 								<div class="flex items-center justify-between">
 									<span class="text-xs font-medium text-green-800">
@@ -177,7 +191,9 @@
 								</div>
 								<div class="mt-1.5 flex flex-wrap gap-1">
 									{#each range.availableSubRanges as subRange}
-										<span class="inline-block px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 font-mono">
+										<span
+											class="inline-block px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 font-mono"
+										>
 											{#if subRange.start === subRange.end}
 												{subRange.start}
 											{:else}
@@ -193,7 +209,9 @@
 			{:else}
 				<div class="border-t border-yellow-200 pt-3 mt-3">
 					<p class="text-xs text-yellow-600">
-						Nessun range configurato. <a href="/admin/card-ranges" class="underline">Configura i range</a> prima di assegnare tessere.
+						Nessun range configurato. <a href="/admin/card-ranges" class="underline"
+							>Configura i range</a
+						> prima di assegnare tessere.
 					</p>
 				</div>
 			{/if}
@@ -210,7 +228,8 @@
 					{@const resultData = form.result.data}
 					<ul class="space-y-2 text-sm text-green-700">
 						<li>
-							<strong>Tessere assegnate:</strong> {resultData.assigned.length}
+							<strong>Tessere assegnate:</strong>
+							{resultData.assigned.length}
 							{#if resultData.assigned.length > 0}
 								<ul class="ml-4 mt-1 text-xs">
 									{#each resultData.assigned as a}
@@ -221,7 +240,8 @@
 						</li>
 						{#if resultData.usersWithoutCard.length > 0}
 							<li class="text-red-700">
-								<strong>Utenti rimasti senza tessera:</strong> {resultData.usersWithoutCard.length}
+								<strong>Utenti rimasti senza tessera:</strong>
+								{resultData.usersWithoutCard.length}
 								<ul class="ml-4 mt-1 text-xs">
 									{#each resultData.usersWithoutCard as u}
 										<li>{u.email}</li>
@@ -231,14 +251,20 @@
 						{/if}
 						{#if form.result.mode === 'range' && 'skipped' in resultData && resultData.skipped.length > 0}
 							<li class="text-yellow-700">
-								<strong>Numeri saltati (già assegnati):</strong> {resultData.skipped.length}
+								<strong>Numeri saltati (già assegnati):</strong>
+								{resultData.skipped.length}
 								<span class="text-xs ml-2">({resultData.skipped.join(', ')})</span>
 							</li>
 						{/if}
 						{#if form.result.mode === 'range' && 'remaining' in resultData && resultData.remaining.length > 0}
 							<li class="text-blue-700">
-								<strong>Numeri rimanenti:</strong> {resultData.remaining.length}
-								<span class="text-xs ml-2">({resultData.remaining.slice(0, 10).join(', ')}{resultData.remaining.length > 10 ? '...' : ''})</span>
+								<strong>Numeri rimanenti:</strong>
+								{resultData.remaining.length}
+								<span class="text-xs ml-2"
+									>({resultData.remaining.slice(0, 10).join(', ')}{resultData.remaining.length > 10
+										? '...'
+										: ''})</span
+								>
 							</li>
 						{/if}
 					</ul>
@@ -255,15 +281,25 @@
 				{#if form?.assignedUserIds?.length}
 					<div class="mt-3 pt-3 border-t border-green-200">
 						{#if exportError}
-							<p class="text-sm text-red-700 mb-2">Errore durante il download del file AICS. Riprova:</p>
+							<p class="text-sm text-red-700 mb-2">
+								Errore durante il download del file AICS. Riprova:
+							</p>
 						{/if}
 						<button
 							type="button"
-							onclick={() => { exportError = false; downloadAICSExport(form?.assignedUserIds ?? []); }}
+							onclick={() => {
+								exportError = false;
+								downloadAICSExport(form?.assignedUserIds ?? []);
+							}}
 							class="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-900 underline"
 						>
 							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
 							</svg>
 							Scarica file AICS
 						</button>
@@ -281,8 +317,18 @@
 
 		{#if data.usersAwaitingCard.length === 0}
 			<div class="text-center py-12 text-gray-500">
-				<svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+				<svg
+					class="mx-auto h-12 w-12 text-gray-400 mb-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
 				</svg>
 				<p class="text-lg">Nessun utente in attesa di assegnazione tessera.</p>
 				<p class="text-sm mt-1">Gli utenti appariranno qui dopo aver completato il pagamento.</p>
@@ -301,7 +347,7 @@
 						selectedUserIds = [];
 						window.scrollTo({ top: 0, behavior: 'smooth' });
 						if (result.type === 'success') {
-							const data = result.data as Record<string, unknown> | undefined;
+							const data = result.data as Record | undefined;
 							const userIds = data?.assignedUserIds as string[] | undefined;
 							if (userIds && userIds.length > 0) {
 								downloadAICSExport(userIds);
@@ -330,16 +376,24 @@
 										class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
 									/>
 								</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+								<th
+									class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+								>
 									Email
 								</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+								<th
+									class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+								>
 									Nome
 								</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+								<th
+									class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+								>
 									Cognome
 								</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+								<th
+									class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell"
+								>
 									Data Pagamento
 								</th>
 							</tr>
@@ -359,15 +413,24 @@
 									</td>
 									<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
 										<div>{user.email}</div>
-										<div class="sm:hidden text-xs text-gray-500">{user.firstName} {user.lastName}</div>
+										<div class="sm:hidden text-xs text-gray-500">
+											{user.firstName}
+											{user.lastName}
+										</div>
 									</td>
-									<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+									<td
+										class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell"
+									>
 										{user.firstName}
 									</td>
-									<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+									<td
+										class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell"
+									>
 										{user.lastName}
 									</td>
-									<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+									<td
+										class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell"
+									>
 										{formatDate(user.paymentDate)}
 									</td>
 								</tr>
@@ -390,12 +453,14 @@
 								name="assignmentModeRadio"
 								value="auto"
 								checked={assignmentMode === 'auto'}
-								onchange={() => assignmentMode = 'auto'}
+								onchange={() => (assignmentMode = 'auto')}
 								class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
 							/>
 							<div>
 								<span class="text-sm font-medium text-gray-900">Automatica (dal pool)</span>
-								<p class="text-xs text-gray-500">Assegna i prossimi numeri disponibili dai range configurati</p>
+								<p class="text-xs text-gray-500">
+									Assegna i prossimi numeri disponibili dai range configurati
+								</p>
 							</div>
 						</label>
 
@@ -406,12 +471,14 @@
 								name="assignmentModeRadio"
 								value="range"
 								checked={assignmentMode === 'range'}
-								onchange={() => assignmentMode = 'range'}
+								onchange={() => (assignmentMode = 'range')}
 								class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
 							/>
 							<div class="flex-1">
 								<span class="text-sm font-medium text-gray-900">Range specifico</span>
-								<p class="text-xs text-gray-500">Assegna numeri da un valore iniziale a uno finale</p>
+								<p class="text-xs text-gray-500">
+									Assegna numeri da un valore iniziale a uno finale
+								</p>
 								{#if assignmentMode === 'range'}
 									<div class="mt-2 flex items-center gap-2">
 										<input
@@ -438,12 +505,14 @@
 									{/if}
 									{#if rangeCount() > 0 && rangeCount() > selectedUserIds.length}
 										<p class="text-xs text-yellow-600 mt-1">
-											{rangeCount() - selectedUserIds.length} numeri avanzeranno (range: {rangeCount()}, utenti: {selectedUserIds.length})
+											{rangeCount() - selectedUserIds.length} numeri avanzeranno (range: {rangeCount()},
+											utenti: {selectedUserIds.length})
 										</p>
 									{/if}
 									{#if rangeCount() > 0 && rangeCount() < selectedUserIds.length}
 										<p class="text-xs text-red-600 mt-1">
-											{selectedUserIds.length - rangeCount()} utenti rimarranno senza tessera (range: {rangeCount()}, utenti: {selectedUserIds.length})
+											{selectedUserIds.length - rangeCount()} utenti rimarranno senza tessera (range:
+											{rangeCount()}, utenti: {selectedUserIds.length})
 										</p>
 									{/if}
 								{/if}
@@ -451,13 +520,17 @@
 						</label>
 
 						<!-- Single Mode -->
-						<label class="flex items-start gap-3 {singleModeEnabled ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}">
+						<label
+							class="flex items-start gap-3 {singleModeEnabled
+								? 'cursor-pointer'
+								: 'opacity-50 cursor-not-allowed'}"
+						>
 							<input
 								type="radio"
 								name="assignmentModeRadio"
 								value="single"
 								checked={assignmentMode === 'single'}
-								onchange={() => assignmentMode = 'single'}
+								onchange={() => (assignmentMode = 'single')}
 								disabled={!singleModeEnabled}
 								class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 disabled:opacity-50"
 							/>
@@ -505,9 +578,24 @@
 						class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						{#if loading}
-							<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							<svg
+								class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline"
+								fill="none"
+								viewBox="0 0 24 24"
+							>
+								<circle
+									class="opacity-25"
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									stroke-width="4"
+								></circle>
+								<path
+									class="opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+								></path>
 							</svg>
 							Assegnazione in corso...
 						{:else}

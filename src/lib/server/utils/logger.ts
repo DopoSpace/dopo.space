@@ -21,7 +21,7 @@ export const logger = pino({
 					translateTime: 'HH:MM:ss',
 					ignore: 'pid,hostname'
 				}
-		  }
+			}
 		: undefined,
 	// Production: JSON output for log aggregation tools
 	formatters: {

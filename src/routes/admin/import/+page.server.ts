@@ -21,12 +21,15 @@ import type { AICSImportRow, ImportOptions, ImportPreview } from '$lib/types/imp
 const logger = pino({ name: 'admin-import' });
 
 // Store previews in memory (in production, use Redis or similar)
-const previewCache = new Map<string, {
-	preview: ImportPreview;
-	rows: AICSImportRow[];  // Original rows from file
-	mergedRows: AICSImportRow[];  // Rows after merging duplicates
-	timestamp: number;
-}>();
+const previewCache = new Map<
+	string,
+	{
+		preview: ImportPreview;
+		rows: AICSImportRow[]; // Original rows from file
+		mergedRows: AICSImportRow[]; // Rows after merging duplicates
+		timestamp: number;
+	}
+>();
 
 // Clean up old previews (older than 30 minutes)
 function cleanupOldPreviews() {
@@ -85,7 +88,10 @@ export const actions: Actions = {
 				return fail(400, { error: 'Nessun file caricato' });
 			}
 
-			logger.info({ fileName: file.name, fileSize: file.size, addMembershipToExisting }, 'Processing import file');
+			logger.info(
+				{ fileName: file.name, fileSize: file.size, addMembershipToExisting },
+				'Processing import file'
+			);
 
 			// Convert to buffer
 			const arrayBuffer = await file.arrayBuffer();
@@ -106,7 +112,7 @@ export const actions: Actions = {
 			const preview = await generateImportPreview(parseResult.rows, { addMembershipToExisting });
 
 			// Extract merged rows from preview (these are the rows after duplicate merging)
-			const mergedRows = preview.rows.map(r => r.original);
+			const mergedRows = preview.rows.map((r) => r.original);
 
 			// Store in cache with unique ID
 			const previewId = crypto.randomUUID();
@@ -117,13 +123,16 @@ export const actions: Actions = {
 				timestamp: Date.now()
 			});
 
-			logger.info({
-				previewId,
-				totalRows: preview.totalRows,
-				validCount: preview.validCount,
-				errorCount: preview.errorCount,
-				duplicateCount: preview.duplicateCount
-			}, 'Import preview generated');
+			logger.info(
+				{
+					previewId,
+					totalRows: preview.totalRows,
+					validCount: preview.validCount,
+					errorCount: preview.errorCount,
+					duplicateCount: preview.duplicateCount
+				},
+				'Import preview generated'
+			);
 
 			return {
 				success: true,
@@ -137,7 +146,7 @@ export const actions: Actions = {
 					errorCount: preview.errorCount,
 					duplicateCount: preview.duplicateCount,
 					mergedGroups: preview.mergedGroups,
-					rows: preview.rows.map(r => ({
+					rows: preview.rows.map((r) => ({
 						rowNumber: r.rowNumber,
 						original: {
 							cognome: r.original.cognome,
@@ -158,7 +167,7 @@ export const actions: Actions = {
 			};
 		} catch (error) {
 			logger.error({ error }, 'Error processing upload');
-			return fail(500, { error: 'Errore durante l\'elaborazione del file' });
+			return fail(500, { error: "Errore durante l'elaborazione del file" });
 		}
 	},
 
@@ -191,17 +200,22 @@ export const actions: Actions = {
 			};
 
 			// Get validation results with options - use merged rows
-			const { results: validationResults } = await validateImportRowsWithMapping(mergedRows, { addMembershipToExisting });
+			const { results: validationResults } = await validateImportRowsWithMapping(mergedRows, {
+				addMembershipToExisting
+			});
 
 			// Execute import with merged rows (aligned with validation results)
-			logger.info({
-				previewId,
-				originalRows: cached.rows.length,
-				mergedRows: mergedRows.length,
-				createMembership,
-				addMembershipToExisting,
-				adminId: admin.id
-			}, 'Starting import');
+			logger.info(
+				{
+					previewId,
+					originalRows: cached.rows.length,
+					mergedRows: mergedRows.length,
+					createMembership,
+					addMembershipToExisting,
+					adminId: admin.id
+				},
+				'Starting import'
+			);
 
 			const result = await importUsers(mergedRows, validationResults, options, admin.id);
 
@@ -219,11 +233,14 @@ export const actions: Actions = {
 				importResult: result
 			});
 
-			logger.info({
-				resultId,
-				importedCount: result.importedCount,
-				errorCount: result.errorCount
-			}, 'Import completed');
+			logger.info(
+				{
+					resultId,
+					importedCount: result.importedCount,
+					errorCount: result.errorCount
+				},
+				'Import completed'
+			);
 
 			return {
 				success: true,
@@ -239,7 +256,7 @@ export const actions: Actions = {
 			};
 		} catch (error) {
 			logger.error({ error }, 'Error executing import');
-			return fail(500, { error: 'Errore durante l\'importazione' });
+			return fail(500, { error: "Errore durante l'importazione" });
 		}
 	},
 
@@ -265,7 +282,7 @@ export const actions: Actions = {
 			const { mergedRows, preview } = cached;
 
 			// Generate report using merged rows (aligned with validation results)
-			const validationResults = preview.rows.map(r => r.validation);
+			const validationResults = preview.rows.map((r) => r.validation);
 			const buffer = await generateErrorReport(validationResults, mergedRows);
 
 			return {
@@ -293,13 +310,15 @@ export const actions: Actions = {
 			const resultId = formData.get('resultId') as string;
 
 			// Get cached result
-			const cached = previewCache.get(`result-${resultId}`) as {
-				preview: ImportPreview;
-				rows: AICSImportRow[];
-				mergedRows: AICSImportRow[];
-				timestamp: number;
-				importResult?: ReturnType<typeof importUsers> extends Promise<infer T> ? T : never;
-			} | undefined;
+			const cached = previewCache.get(`result-${resultId}`) as
+				| {
+						preview: ImportPreview;
+						rows: AICSImportRow[];
+						mergedRows: AICSImportRow[];
+						timestamp: number;
+						importResult?: ReturnType<typeof importUsers> extends Promise<infer T> ? T : never;
+				  }
+				| undefined;
 
 			if (!cached || !cached.importResult) {
 				return fail(400, { error: 'Risultato non trovato' });

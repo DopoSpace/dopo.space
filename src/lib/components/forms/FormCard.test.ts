@@ -20,14 +20,16 @@ describe('FormCard Component', () => {
 	});
 
 	it('does not render title heading when not provided', () => {
-		const { container } = render(FormCardTestWrapper, { content: 'Unique Content Without Title 789' });
-		
+		const { container } = render(FormCardTestWrapper, {
+			content: 'Unique Content Without Title 789'
+		});
+
 		// Check that there's no h2 or h3 heading containing our unique content
 		const headings = container.querySelectorAll('h2, h3');
-		const hasOurHeading = Array.from(headings).some(h => 
+		const hasOurHeading = Array.from(headings).some((h) =>
 			h.textContent?.includes('Unique Content Without Title 789')
 		);
-		
+
 		expect(hasOurHeading).toBe(false);
 	});
 

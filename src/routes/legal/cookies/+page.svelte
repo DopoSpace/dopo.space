@@ -14,7 +14,9 @@
 	<div class="legal-page">
 		<TextContainer>
 			<h1>{m.cookie_policy_title()}</h1>
-			<p style="opacity: 0.7; font-size: 1rem;">{m.cookie_policy_last_updated({ date: '24 Gennaio 2026' })}</p>
+			<p style="opacity: 0.7; font-size: 1rem;">
+				{m.cookie_policy_last_updated({ date: '24 Gennaio 2026' })}
+			</p>
 
 			<h2>1. {m.cookie_policy_what_title()}</h2>
 			<p>{m.cookie_policy_what_text()}</p>
@@ -112,13 +114,17 @@
 			</table>
 
 			<p>
-				<a href="https://www.paypal.com/it/legalhub/privacy-full" target="_blank" rel="noopener">Privacy e Cookie Policy di PayPal</a>
+				<a href="https://www.paypal.com/it/legalhub/privacy-full" target="_blank" rel="noopener"
+					>Privacy e Cookie Policy di PayPal</a
+				>
 			</p>
 
 			<h2>{m.cookie_policy_google_title()}</h2>
 			<p>{m.cookie_policy_google_desc()}</p>
 			<p>
-				<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy di Google</a>
+				<a href="https://policies.google.com/privacy" target="_blank" rel="noopener"
+					>Privacy Policy di Google</a
+				>
 			</p>
 
 			<h2>5. {m.cookie_policy_manage_title()}</h2>
@@ -131,10 +137,32 @@
 			<h2>{m.cookie_policy_browser_title()}</h2>
 			<p>{m.cookie_policy_browser_text()}</p>
 			<ul>
-				<li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener">Google Chrome</a></li>
-				<li><a href="https://support.mozilla.org/it/kb/protezione-antitracciamento-avanzata-firefox-desktop" target="_blank" rel="noopener">Mozilla Firefox</a></li>
-				<li><a href="https://support.apple.com/it-it/guide/safari/sfri11471/mac" target="_blank" rel="noopener">Safari</a></li>
-				<li><a href="https://support.microsoft.com/it-it/microsoft-edge/eliminare-i-cookie-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener">Microsoft Edge</a></li>
+				<li>
+					<a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener"
+						>Google Chrome</a
+					>
+				</li>
+				<li>
+					<a
+						href="https://support.mozilla.org/it/kb/protezione-antitracciamento-avanzata-firefox-desktop"
+						target="_blank"
+						rel="noopener">Mozilla Firefox</a
+					>
+				</li>
+				<li>
+					<a
+						href="https://support.apple.com/it-it/guide/safari/sfri11471/mac"
+						target="_blank"
+						rel="noopener">Safari</a
+					>
+				</li>
+				<li>
+					<a
+						href="https://support.microsoft.com/it-it/microsoft-edge/eliminare-i-cookie-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09"
+						target="_blank"
+						rel="noopener">Microsoft Edge</a
+					>
+				</li>
 			</ul>
 
 			<div class="warning-box">

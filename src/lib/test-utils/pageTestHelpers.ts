@@ -25,11 +25,7 @@ export function testRedBackground(container: HTMLElement) {
 /**
  * Test helper: Verifies CSS classes on an element
  */
-export function testElementClasses(
-	container: HTMLElement,
-	selector: string,
-	classes: string[]
-) {
+export function testElementClasses(container: HTMLElement, selector: string, classes: string[]) {
 	const element = container.querySelector(selector);
 	expect(element).toBeInTheDocument();
 	expect(element).toHaveClass(...classes);

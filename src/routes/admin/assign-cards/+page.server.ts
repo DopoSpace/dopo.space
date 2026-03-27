@@ -9,7 +9,10 @@ import {
 	type BatchAssignResult,
 	type SingleAssignResult
 } from '$lib/server/services/membership';
-import { getAvailableNumbersCount, getCardNumberRangesWithStats } from '$lib/server/services/card-ranges';
+import {
+	getAvailableNumbersCount,
+	getCardNumberRangesWithStats
+} from '$lib/server/services/card-ranges';
 import { assignCardsSchema, formatZodErrors } from '$lib/server/utils/validation';
 import { createLogger } from '$lib/server/utils/logger';
 
@@ -147,7 +150,7 @@ export const actions: Actions = {
 		} catch (error) {
 			logger.error({ err: error, mode, userIds }, 'Failed to assign membership numbers');
 			return fail(500, {
-				errors: { _form: error instanceof Error ? error.message : 'Errore durante l\'assegnazione' }
+				errors: { _form: error instanceof Error ? error.message : "Errore durante l'assegnazione" }
 			});
 		}
 	}

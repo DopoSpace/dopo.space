@@ -29,14 +29,17 @@ export class RateLimiter {
 
 	constructor() {
 		// Clean up expired entries every 5 minutes
-		this.cleanupInterval = setInterval(() => {
-			const now = Date.now();
-			for (const [key, entry] of this.store.entries()) {
-				if (entry.resetAt < now) {
-					this.store.delete(key);
+		this.cleanupInterval = setInterval(
+			() => {
+				const now = Date.now();
+				for (const [key, entry] of this.store.entries()) {
+					if (entry.resetAt < now) {
+						this.store.delete(key);
+					}
 				}
-			}
-		}, 5 * 60 * 1000);
+			},
+			5 * 60 * 1000
+		);
 	}
 
 	/**

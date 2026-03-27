@@ -11,7 +11,7 @@
 		{
 			href: '/legal/cookies',
 			title: 'Cookie Policy',
-			description: 'Informativa sull\'utilizzo dei cookie sul nostro sito'
+			description: "Informativa sull'utilizzo dei cookie sul nostro sito"
 		},
 		{
 			href: '/legal/terms',
@@ -23,13 +23,15 @@
 
 <svelte:head>
 	<title>Documenti Legali - APS Dopolavoro</title>
-	<meta name="description" content="Documenti legali di APS Dopolavoro: privacy policy, cookie policy, termini e condizioni" />
+	<meta
+		name="description"
+		content="Documenti legali di APS Dopolavoro: privacy policy, cookie policy, termini e condizioni"
+	/>
 </svelte:head>
 
 <PublicPageLayout>
 	<div class="legal-page">
 		<TextContainer>
-
 			<h1>Documenti Legali</h1>
 			<p>Trasparenza e protezione dei tuoi dati</p>
 

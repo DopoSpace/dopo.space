@@ -18,7 +18,7 @@ const { mockPage } = vi.hoisted(() => {
 			},
 			set(newValue: T) {
 				value = newValue;
-				subscribers.forEach(fn => fn(value));
+				subscribers.forEach((fn) => fn(value));
 			}
 		};
 	}
@@ -42,7 +42,6 @@ vi.mock('$app/stores', () => ({
 }));
 
 describe('MenuItem Component', () => {
-
 	it('renders link with correct text', () => {
 		render(MenuItem, { to: '/about', item: 'About' });
 		const link = screen.getByText('About');
@@ -52,7 +51,7 @@ describe('MenuItem Component', () => {
 	it('renders link with correct href', () => {
 		render(MenuItem, { to: '/contact', item: 'Contact' });
 		const links = screen.getAllByRole('link', { name: 'Contact' });
-		const contactLink = links.find(link => link.getAttribute('href') === '/contact');
+		const contactLink = links.find((link) => link.getAttribute('href') === '/contact');
 		expect(contactLink).toHaveAttribute('href', '/contact');
 	});
 
@@ -71,7 +70,7 @@ describe('MenuItem Component', () => {
 
 		render(MenuItem, { to: '/about', item: 'About' });
 		const links = screen.getAllByRole('link', { name: 'About' });
-		const aboutLink = links.find(link => link.getAttribute('href') === '/about');
+		const aboutLink = links.find((link) => link.getAttribute('href') === '/about');
 		expect(aboutLink).toHaveClass('underline');
 	});
 
@@ -90,7 +89,7 @@ describe('MenuItem Component', () => {
 
 		render(MenuItem, { to: '/about', item: 'About' });
 		const links = screen.getAllByRole('link', { name: 'About' });
-		const aboutLink = links.find(link => link.getAttribute('href') === '/about');
+		const aboutLink = links.find((link) => link.getAttribute('href') === '/about');
 		expect(aboutLink).not.toHaveClass('underline');
 	});
 });

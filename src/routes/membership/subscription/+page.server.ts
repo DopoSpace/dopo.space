@@ -20,8 +20,21 @@ const logger = createLogger({ module: 'membership' });
  * Compute membership state from user data (avoids redundant DB query)
  */
 function computeMembershipState(user: {
-	profile: { profileComplete: boolean; firstName: string | null; lastName: string | null; birthDate: Date | null; privacyConsent: boolean | null; dataConsent: boolean | null } | null;
-	memberships: Array<{ status: MembershipStatus; paymentStatus: PaymentStatus; membershipNumber: string | null; endDate: Date | null; paymentProviderId: string | null }>;
+	profile: {
+		profileComplete: boolean;
+		firstName: string | null;
+		lastName: string | null;
+		birthDate: Date | null;
+		privacyConsent: boolean | null;
+		dataConsent: boolean | null;
+	} | null;
+	memberships: Array<{
+		status: MembershipStatus;
+		paymentStatus: PaymentStatus;
+		membershipNumber: string | null;
+		endDate: Date | null;
+		paymentProviderId: string | null;
+	}>;
 }) {
 	const profile = user.profile;
 	const membership = user.memberships[0];
@@ -66,7 +79,10 @@ function computeMembershipState(user: {
 	}
 
 	// S3: Payment failed or canceled
-	if (membership.paymentStatus === PaymentStatus.FAILED || membership.paymentStatus === PaymentStatus.CANCELED) {
+	if (
+		membership.paymentStatus === PaymentStatus.FAILED ||
+		membership.paymentStatus === PaymentStatus.CANCELED
+	) {
 		return { systemState: SystemState.S3_PAYMENT_FAILED, membershipNumber: null, profileComplete };
 	}
 
@@ -76,7 +92,11 @@ function computeMembershipState(user: {
 		membership.paymentProviderId &&
 		!membership.membershipNumber
 	) {
-		return { systemState: SystemState.S2_PROCESSING_PAYMENT, membershipNumber: null, profileComplete };
+		return {
+			systemState: SystemState.S2_PROCESSING_PAYMENT,
+			membershipNumber: null,
+			profileComplete
+		};
 	}
 
 	// S1 or S0: Pending payment depends on profile completeness
@@ -105,7 +125,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	// Use data already loaded in hooks.server.ts - no additional queries needed
-	const membershipState = computeMembershipState(user as Parameters<typeof computeMembershipState>[0]);
+	const membershipState = computeMembershipState(
+		user as Parameters<typeof computeMembershipState>[0]
+	);
 
 	return {
 		user: {
@@ -212,9 +234,7 @@ export const actions = {
 				taxCode: d.taxCode || null,
 				nationality: d.nationality,
 				birthProvince: d.birthProvince,
-				birthCity: d.birthProvince === 'EE'
-					? normalizeForeignBirthCity(d.birthCity)
-					: d.birthCity,
+				birthCity: d.birthProvince === 'EE' ? normalizeForeignBirthCity(d.birthCity) : d.birthCity,
 				hasForeignTaxCode: d.hasForeignTaxCode,
 				gender: finalGender,
 				residenceCountry: d.residenceCountry,
@@ -273,7 +293,10 @@ export const actions = {
 								mailchimpSubscriberId: result.subscriberId
 							}
 						});
-						logger.info({ userId: user.id, status: result.status }, 'User subscribed to newsletter');
+						logger.info(
+							{ userId: user.id, status: result.status },
+							'User subscribed to newsletter'
+						);
 					}
 				} else if (wasSubscribed && !newsletterConsent) {
 					await unsubscribeFromNewsletter(user.email);

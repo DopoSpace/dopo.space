@@ -29,9 +29,7 @@
 
 	// Convert country code to flag emoji
 	function getFlag(code: string): string {
-		const codePoints = [...code.toUpperCase()].map(
-			(char) => 0x1f1e6 + char.charCodeAt(0) - 65
-		);
+		const codePoints = [...code.toUpperCase()].map((char) => 0x1f1e6 + char.charCodeAt(0) - 65);
 		return String.fromCodePoint(...codePoints);
 	}
 
@@ -205,7 +203,9 @@
 				onblur={handleBlur}
 				{disabled}
 				placeholder="333 1234567"
-				class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
+				class="input text-gray-900 {error
+					? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+					: ''} {disabled ? 'bg-gray-100 cursor-not-allowed' : ''}"
 				aria-invalid={error ? 'true' : 'false'}
 				aria-describedby={error ? `${name}-error` : undefined}
 			/>

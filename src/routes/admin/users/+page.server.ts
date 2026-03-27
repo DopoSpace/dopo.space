@@ -41,10 +41,25 @@ function parseDate(value: string | null): Date | null {
 }
 
 /** Valid filter status values */
-type FilterStatus = 'active' | 'expired' | 'canceled' | 'awaiting_card' | 'awaiting_payment' | 'payment_failed' | 'not_member';
+type FilterStatus =
+	| 'active'
+	| 'expired'
+	| 'canceled'
+	| 'awaiting_card'
+	| 'awaiting_payment'
+	| 'payment_failed'
+	| 'not_member';
 
 /** Valid sort fields */
-type SortField = 'email' | 'firstName' | 'lastName' | 'membershipNumber' | 'status' | 'startDate' | 'endDate' | 'createdAt';
+type SortField =
+	| 'email'
+	| 'firstName'
+	| 'lastName'
+	| 'membershipNumber'
+	| 'status'
+	| 'startDate'
+	| 'endDate'
+	| 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 /** Fields that can be sorted at the database level */
@@ -66,11 +81,14 @@ function buildOrderBy(sort: SortField, order: SortOrder): Prisma.UserOrderByWith
 }
 
 /** Sort users by membership fields (done in-memory after fetch) */
-function sortByMembershipField<T extends { membershipNumber: string | null; membershipStatus: string | null; startDate: string | null; endDate: string | null }>(
-	users: T[],
-	sort: SortField,
-	order: SortOrder
-): T[] {
+function sortByMembershipField<
+	T extends {
+		membershipNumber: string | null;
+		membershipStatus: string | null;
+		startDate: string | null;
+		endDate: string | null;
+	}
+>(users: T[], sort: SortField, order: SortOrder): T[] {
 	const sorted = [...users];
 	const multiplier = order === 'asc' ? 1 : -1;
 
@@ -112,7 +130,16 @@ function sortByMembershipField<T extends { membershipNumber: string | null; memb
 
 /** Get user counts by status */
 async function getStatusCounts(): Promise<StatusCounts> {
-	const [total, active, awaitingCard, awaitingPayment, paymentFailed, expired, canceled, notMember] = await Promise.all([
+	const [
+		total,
+		active,
+		awaitingCard,
+		awaitingPayment,
+		paymentFailed,
+		expired,
+		canceled,
+		notMember
+	] = await Promise.all([
 		prisma.user.count(),
 		prisma.user.count({
 			where: {
@@ -175,7 +202,16 @@ async function getStatusCounts(): Promise<StatusCounts> {
 		})
 	]);
 
-	return { total, active, awaitingCard, awaitingPayment, paymentFailed, expired, canceled, notMember };
+	return {
+		total,
+		active,
+		awaitingCard,
+		awaitingPayment,
+		paymentFailed,
+		expired,
+		canceled,
+		notMember
+	};
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -204,9 +240,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const endDateTo = parseDate(url.searchParams.get('endDateTo'));
 
 	// Get sort parameters
-	const validSortFields: SortField[] = ['email', 'firstName', 'lastName', 'membershipNumber', 'status', 'startDate', 'endDate', 'createdAt'];
+	const validSortFields: SortField[] = [
+		'email',
+		'firstName',
+		'lastName',
+		'membershipNumber',
+		'status',
+		'startDate',
+		'endDate',
+		'createdAt'
+	];
 	const rawSort = url.searchParams.get('sort') || 'createdAt';
-	const sort: SortField = validSortFields.includes(rawSort as SortField) ? (rawSort as SortField) : 'createdAt';
+	const sort: SortField = validSortFields.includes(rawSort as SortField)
+		? (rawSort as SortField)
+		: 'createdAt';
 	const rawOrder = url.searchParams.get('order') || 'desc';
 	const order: SortOrder = rawOrder === 'asc' ? 'asc' : 'desc';
 	const isMembershipSort = !DB_SORTABLE_FIELDS.includes(sort);
@@ -349,7 +396,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		endDateTo: endDateTo?.toISOString().split('T')[0] || ''
 	};
 
-	const hasActiveFilters = Object.values(filters).some(v => v !== '');
+	const hasActiveFilters = Object.values(filters).some((v) => v !== '');
 
 	try {
 		// Get status counts (cached for display)
@@ -479,10 +526,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		// Get all matching user IDs for "select all" functionality
-		const allUserIds = await prisma.user.findMany({
-			where: whereClause,
-			select: { id: true }
-		}).then(users => users.map(u => u.id));
+		const allUserIds = await prisma.user
+			.findMany({
+				where: whereClause,
+				select: { id: true }
+			})
+			.then((users) => users.map((u) => u.id));
 
 		return {
 			users: mappedUsers,

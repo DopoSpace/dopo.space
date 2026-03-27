@@ -60,85 +60,85 @@ import { IMPORT_ERROR_MESSAGES } from '$lib/types/import';
  */
 const KNOWN_COUNTRY_NAMES: Record<string, string> = {
 	// English names
-	'FRANCE': 'Francia',
-	'GERMANY': 'Germania',
-	'SPAIN': 'Spagna',
-	'PORTUGAL': 'Portogallo',
-	'UK': 'Regno Unito',
+	FRANCE: 'Francia',
+	GERMANY: 'Germania',
+	SPAIN: 'Spagna',
+	PORTUGAL: 'Portogallo',
+	UK: 'Regno Unito',
 	'UNITED KINGDOM': 'Regno Unito',
 	'GREAT BRITAIN': 'Regno Unito',
-	'ENGLAND': 'Inghilterra',
-	'SCOTLAND': 'Scozia',
-	'WALES': 'Galles',
-	'IRELAND': 'Irlanda',
-	'USA': 'Stati Uniti',
+	ENGLAND: 'Inghilterra',
+	SCOTLAND: 'Scozia',
+	WALES: 'Galles',
+	IRELAND: 'Irlanda',
+	USA: 'Stati Uniti',
 	'UNITED STATES': 'Stati Uniti',
 	'UNITED STATES OF AMERICA': 'Stati Uniti',
-	'SWITZERLAND': 'Svizzera',
-	'AUSTRIA': 'Austria',
-	'BELGIUM': 'Belgio',
-	'NETHERLANDS': 'Paesi Bassi',
-	'HOLLAND': 'Paesi Bassi',
-	'POLAND': 'Polonia',
-	'ROMANIA': 'Romania',
-	'GREECE': 'Grecia',
-	'CROATIA': 'Croazia',
-	'SLOVENIA': 'Slovenia',
+	SWITZERLAND: 'Svizzera',
+	AUSTRIA: 'Austria',
+	BELGIUM: 'Belgio',
+	NETHERLANDS: 'Paesi Bassi',
+	HOLLAND: 'Paesi Bassi',
+	POLAND: 'Polonia',
+	ROMANIA: 'Romania',
+	GREECE: 'Grecia',
+	CROATIA: 'Croazia',
+	SLOVENIA: 'Slovenia',
 	'CZECH REPUBLIC': 'Repubblica Ceca',
-	'CZECHIA': 'Repubblica Ceca',
-	'HUNGARY': 'Ungheria',
-	'SWEDEN': 'Svezia',
-	'NORWAY': 'Norvegia',
-	'DENMARK': 'Danimarca',
-	'FINLAND': 'Finlandia',
-	'RUSSIA': 'Russia',
-	'UKRAINE': 'Ucraina',
-	'BRAZIL': 'Brasile',
-	'ARGENTINA': 'Argentina',
-	'MEXICO': 'Messico',
-	'CANADA': 'Canada',
-	'AUSTRALIA': 'Australia',
-	'CHINA': 'Cina',
-	'JAPAN': 'Giappone',
-	'INDIA': 'India',
-	'MOROCCO': 'Marocco',
-	'TUNISIA': 'Tunisia',
-	'EGYPT': 'Egitto',
-	'ALBANIA': 'Albania',
-	'SERBIA': 'Serbia',
-	'BULGARIA': 'Bulgaria',
-	'TURKEY': 'Turchia',
-	'LUXEMBOURG': 'Lussemburgo',
+	CZECHIA: 'Repubblica Ceca',
+	HUNGARY: 'Ungheria',
+	SWEDEN: 'Svezia',
+	NORWAY: 'Norvegia',
+	DENMARK: 'Danimarca',
+	FINLAND: 'Finlandia',
+	RUSSIA: 'Russia',
+	UKRAINE: 'Ucraina',
+	BRAZIL: 'Brasile',
+	ARGENTINA: 'Argentina',
+	MEXICO: 'Messico',
+	CANADA: 'Canada',
+	AUSTRALIA: 'Australia',
+	CHINA: 'Cina',
+	JAPAN: 'Giappone',
+	INDIA: 'India',
+	MOROCCO: 'Marocco',
+	TUNISIA: 'Tunisia',
+	EGYPT: 'Egitto',
+	ALBANIA: 'Albania',
+	SERBIA: 'Serbia',
+	BULGARIA: 'Bulgaria',
+	TURKEY: 'Turchia',
+	LUXEMBOURG: 'Lussemburgo',
 	// Italian names (already in Italian, but map them for consistency)
-	'FRANCIA': 'Francia',
-	'GERMANIA': 'Germania',
-	'SPAGNA': 'Spagna',
-	'PORTOGALLO': 'Portogallo',
+	FRANCIA: 'Francia',
+	GERMANIA: 'Germania',
+	SPAGNA: 'Spagna',
+	PORTOGALLO: 'Portogallo',
 	'REGNO UNITO': 'Regno Unito',
-	'INGHILTERRA': 'Inghilterra',
-	'IRLANDA': 'Irlanda',
+	INGHILTERRA: 'Inghilterra',
+	IRLANDA: 'Irlanda',
 	'STATI UNITI': 'Stati Uniti',
-	'SVIZZERA': 'Svizzera',
-	'BELGIO': 'Belgio',
+	SVIZZERA: 'Svizzera',
+	BELGIO: 'Belgio',
 	'PAESI BASSI': 'Paesi Bassi',
-	'OLANDA': 'Paesi Bassi',
-	'POLONIA': 'Polonia',
-	'GRECIA': 'Grecia',
-	'CROAZIA': 'Croazia',
+	OLANDA: 'Paesi Bassi',
+	POLONIA: 'Polonia',
+	GRECIA: 'Grecia',
+	CROAZIA: 'Croazia',
 	'REPUBBLICA CECA': 'Repubblica Ceca',
-	'UNGHERIA': 'Ungheria',
-	'SVEZIA': 'Svezia',
-	'NORVEGIA': 'Norvegia',
-	'DANIMARCA': 'Danimarca',
-	'FINLANDIA': 'Finlandia',
-	'BRASILE': 'Brasile',
-	'MESSICO': 'Messico',
-	'CINA': 'Cina',
-	'GIAPPONE': 'Giappone',
-	'MAROCCO': 'Marocco',
-	'EGITTO': 'Egitto',
-	'TURCHIA': 'Turchia',
-	'LUSSEMBURGO': 'Lussemburgo'
+	UNGHERIA: 'Ungheria',
+	SVEZIA: 'Svezia',
+	NORVEGIA: 'Norvegia',
+	DANIMARCA: 'Danimarca',
+	FINLANDIA: 'Finlandia',
+	BRASILE: 'Brasile',
+	MESSICO: 'Messico',
+	CINA: 'Cina',
+	GIAPPONE: 'Giappone',
+	MAROCCO: 'Marocco',
+	EGITTO: 'Egitto',
+	TURCHIA: 'Turchia',
+	LUSSEMBURGO: 'Lussemburgo'
 };
 
 /**
@@ -329,7 +329,7 @@ export function tryFixEmail(email: string): string | null {
 	}
 
 	const local = normalized.substring(0, atIndex);
-	let domain = normalized.substring(atIndex + 1);
+	const domain = normalized.substring(atIndex + 1);
 
 	// Check if domain is incomplete (no dot/TLD) - e.g., "@gmail" → "@gmail.com"
 	if (!domain.includes('.')) {
@@ -529,7 +529,7 @@ const ITALIAN_CITY_ALIASES: Record<string, string> = {
 	'REGGIO DI CALABRIA': 'Reggio di Calabria',
 	// Other common variations
 	"FORLI'": 'Forlì',
-	'FORLI': 'Forlì',
+	FORLI: 'Forlì',
 	"FORLI'-CESENA": 'Forlì',
 	'SAN DONA DI PIAVE': 'San Donà di Piave',
 	"SAN DONA' DI PIAVE": 'San Donà di Piave',
@@ -547,7 +547,10 @@ export function normalizeBirthCity(city: string): string {
 	if (!city) return '';
 
 	// Remove newlines and normalize whitespace (some files have "Region\nCity" format)
-	let trimmed = city.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+	let trimmed = city
+		.replace(/[\r\n]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
 
 	// Check if it contains " - " followed by an ISTAT code (letter + digits)
 	const match = trimmed.match(/^(.+?)\s*-\s*[A-Z]\d{3}$/i);
@@ -916,7 +919,9 @@ export async function validateImportRow(
 			if (inferredGender) {
 				validatedGender = inferredGender;
 				correctedData.sesso = inferredGender;
-				warnings.push(`Sesso dedotto dal cognome "${lastName}": ${inferredGender} (nome/cognome potrebbero essere invertiti)`);
+				warnings.push(
+					`Sesso dedotto dal cognome "${lastName}": ${inferredGender} (nome/cognome potrebbero essere invertiti)`
+				);
 			}
 		}
 
@@ -956,7 +961,12 @@ export async function validateImportRow(
 
 	// Step 0-pre: Resolve province name or city name to 2-letter province code
 	// The import file may have full names (e.g., "Milano", "Faenza") instead of codes ("MI", "RA")
-	if (birthProvince && birthProvince !== 'EE' && birthProvince.length > 2 && !KNOWN_COUNTRY_NAMES[birthProvince]) {
+	if (
+		birthProvince &&
+		birthProvince !== 'EE' &&
+		birthProvince.length > 2 &&
+		!KNOWN_COUNTRY_NAMES[birthProvince]
+	) {
 		const resolved = resolveProvinceFromName(birthProvince);
 		if (resolved) {
 			const originalProvince = birthProvince;
@@ -966,7 +976,9 @@ export async function validateImportRow(
 			if (resolved.isProvinceName) {
 				warnings.push(`Provincia "${originalProvince}" risolta a ${resolved.provinciaCode}`);
 			} else {
-				warnings.push(`"${originalProvince}" è un comune in provincia ${resolved.provinciaCode} - provincia corretta`);
+				warnings.push(
+					`"${originalProvince}" è un comune in provincia ${resolved.provinciaCode} - provincia corretta`
+				);
 				// If comuneNascita is empty, fill it with the resolved comune name
 				if (!birthCity && resolved.comuneNome) {
 					birthCity = resolved.comuneNome;
@@ -983,7 +995,9 @@ export async function validateImportRow(
 		const countryName = KNOWN_COUNTRY_NAMES[birthProvince];
 		if (countryName) {
 			correctedData.provinciaNascita = 'EE';
-			warnings.push(`"${row.provinciaNascita}" è un paese - provincia corretta a EE (${countryName})`);
+			warnings.push(
+				`"${row.provinciaNascita}" è un paese - provincia corretta a EE (${countryName})`
+			);
 			birthProvince = 'EE';
 		}
 	}
@@ -1004,7 +1018,10 @@ export async function validateImportRow(
 					warnings.push(
 						`Comune di nascita "${birthCity}" in ${geoResult.countryName || geoResult.countryCode} - provincia corretta a EE (estero)`
 					);
-				} else if (geoResult.cityName && geoResult.cityName.toLowerCase() !== birthCity.toLowerCase()) {
+				} else if (
+					geoResult.cityName &&
+					geoResult.cityName.toLowerCase() !== birthCity.toLowerCase()
+				) {
 					// Google found an Italian city with different name (translation or variant)
 					// Try to look it up with the corrected name
 					const italianName = geoResult.cityName;
@@ -1054,7 +1071,9 @@ export async function validateImportRow(
 		birthDateWasSwapped = dateParseResult.wasSwapped;
 		if (birthDateWasSwapped) {
 			correctedData.dataNascita = formatItalianDate(birthDate);
-			warnings.push(`Data corretta da formato mm/dd/yyyy: ${row.dataNascita} → ${correctedData.dataNascita}`);
+			warnings.push(
+				`Data corretta da formato mm/dd/yyyy: ${row.dataNascita} → ${correctedData.dataNascita}`
+			);
 		}
 	}
 
@@ -1062,7 +1081,9 @@ export async function validateImportRow(
 	if (!birthDate && taxCode && !isPlaceholder && validateTaxCodeFormat(taxCode)) {
 		const extractedDate = extractBirthDateFromTaxCode(taxCode);
 		if (extractedDate) {
-			birthDate = new Date(Date.UTC(extractedDate.year, extractedDate.month - 1, extractedDate.day));
+			birthDate = new Date(
+				Date.UTC(extractedDate.year, extractedDate.month - 1, extractedDate.day)
+			);
 			correctedData.dataNascita = formatItalianDate(birthDate);
 			warnings.push(`Data di nascita estratta dal CF: ${correctedData.dataNascita}`);
 		}
@@ -1074,18 +1095,14 @@ export async function validateImportRow(
 		// Check if CF is truly missing/placeholder vs present but invalid format
 		const rawCfValue = row.codiceFiscale?.trim() || '';
 		const isTrulyMissing = !rawCfValue || isExplicitTaxCodePlaceholder(rawCfValue);
-		const hasWrongLength = rawCfValue && !isExplicitTaxCodePlaceholder(rawCfValue) && rawCfValue.length !== 16;
+		const hasWrongLength =
+			rawCfValue && !isExplicitTaxCodePlaceholder(rawCfValue) && rawCfValue.length !== 16;
 
 		if (!taxCode || isPlaceholder) {
 			// Try to generate tax code if we have all required data
 			// Use validatedGender from earlier validation
 			const canGenerate =
-				firstName &&
-				lastName &&
-				birthDate &&
-				validatedGender &&
-				birthCity &&
-				birthProvince;
+				firstName && lastName && birthDate && validatedGender && birthCity && birthProvince;
 
 			if (canGenerate && birthDate && validatedGender) {
 				const generationResult = await generateTaxCode({
@@ -1104,7 +1121,9 @@ export async function validateImportRow(
 					generatedTaxCode = true;
 					if (hasWrongLength) {
 						// CF was present but had wrong length - mention it was replaced
-						warnings.push(`CF non valido (${rawCfValue.length} caratteri invece di 16), rigenerato: ${taxCode}`);
+						warnings.push(
+							`CF non valido (${rawCfValue.length} caratteri invece di 16), rigenerato: ${taxCode}`
+						);
 					} else {
 						warnings.push(`Codice fiscale generato automaticamente: ${taxCode}`);
 					}
@@ -1163,12 +1182,7 @@ export async function validateImportRow(
 				// Check if we have all data to regenerate the tax code
 				// Use validatedGender from earlier validation
 				const canFullyRegenerate =
-					birthDate &&
-					firstName &&
-					lastName &&
-					validatedGender &&
-					birthCity &&
-					birthProvince;
+					birthDate && firstName && lastName && validatedGender && birthCity && birthProvince;
 
 				let fixed = false;
 
@@ -1205,9 +1219,7 @@ export async function validateImportRow(
 							correctedData.codiceFiscale = taxCode;
 							hasValidTaxCode = true;
 							fixed = true;
-							warnings.push(
-								`CF corretto (checksum non valido): ${originalTaxCode} → ${taxCode}`
-							);
+							warnings.push(`CF corretto (checksum non valido): ${originalTaxCode} → ${taxCode}`);
 						}
 					}
 				} else if (!hasValidFormat && canFullyRegenerate && birthDate && validatedGender) {
@@ -1279,7 +1291,9 @@ export async function validateImportRow(
 				const originalDateStr = correctedData.dataNascita || row.dataNascita;
 				birthDate = new Date(Date.UTC(cfDate.year, cfDate.month - 1, cfDate.day));
 				correctedData.dataNascita = formatItalianDate(birthDate);
-				warnings.push(`Data di nascita corretta dal CF: ${correctedData.dataNascita} (era ${originalDateStr})`);
+				warnings.push(
+					`Data di nascita corretta dal CF: ${correctedData.dataNascita} (era ${originalDateStr})`
+				);
 			}
 		}
 	}
@@ -1429,38 +1443,26 @@ export async function validateImportRow(
 				let hasCorrections = false;
 
 				// Check and apply corrections for street address
-				if (
-					normalized.street &&
-					normalized.street.toLowerCase() !== indirizzo.toLowerCase()
-				) {
+				if (normalized.street && normalized.street.toLowerCase() !== indirizzo.toLowerCase()) {
 					correctedData.indirizzo = normalized.street;
 					hasCorrections = true;
 				}
 
 				// Check and apply corrections for city
-				if (
-					normalized.city &&
-					normalized.city.toLowerCase() !== comune.toLowerCase()
-				) {
+				if (normalized.city && normalized.city.toLowerCase() !== comune.toLowerCase()) {
 					correctedData.comune = normalized.city;
 					comune = normalized.city; // Update local variable
 					hasCorrections = true;
 				}
 
 				// Check and apply corrections for province
-				if (
-					normalized.province &&
-					normalized.province.toUpperCase() !== province.toUpperCase()
-				) {
+				if (normalized.province && normalized.province.toUpperCase() !== province.toUpperCase()) {
 					correctedData.provincia = normalized.province;
 					hasCorrections = true;
 				}
 
 				// Check and apply corrections for postal code
-				if (
-					normalized.postalCode &&
-					normalized.postalCode !== postalCode
-				) {
+				if (normalized.postalCode && normalized.postalCode !== postalCode) {
 					correctedData.cap = normalized.postalCode;
 					postalCode = normalized.postalCode; // Update local variable
 					hasCorrections = true;
@@ -1469,9 +1471,7 @@ export async function validateImportRow(
 				// Add warning about corrections
 				if (hasCorrections) {
 					if (addressResult.confidence === 'HIGH') {
-						warnings.push(
-							`Indirizzo normalizzato da Google: ${normalized.formattedAddress}`
-						);
+						warnings.push(`Indirizzo normalizzato da Google: ${normalized.formattedAddress}`);
 					} else {
 						warnings.push(
 							`Indirizzo corretto da Google (confidenza ${addressResult.confidence}): ${normalized.formattedAddress}`
@@ -1522,7 +1522,7 @@ export async function validateImportRow(
 					// Found in a different province - might be a data error
 					warnings.push(
 						`Comune "${finalComune}" non trovato per provincia ${finalProvince}, ` +
-						`ma esiste in provincia ${matchWithoutProvince.provinciaCode} - verificare i dati`
+							`ma esiste in provincia ${matchWithoutProvince.provinciaCode} - verificare i dati`
 					);
 				} else {
 					// Truly not found in AICS database
@@ -1642,9 +1642,11 @@ export function processImportRow(
 
 	// Check newsletter subscription preference
 	const newsletterValue = corrected.newsletter?.trim().toLowerCase() || '';
-	const subscribeToNewsletter = newsletterValue === 'sì' || newsletterValue === 'si' || newsletterValue === 'yes';
+	const subscribeToNewsletter =
+		newsletterValue === 'sì' || newsletterValue === 'si' || newsletterValue === 'yes';
 
-	const finalBirthProvince = normalizeProvince(corrected.provinciaNascita) || (isItalian ? '' : 'EE');
+	const finalBirthProvince =
+		normalizeProvince(corrected.provinciaNascita) || (isItalian ? '' : 'EE');
 
 	return {
 		email: normalizeEmail(corrected.email),
@@ -1654,9 +1656,10 @@ export function processImportRow(
 
 		nationality,
 		birthProvince: finalBirthProvince,
-		birthCity: finalBirthProvince === 'EE'
-			? normalizeForeignBirthCity(normalizeBirthCity(corrected.comuneNascita || ''))
-			: normalizeBirthCity(corrected.comuneNascita || ''),
+		birthCity:
+			finalBirthProvince === 'EE'
+				? normalizeForeignBirthCity(normalizeBirthCity(corrected.comuneNascita || ''))
+				: normalizeBirthCity(corrected.comuneNascita || ''),
 
 		// For foreign nationals without a valid tax code, store null (same as form and admin)
 		taxCode: taxCode && !isTaxCodePlaceholder(taxCode) ? taxCode : null,

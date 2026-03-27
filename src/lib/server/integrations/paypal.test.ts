@@ -87,9 +87,7 @@ describe('PayPal Integration', () => {
 				text: async () => 'Authentication failed'
 			});
 
-			await expect(createPayPalOrder(2500, 'membership-123')).rejects.toThrow(
-				'PayPal auth failed'
-			);
+			await expect(createPayPalOrder(2500, 'membership-123')).rejects.toThrow('PayPal auth failed');
 		});
 
 		it('should throw error if no approval link', async () => {

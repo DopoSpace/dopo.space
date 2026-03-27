@@ -10,10 +10,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { verifySessionToken } from '$lib/server/auth/magic-link';
 import { prisma } from '$lib/server/db/prisma';
 import { detectSubdomain, isRouteAllowedOnSubdomain } from '$lib/server/utils/subdomain';
-import {
-	USER_SESSION_COOKIE_NAME,
-	ADMIN_SESSION_COOKIE_NAME
-} from '$lib/server/config/constants';
+import { USER_SESSION_COOKIE_NAME, ADMIN_SESSION_COOKIE_NAME } from '$lib/server/config/constants';
 import pino from 'pino';
 import { paraglideMiddleware } from '$lib/paraglide/server.js';
 import type { locales } from '$lib/paraglide/runtime.js';
@@ -119,7 +116,10 @@ const mainHandle: Handle = async ({ event, resolve }) => {
 						}
 					}
 				} catch (error) {
-					logger.error({ err: error, userId: payload.userId }, 'Database error during admin session validation');
+					logger.error(
+						{ err: error, userId: payload.userId },
+						'Database error during admin session validation'
+					);
 					event.cookies.delete(ADMIN_SESSION_COOKIE_NAME, { path: '/' });
 				}
 			}
@@ -174,7 +174,10 @@ const mainHandle: Handle = async ({ event, resolve }) => {
 						}
 					}
 				} catch (error) {
-					logger.error({ err: error, userId: payload.userId }, 'Database error during user session validation');
+					logger.error(
+						{ err: error, userId: payload.userId },
+						'Database error during user session validation'
+					);
 					event.cookies.delete(USER_SESSION_COOKIE_NAME, { path: '/' });
 				}
 			}

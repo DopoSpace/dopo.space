@@ -16,9 +16,10 @@ export const actions = {
 		const clientIP = getClientIP(request);
 		const rateLimitResponse = checkRateLimit(`magic-link:${clientIP}`, RATE_LIMITS.MAGIC_LINK);
 		if (rateLimitResponse) {
-			const errorMessage = locale === 'en'
-				? 'Too many attempts. Please try again later.'
-				: 'Troppi tentativi. Riprova più tardi.';
+			const errorMessage =
+				locale === 'en'
+					? 'Too many attempts. Please try again later.'
+					: 'Troppi tentativi. Riprova più tardi.';
 			return fail(429, {
 				errors: { email: errorMessage },
 				email: ''
@@ -41,11 +42,14 @@ export const actions = {
 			const token = generateMagicLinkToken(validation.data.email);
 
 			// Send magic link email via Resend
-			authLogger.info({
-				event: 'magic_link_sending',
-				email: validation.data.email,
-				locale
-			}, 'Sending magic link email');
+			authLogger.info(
+				{
+					event: 'magic_link_sending',
+					email: validation.data.email,
+					locale
+				},
+				'Sending magic link email'
+			);
 			await sendMagicLinkEmail(validation.data.email, token, APP_URL, locale);
 
 			return {
@@ -53,14 +57,18 @@ export const actions = {
 				email: validation.data.email
 			};
 		} catch (error) {
-			authLogger.error({
-				event: 'magic_link_error',
-				email: validation.data.email,
-				error: error instanceof Error ? error.message : 'Unknown error'
-			}, 'Error sending magic link');
-			const errorMessage = locale === 'en'
-				? 'Error sending email. Please try again later.'
-				: 'Errore durante l\'invio dell\'email. Riprova più tardi.';
+			authLogger.error(
+				{
+					event: 'magic_link_error',
+					email: validation.data.email,
+					error: error instanceof Error ? error.message : 'Unknown error'
+				},
+				'Error sending magic link'
+			);
+			const errorMessage =
+				locale === 'en'
+					? 'Error sending email. Please try again later.'
+					: "Errore durante l'invio dell'email. Riprova più tardi.";
 			return fail(500, {
 				errors: { email: errorMessage },
 				email: validation.data.email

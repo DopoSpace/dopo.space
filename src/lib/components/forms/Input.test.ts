@@ -22,7 +22,7 @@ describe('Input Component', () => {
 		});
 
 		const labels = screen.getAllByText(/Unique Test Label 987/);
-		const labelWithAsterisk = labels.find(label => label.textContent?.includes('*'));
+		const labelWithAsterisk = labels.find((label) => label.textContent?.includes('*'));
 		expect(labelWithAsterisk).toBeTruthy();
 	});
 
@@ -59,7 +59,9 @@ describe('Input Component', () => {
 			required: true
 		});
 
-		const emailInput = container.querySelector('input[name="uniqueEmailField987"]') as HTMLInputElement;
+		const emailInput = container.querySelector(
+			'input[name="uniqueEmailField987"]'
+		) as HTMLInputElement;
 		expect(emailInput).toHaveAttribute('type', 'email');
 		expect(emailInput).toHaveAttribute('name', 'uniqueEmailField987');
 		expect(emailInput).toHaveAttribute('placeholder', 'Enter unique email 987');

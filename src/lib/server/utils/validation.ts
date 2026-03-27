@@ -17,7 +17,8 @@ const logger = createLogger({ module: 'validation' });
  * Standard: RSSMRA85M10H501S
  * Omocodia letters can appear at digit positions: LMNPQRSTUV
  */
-const TAX_CODE_REGEX = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i;
+const TAX_CODE_REGEX =
+	/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i;
 
 /**
  * User profile validation schema (base fields without cross-validation)
@@ -25,7 +26,12 @@ const TAX_CODE_REGEX = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][
 const userProfileBaseSchema = z.object({
 	firstName: z.string().min(2, 'Il nome deve contenere almeno 2 caratteri').max(50),
 	lastName: z.string().min(2, 'Il cognome deve contenere almeno 2 caratteri').max(50),
-	birthDate: z.coerce.date().refine(isValidAge, 'Devi avere almeno 16 anni per iscriverti. Il tesseramento dei minori non è al momento supportato.'),
+	birthDate: z.coerce
+		.date()
+		.refine(
+			isValidAge,
+			'Devi avere almeno 16 anni per iscriverti. Il tesseramento dei minori non è al momento supportato.'
+		),
 
 	// Nationality: IT for Italian, country code for foreigners
 	nationality: z.string().length(2, 'Seleziona la nazionalità').toUpperCase(),
@@ -48,13 +54,21 @@ const userProfileBaseSchema = z.object({
 		.or(z.literal('')),
 
 	// Residence country (ISO 2-letter code)
-	residenceCountry: z.string().length(2, 'Seleziona il paese di residenza').toUpperCase().default('IT'),
+	residenceCountry: z
+		.string()
+		.length(2, 'Seleziona il paese di residenza')
+		.toUpperCase()
+		.default('IT'),
 
 	// Residence - all fields are optional
 	address: z.string().max(200).optional().or(z.literal('')),
 	city: z.string().max(100).optional().or(z.literal('')),
 	postalCode: z.string().max(20).optional().or(z.literal('')),
-	province: z.string().regex(/^[A-Z]{2}$/i, 'La provincia deve essere di 2 lettere').optional().or(z.literal('')),
+	province: z
+		.string()
+		.regex(/^[A-Z]{2}$/i, 'La provincia deve essere di 2 lettere')
+		.optional()
+		.or(z.literal('')),
 
 	// Contact (phone is optional, format: +[prefix][number])
 	phone: z
@@ -188,7 +202,10 @@ export const emailSchema = z.object({
  * Phone validation schema
  */
 export const phoneSchema = z.object({
-	phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional()
+	phone: z
+		.string()
+		.regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format')
+		.optional()
 });
 
 /**
@@ -211,30 +228,38 @@ export const assignMembershipNumberSchema = z.object({
  * Batch card assignment schema
  * Used for assigning membership numbers to multiple users at once
  */
-export const batchAssignCardsSchema = z.object({
-	prefix: z.string().max(20, 'Il prefisso non può superare 20 caratteri').optional().default(''),
-	startNumber: z.string().min(1, 'Inserisci il numero iniziale').max(10, 'Numero troppo lungo'),
-	endNumber: z.string().min(1, 'Inserisci il numero finale').max(10, 'Numero troppo lungo'),
-	userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
-}).refine(
-	(data) => {
-		const start = parseInt(data.startNumber, 10);
-		const end = parseInt(data.endNumber, 10);
-		return !isNaN(start) && !isNaN(end) && start <= end;
-	},
-	{
-		message: 'Il numero iniziale deve essere minore o uguale al numero finale',
-		path: ['endNumber']
-	}
-);
+export const batchAssignCardsSchema = z
+	.object({
+		prefix: z.string().max(20, 'Il prefisso non può superare 20 caratteri').optional().default(''),
+		startNumber: z.string().min(1, 'Inserisci il numero iniziale').max(10, 'Numero troppo lungo'),
+		endNumber: z.string().min(1, 'Inserisci il numero finale').max(10, 'Numero troppo lungo'),
+		userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
+	})
+	.refine(
+		(data) => {
+			const start = parseInt(data.startNumber, 10);
+			const end = parseInt(data.endNumber, 10);
+			return !isNaN(start) && !isNaN(end) && start <= end;
+		},
+		{
+			message: 'Il numero iniziale deve essere minore o uguale al numero finale',
+			path: ['endNumber']
+		}
+	);
 
 /**
  * Simple subscription form schema (first name and last name only)
  * Used for the initial subscription step before full profile completion
  */
 export const simpleSubscriptionSchema = z.object({
-	firstName: z.string().min(2, 'Il nome deve contenere almeno 2 caratteri').max(50, 'Il nome è troppo lungo'),
-	lastName: z.string().min(2, 'Il cognome deve contenere almeno 2 caratteri').max(50, 'Il cognome è troppo lungo')
+	firstName: z
+		.string()
+		.min(2, 'Il nome deve contenere almeno 2 caratteri')
+		.max(50, 'Il nome è troppo lungo'),
+	lastName: z
+		.string()
+		.min(2, 'Il cognome deve contenere almeno 2 caratteri')
+		.max(50, 'Il cognome è troppo lungo')
 });
 
 /**
@@ -266,9 +291,7 @@ export const addCardRangeSchema = z
  * Used for automatic card assignment from configured ranges
  */
 export const autoAssignCardsSchema = z.object({
-	userIds: z
-		.array(z.string().cuid('ID utente non valido'))
-		.min(1, 'Seleziona almeno un utente')
+	userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
 });
 
 /**
@@ -282,22 +305,28 @@ export const assignCardsSchema = z.discriminatedUnion('mode', [
 		mode: z.literal('auto'),
 		userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente')
 	}),
-	z.object({
-		mode: z.literal('range'),
-		userIds: z.array(z.string().cuid('ID utente non valido')).min(1, 'Seleziona almeno un utente'),
-		startNumber: z.string().min(1, 'Inserisci il numero iniziale'),
-		endNumber: z.string().min(1, 'Inserisci il numero finale')
-	}).refine(
-		(data) => {
-			const start = parseInt(data.startNumber, 10);
-			const end = parseInt(data.endNumber, 10);
-			return !isNaN(start) && !isNaN(end) && start <= end;
-		},
-		{ message: 'Il numero iniziale deve essere ≤ al numero finale', path: ['endNumber'] }
-	),
+	z
+		.object({
+			mode: z.literal('range'),
+			userIds: z
+				.array(z.string().cuid('ID utente non valido'))
+				.min(1, 'Seleziona almeno un utente'),
+			startNumber: z.string().min(1, 'Inserisci il numero iniziale'),
+			endNumber: z.string().min(1, 'Inserisci il numero finale')
+		})
+		.refine(
+			(data) => {
+				const start = parseInt(data.startNumber, 10);
+				const end = parseInt(data.endNumber, 10);
+				return !isNaN(start) && !isNaN(end) && start <= end;
+			},
+			{ message: 'Il numero iniziale deve essere ≤ al numero finale', path: ['endNumber'] }
+		),
 	z.object({
 		mode: z.literal('single'),
-		userIds: z.array(z.string().cuid('ID utente non valido')).length(1, 'Seleziona esattamente un utente'),
+		userIds: z
+			.array(z.string().cuid('ID utente non valido'))
+			.length(1, 'Seleziona esattamente un utente'),
 		membershipNumber: z.string().min(1, 'Inserisci il numero tessera')
 	})
 ]);

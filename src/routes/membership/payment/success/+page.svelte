@@ -101,12 +101,21 @@
 				<!-- Processing State - keep spinner -->
 				<div class="processing-state">
 					<div class="spinner"></div>
-					<p>{m.payment_processing_title()}. {m.payment_verifying_paypal()} {m.payment_wait_seconds()}</p>
+					<p>
+						{m.payment_processing_title()}. {m.payment_verifying_paypal()}
+						{m.payment_wait_seconds()}
+					</p>
 				</div>
 			{:else if pollTimedOut}
-				<p>{m.payment_processing_title()}. {m.payment_timeout_message()} {m.payment_timeout_note()}</p>
+				<p>
+					{m.payment_processing_title()}. {m.payment_timeout_message()}
+					{m.payment_timeout_note()}
+				</p>
 			{:else if isAwaitingNumber}
-				<p>{m.payment_received()}. {m.payment_awaiting_number()} {m.payment_confirmation_email()}</p>
+				<p>
+					{m.payment_received()}. {m.payment_awaiting_number()}
+					{m.payment_confirmation_email()}
+				</p>
 			{:else if isActive}
 				<p>
 					{m.payment_card_active()}.

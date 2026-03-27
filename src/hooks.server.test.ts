@@ -54,7 +54,7 @@ vi.mock('@sveltejs/kit/hooks', () => ({
 		return async (input: any) => {
 			// Create a chain of resolve functions
 			// The last resolve in the chain is the original resolve
-			let index = handlers.length;
+			const index = handlers.length;
 
 			const createResolve = (i: number): any => {
 				if (i >= handlers.length) {

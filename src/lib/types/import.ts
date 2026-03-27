@@ -326,9 +326,22 @@ export const ALTERNATIVE_COLUMN_NAMES: Record<keyof ColumnMapping, string[]> = {
 	provincia: ['Provincia', 'PROVINCIA', 'PROV.', 'Prov.', 'PROV'],
 	comune: ['Comune', 'COMUNE', 'comune', 'CITY', 'CITTA'],
 	cellulare: ['Cellulare', 'CELLULARE', 'cellulare', 'CELL', 'PHONE', 'TELEFONO', 'TEL'],
-	numeroTessera: ['N° tessera', 'N° TESSERA', 'NUMERO', 'Numero', 'N. TESSERA', 'TESSERA', 'CARD NUMBER'],
+	numeroTessera: [
+		'N° tessera',
+		'N° TESSERA',
+		'NUMERO',
+		'Numero',
+		'N. TESSERA',
+		'TESSERA',
+		'CARD NUMBER'
+	],
 	dataRilascioTessera: ['Data rilascio', 'DATA RILASCIO', 'DATA', 'Data', 'ISSUE DATE'],
-	newsletter: ['Iscritto alla newsletter', 'ISCRITTO ALLA NEWSLETTER', 'Iscritto newsletter', 'ISCRITTO NEWSLETTER']
+	newsletter: [
+		'Iscritto alla newsletter',
+		'ISCRITTO ALLA NEWSLETTER',
+		'Iscritto newsletter',
+		'ISCRITTO NEWSLETTER'
+	]
 };
 
 /**

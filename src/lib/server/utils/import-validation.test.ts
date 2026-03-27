@@ -476,7 +476,9 @@ describe('validateImportRow', () => {
 
 		// Should fail with error that mentions "non valido" instead of "obbligatorio"
 		expect(result.status).toBe('error');
-		expect(result.errors.some((e) => e.includes('non valido') && e.includes('15 caratteri'))).toBe(true);
+		expect(result.errors.some((e) => e.includes('non valido') && e.includes('15 caratteri'))).toBe(
+			true
+		);
 		// Should NOT say "obbligatorio" (since CF IS present, just invalid)
 		expect(result.errors.some((e) => e.includes('Codice fiscale obbligatorio'))).toBe(false);
 	});
@@ -495,7 +497,9 @@ describe('validateImportRow', () => {
 
 		// Should succeed with warning about regeneration
 		expect(result.status).toBe('warning');
-		expect(result.warnings.some((w) => w.includes('non valido') && w.includes('15 caratteri'))).toBe(true);
+		expect(
+			result.warnings.some((w) => w.includes('non valido') && w.includes('15 caratteri'))
+		).toBe(true);
 		expect(result.correctedData.codiceFiscale).toBeDefined();
 		expect(result.correctedData.codiceFiscale?.length).toBe(16);
 	});
@@ -539,7 +543,7 @@ describe('validateImportRow', () => {
 		const result = await validateImportRow(baseRow, 2, existingUsers, undefined);
 
 		expect(result.status).toBe('error');
-		expect(result.errors.some(e => e.includes('registrata'))).toBe(true);
+		expect(result.errors.some((e) => e.includes('registrata'))).toBe(true);
 	});
 
 	it('should allow existing users when addMembershipToExisting is true', async () => {
@@ -548,13 +552,15 @@ describe('validateImportRow', () => {
 		const existingUsers = new Map<string, ExistingUserInfo>([
 			['mario.rossi@example.com', { id: 'user-123', hasActiveMembership: false }]
 		]);
-		const result = await validateImportRow(foreignRow, 2, existingUsers, undefined, { addMembershipToExisting: true });
+		const result = await validateImportRow(foreignRow, 2, existingUsers, undefined, {
+			addMembershipToExisting: true
+		});
 
 		// Should not be an error, but a warning
 		expect(result.status).not.toBe('error');
 		expect(result.isExistingUser).toBe(true);
 		expect(result.existingUserId).toBe('user-123');
-		expect(result.warnings.some(e => e.includes('esistente'))).toBe(true);
+		expect(result.warnings.some((e) => e.includes('esistente'))).toBe(true);
 	});
 
 	it('should warn when existing user already has active membership', async () => {
@@ -563,11 +569,13 @@ describe('validateImportRow', () => {
 		const existingUsers = new Map<string, ExistingUserInfo>([
 			['mario.rossi@example.com', { id: 'user-123', hasActiveMembership: true }]
 		]);
-		const result = await validateImportRow(foreignRow, 2, existingUsers, undefined, { addMembershipToExisting: true });
+		const result = await validateImportRow(foreignRow, 2, existingUsers, undefined, {
+			addMembershipToExisting: true
+		});
 
 		// Should still be importable but with a warning about active membership
 		expect(result.isExistingUser).toBe(true);
-		expect(result.warnings.some(e => e.includes('attiva'))).toBe(true);
+		expect(result.warnings.some((e) => e.includes('attiva'))).toBe(true);
 	});
 
 	it('should auto-generate tax code when missing but data is complete', async () => {
@@ -577,7 +585,7 @@ describe('validateImportRow', () => {
 
 		// Should generate CF automatically and return warning (not error)
 		expect(result.status).toBe('warning');
-		expect(result.warnings.some(e => e.includes('generato automaticamente'))).toBe(true);
+		expect(result.warnings.some((e) => e.includes('generato automaticamente'))).toBe(true);
 		expect(result.correctedData.codiceFiscale).toBeDefined();
 		expect(result.correctedData.codiceFiscale?.length).toBe(16);
 	});
@@ -589,8 +597,8 @@ describe('validateImportRow', () => {
 		const result = await validateImportRow(row, 2, existingUsers, undefined);
 
 		expect(result.status).toBe('error');
-		expect(result.errors.some(e => e.includes('obbligatorio'))).toBe(true);
-		expect(result.errors.some(e => e.includes('sesso'))).toBe(true);
+		expect(result.errors.some((e) => e.includes('obbligatorio'))).toBe(true);
+		expect(result.errors.some((e) => e.includes('sesso'))).toBe(true);
 	});
 
 	it('should infer gender from first name when missing but name is known', async () => {
@@ -601,9 +609,9 @@ describe('validateImportRow', () => {
 
 		// Should NOT be an error - gender inferred from name "Mario"
 		expect(result.status).toBe('warning');
-		expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(false);
+		expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(false);
 		expect(result.correctedData.sesso).toBe('M');
-		expect(result.warnings.some(w => w.includes('Sesso dedotto dal nome'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('Sesso dedotto dal nome'))).toBe(true);
 	});
 
 	it('should warn for missing tax code for foreigner', async () => {
@@ -612,7 +620,7 @@ describe('validateImportRow', () => {
 		const result = await validateImportRow(row, 2, existingUsers, undefined);
 
 		// Foreigners can have missing CF (warning, not error)
-		expect(result.warnings.some(e => e.includes('straniero'))).toBe(true);
+		expect(result.warnings.some((e) => e.includes('straniero'))).toBe(true);
 	});
 
 	it('should recognize country names in province field and correct to EE', async () => {
@@ -629,7 +637,9 @@ describe('validateImportRow', () => {
 		// Should have corrected province to EE
 		expect(result.correctedData.provinciaNascita).toBe('EE');
 		// Should include warning about country detection
-		expect(result.warnings.some(w => w.includes('è un paese') || w.includes('Francia'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('è un paese') || w.includes('Francia'))).toBe(
+			true
+		);
 	});
 
 	it('should recognize Italian country names and correct to EE', async () => {
@@ -645,7 +655,9 @@ describe('validateImportRow', () => {
 
 		// Should have corrected province to EE
 		expect(result.correctedData.provinciaNascita).toBe('EE');
-		expect(result.warnings.some(w => w.includes('è un paese') && w.includes('Germania'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('è un paese') && w.includes('Germania'))).toBe(
+			true
+		);
 	});
 
 	it('should not treat valid Italian province codes as country names', async () => {
@@ -677,7 +689,7 @@ describe('validateImportRow', () => {
 		// Should have auto-filled birth city from CF
 		expect(result.correctedData.comuneNascita).toBe('Roma');
 		expect(result.correctedData.provinciaNascita).toBe('RM');
-		expect(result.warnings.some(e => e.includes('ricavato dal CF'))).toBe(true);
+		expect(result.warnings.some((e) => e.includes('ricavato dal CF'))).toBe(true);
 	});
 
 	it('should warn when birth city in file differs from tax code', async () => {
@@ -692,7 +704,7 @@ describe('validateImportRow', () => {
 		const result = await validateImportRow(row, 2, existingUsers, undefined);
 
 		// Should warn about mismatch
-		expect(result.warnings.some(e => e.includes('diverso da CF'))).toBe(true);
+		expect(result.warnings.some((e) => e.includes('diverso da CF'))).toBe(true);
 		// Should suggest correction to Roma
 		expect(result.correctedData.comuneNascita).toBe('Roma');
 	});
@@ -761,7 +773,7 @@ describe('validateImportRow', () => {
 		const result = await validateImportRow(row, 2, existingUsers, undefined);
 
 		// Should NOT warn about missing release date since there's no card number
-		expect(result.warnings.some(e => e.includes('Data rilascio mancante'))).toBe(false);
+		expect(result.warnings.some((e) => e.includes('Data rilascio mancante'))).toBe(false);
 	});
 
 	it('should not warn when both card number and release date are present', async () => {
@@ -777,7 +789,7 @@ describe('validateImportRow', () => {
 		const result = await validateImportRow(row, 2, existingUsers, undefined);
 
 		// Should NOT warn about missing release date
-		expect(result.warnings.some(e => e.includes('Data rilascio mancante'))).toBe(false);
+		expect(result.warnings.some((e) => e.includes('Data rilascio mancante'))).toBe(false);
 	});
 
 	// === Auto-correction test cases ===
@@ -795,7 +807,7 @@ describe('validateImportRow', () => {
 		// Should not be an error, but a warning
 		expect(result.status).not.toBe('error');
 		expect(result.correctedData.email).toBe('mario.rossi@gmail.com');
-		expect(result.warnings.some(w => w.includes('Email corretta'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('Email corretta'))).toBe(true);
 	});
 
 	it('should auto-correct date in MM/DD/YYYY format', async () => {
@@ -811,7 +823,7 @@ describe('validateImportRow', () => {
 		// Should correct the date
 		expect(result.status).not.toBe('error');
 		expect(result.correctedData.dataNascita).toBe('15/03/1990');
-		expect(result.warnings.some(w => w.includes('mm/dd/yyyy'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('mm/dd/yyyy'))).toBe(true);
 	});
 
 	it('should extract birth date from valid tax code when date is missing', async () => {
@@ -828,7 +840,7 @@ describe('validateImportRow', () => {
 
 		// Should extract date from CF
 		expect(result.correctedData.dataNascita).toBe('10/08/1985');
-		expect(result.warnings.some(w => w.includes('estratta dal CF'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('estratta dal CF'))).toBe(true);
 	});
 
 	it('should regenerate tax code when checksum is invalid', async () => {
@@ -848,7 +860,7 @@ describe('validateImportRow', () => {
 		expect(result.status).not.toBe('error');
 		expect(result.correctedData.codiceFiscale).toBeDefined();
 		expect(result.correctedData.codiceFiscale?.length).toBe(16);
-		expect(result.warnings.some(w => w.includes('rigenerato'))).toBe(true);
+		expect(result.warnings.some((w) => w.includes('rigenerato'))).toBe(true);
 	});
 
 	it('should correct birth date from tax code when dates do not match', async () => {
@@ -865,7 +877,9 @@ describe('validateImportRow', () => {
 
 		// Should correct date from CF
 		expect(result.correctedData.dataNascita).toBe('10/08/1985');
-		expect(result.warnings.some(w => w.includes('corretta dal CF') && w.includes('22/08/1984'))).toBe(true);
+		expect(
+			result.warnings.some((w) => w.includes('corretta dal CF') && w.includes('22/08/1984'))
+		).toBe(true);
 	});
 });
 
@@ -997,12 +1011,12 @@ describe('mergeImportRows', () => {
 		// Should have 2 conflicts
 		expect(conflicts).toHaveLength(2);
 
-		const cognomeConflict = conflicts.find(c => c.field === 'cognome');
+		const cognomeConflict = conflicts.find((c) => c.field === 'cognome');
 		expect(cognomeConflict).toBeDefined();
 		expect(cognomeConflict?.usedValue).toBe('Rossi');
 		expect(cognomeConflict?.discardedValue).toBe('Rosi');
 
-		const phoneConflict = conflicts.find(c => c.field === 'cellulare');
+		const phoneConflict = conflicts.find((c) => c.field === 'cellulare');
 		expect(phoneConflict).toBeDefined();
 		expect(phoneConflict?.usedValue).toBe('333111');
 		expect(phoneConflict?.discardedValue).toBe('333222');
@@ -1389,7 +1403,7 @@ describe('Google Address Validation integration', () => {
 				formattedAddress: 'Via Roma, 1, 00185 Roma RM, Italia'
 			},
 			confidence: 'MEDIUM', // Medium confidence
-			suggestedCorrections: ['Alcuni componenti dell\'indirizzo sono stati dedotti']
+			suggestedCorrections: ["Alcuni componenti dell'indirizzo sono stati dedotti"]
 		});
 
 		const row: AICSImportRow = {
@@ -1488,7 +1502,7 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			expect(result.status).toBe('error');
-			expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(true);
 		});
 
 		it('should require gender for foreign nationals when name cannot be inferred', async () => {
@@ -1503,7 +1517,7 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			expect(result.status).toBe('error');
-			expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(true);
 		});
 
 		it('should deduce gender from valid tax code when missing', async () => {
@@ -1516,9 +1530,9 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			// Should NOT be an error - gender deduced from CF
-			expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(false);
+			expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(false);
 			expect(result.correctedData.sesso).toBe('M');
-			expect(result.warnings.some(w => w.includes('Sesso dedotto dal CF'))).toBe(true);
+			expect(result.warnings.some((w) => w.includes('Sesso dedotto dal CF'))).toBe(true);
 		});
 
 		it('should deduce gender from known Italian name when CF is missing', async () => {
@@ -1532,9 +1546,9 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			// Should NOT be an error - gender deduced from name
-			expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(false);
+			expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(false);
 			expect(result.correctedData.sesso).toBe('M');
-			expect(result.warnings.some(w => w.includes('Sesso dedotto dal nome'))).toBe(true);
+			expect(result.warnings.some((w) => w.includes('Sesso dedotto dal nome'))).toBe(true);
 		});
 
 		it('should deduce gender from known Italian female name', async () => {
@@ -1549,9 +1563,9 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			// Should NOT be an error - gender deduced from name
-			expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(false);
+			expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(false);
 			expect(result.correctedData.sesso).toBe('F');
-			expect(result.warnings.some(w => w.includes('Sesso dedotto dal nome'))).toBe(true);
+			expect(result.warnings.some((w) => w.includes('Sesso dedotto dal nome'))).toBe(true);
 		});
 
 		it('should not deduce gender from placeholder tax code when name is unknown', async () => {
@@ -1565,7 +1579,7 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			expect(result.status).toBe('error');
-			expect(result.errors.some(e => e.includes('Sesso obbligatorio'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('Sesso obbligatorio'))).toBe(true);
 		});
 	});
 
@@ -1581,7 +1595,7 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			expect(result.status).toBe('error');
-			expect(result.errors.some(e => e.includes('Nome troppo lungo'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('Nome troppo lungo'))).toBe(true);
 		});
 
 		it('should error when last name exceeds 50 characters', async () => {
@@ -1595,7 +1609,7 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			expect(result.status).toBe('error');
-			expect(result.errors.some(e => e.includes('Cognome troppo lungo'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('Cognome troppo lungo'))).toBe(true);
 		});
 
 		it('should error when email exceeds 50 characters', async () => {
@@ -1609,7 +1623,7 @@ describe('AICS compliance validation', () => {
 			const result = await validateImportRow(row, 1, existingUsers, undefined);
 
 			expect(result.status).toBe('error');
-			expect(result.errors.some(e => e.includes('Email troppo lunga'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('Email troppo lunga'))).toBe(true);
 		});
 
 		it('should truncate address to 50 characters with warning', async () => {
@@ -1625,7 +1639,7 @@ describe('AICS compliance validation', () => {
 
 			// Should NOT be an error - address is truncated
 			expect(result.status).not.toBe('error');
-			expect(result.warnings.some(w => w.includes('Indirizzo troncato'))).toBe(true);
+			expect(result.warnings.some((w) => w.includes('Indirizzo troncato'))).toBe(true);
 			expect((result.correctedData.indirizzo as string).length).toBeLessThanOrEqual(50);
 		});
 
@@ -1641,7 +1655,7 @@ describe('AICS compliance validation', () => {
 
 			// Should NOT be an error - phone is truncated
 			expect(result.status).not.toBe('error');
-			expect(result.warnings.some(w => w.includes('Cellulare troncato'))).toBe(true);
+			expect(result.warnings.some((w) => w.includes('Cellulare troncato'))).toBe(true);
 			// Resulting phone should have max 12 digits
 			const phoneDigits = (result.correctedData.cellulare as string).replace(/^\+/, '');
 			expect(phoneDigits.length).toBeLessThanOrEqual(AICS_LIMITS.cellulare);

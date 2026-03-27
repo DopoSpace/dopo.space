@@ -400,21 +400,23 @@ export interface BirthPlaceComparisonResult {
 function normalizeCityForComparison(city: string): string {
 	if (!city) return '';
 
-	return city
-		.toUpperCase()
-		.trim()
-		// Remove ISTAT code suffix (e.g., "Catania - C351" → "CATANIA")
-		.replace(/\s*-\s*[A-Z]\d{3}$/i, '')
-		// Normalize apostrophes and quotes
-		.replace(/[''`]/g, "'")
-		// Remove accents for fuzzy matching
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '')
-		// Common variations
-		.replace(/^S\.?\s*/i, 'SAN ')
-		.replace(/^SS\.?\s*/i, 'SANTI ')
-		.replace(/^S\s+/i, 'SAN ')
-		.trim();
+	return (
+		city
+			.toUpperCase()
+			.trim()
+			// Remove ISTAT code suffix (e.g., "Catania - C351" → "CATANIA")
+			.replace(/\s*-\s*[A-Z]\d{3}$/i, '')
+			// Normalize apostrophes and quotes
+			.replace(/[''`]/g, "'")
+			// Remove accents for fuzzy matching
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			// Common variations
+			.replace(/^S\.?\s*/i, 'SAN ')
+			.replace(/^SS\.?\s*/i, 'SANTI ')
+			.replace(/^S\s+/i, 'SAN ')
+			.trim()
+	);
 }
 
 // Reverse lookup cache: normalized city name -> cadastral code

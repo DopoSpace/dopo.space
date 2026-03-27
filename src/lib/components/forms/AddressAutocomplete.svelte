@@ -385,7 +385,9 @@
 			{required}
 			{disabled}
 			autocomplete="off"
-			class="input text-gray-900 {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}"
+			class="input text-gray-900 {error
+				? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+				: ''} {disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}"
 			role="combobox"
 			aria-expanded={provider === 'nominatim' ? showDropdown : false}
 			aria-haspopup="listbox"
@@ -395,13 +397,7 @@
 		{#if isLoading}
 			<div class="absolute right-3 top-1/2 -translate-y-1/2">
 				<svg class="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
-					<circle
-						class="opacity-25"
-						cx="12"
-						cy="12"
-						r="10"
-						stroke="currentColor"
-						stroke-width="4"
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
 					></circle>
 					<path
 						class="opacity-75"

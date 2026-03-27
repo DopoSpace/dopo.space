@@ -51,7 +51,10 @@ function maskEmail(email: string): string {
  * Custom error class for Mailchimp operations
  */
 export class MailchimpError extends Error {
-	constructor(message: string, public readonly cause?: unknown) {
+	constructor(
+		message: string,
+		public readonly cause?: unknown
+	) {
 		super(message);
 		this.name = 'MailchimpError';
 	}
@@ -174,7 +177,11 @@ function buildMergeFields(profile: SubscriberProfile): Record<string, unknown> {
 /**
  * Add tag to a subscriber using the Mailchimp API directly
  */
-async function addTagToSubscriber(subscriberHash: string, tag: string, maskedEmail: string): Promise<void> {
+async function addTagToSubscriber(
+	subscriberHash: string,
+	tag: string,
+	maskedEmail: string
+): Promise<void> {
 	try {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const listsClient = mailchimp.lists as any;
@@ -183,7 +190,10 @@ async function addTagToSubscriber(subscriberHash: string, tag: string, maskedEma
 		});
 		mailchimpLogger.info({ email: maskedEmail, tag }, 'Tag added to subscriber');
 	} catch (error) {
-		mailchimpLogger.error({ err: error, email: maskedEmail, tag }, 'Failed to add tag to subscriber');
+		mailchimpLogger.error(
+			{ err: error, email: maskedEmail, tag },
+			'Failed to add tag to subscriber'
+		);
 		// Don't throw - tag is not critical
 	}
 }
@@ -279,7 +289,6 @@ export async function subscribeToNewsletter(
 	let subscriberId: string;
 
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const response = await mailchimp.lists.addListMember(MAILCHIMP_AUDIENCE_ID, {
 			email_address: validatedEmail,
 			status: 'subscribed',
@@ -302,7 +311,8 @@ export async function subscribeToNewsletter(
 			return {
 				subscriberId: null,
 				status: 'forgotten_email',
-				message: 'This email was previously removed from our mailing list and cannot be re-added automatically. Please subscribe manually through our newsletter form.'
+				message:
+					'This email was previously removed from our mailing list and cannot be re-added automatically. Please subscribe manually through our newsletter form.'
 			};
 		}
 
@@ -310,11 +320,14 @@ export async function subscribeToNewsletter(
 		if (isMemberExistsError(error)) {
 			mailchimpLogger.info({ email: maskedEmail }, 'Member exists, reactivating subscription');
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const updateResponse = await mailchimp.lists.updateListMember(MAILCHIMP_AUDIENCE_ID, subscriberHash, {
-				status: 'subscribed',
-				merge_fields: mergeFields as any
-			});
+			const updateResponse = await mailchimp.lists.updateListMember(
+				MAILCHIMP_AUDIENCE_ID,
+				subscriberHash,
+				{
+					status: 'subscribed',
+					merge_fields: mergeFields as any
+				}
+			);
 
 			// Use the actual ID from the update response, not the hash
 			subscriberId = (updateResponse.id as string) || subscriberHash;
@@ -397,7 +410,7 @@ export async function updateSubscriber(
 		});
 
 		// Run update and tag in parallel for better performance
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 		await Promise.all([
 			mailchimp.lists.updateListMember(MAILCHIMP_AUDIENCE_ID, subscriberHash, {
 				merge_fields: mergeFields as any

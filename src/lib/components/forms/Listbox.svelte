@@ -62,16 +62,12 @@
 	// Filter options based on search query
 	let filteredOptions = $derived(
 		searchQuery
-			? options.filter((opt) =>
-					opt.label.toLowerCase().includes(searchQuery.toLowerCase())
-				)
+			? options.filter((opt) => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
 			: options
 	);
 
 	// Get selected option label
-	let selectedLabel = $derived(
-		options.find((opt) => opt.value === internalValue)?.label ?? ''
-	);
+	let selectedLabel = $derived(options.find((opt) => opt.value === internalValue)?.label ?? '');
 
 	// Handle click outside to close dropdown
 	function handleClickOutside(event: MouseEvent) {
@@ -224,7 +220,9 @@
 		bind:this={buttonRef}
 		type="button"
 		id={name}
-		class="listbox-button {error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} {disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}"
+		class="listbox-button {error
+			? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+			: ''} {disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}"
 		onclick={toggleDropdown}
 		onkeydown={handleKeyDown}
 		{disabled}
@@ -252,10 +250,7 @@
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div
-			class="listbox-dropdown"
-			role="presentation"
-		>
+		<div class="listbox-dropdown" role="presentation">
 			<!-- Search input -->
 			{#if searchable}
 				<div class="p-2 border-b border-gray-200">
@@ -287,14 +282,23 @@
 						<li
 							role="option"
 							aria-selected={option.value === internalValue}
-							class="listbox-option {option.value === internalValue ? 'selected' : ''} {index === highlightedIndex ? 'highlighted' : ''}"
+							class="listbox-option {option.value === internalValue ? 'selected' : ''} {index ===
+							highlightedIndex
+								? 'highlighted'
+								: ''}"
 							onmouseenter={() => (highlightedIndex = index)}
 							onclick={() => selectOption(option)}
 						>
 							<span class="block truncate">{option.label}</span>
 							{#if option.value === internalValue}
 								<span class="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600">
-									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<svg
+										class="h-4 w-4"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										stroke-width="2"
+									>
 										<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 									</svg>
 								</span>

@@ -79,104 +79,88 @@
 		buttonsContainer.innerHTML = '';
 
 		console.log('Rendering PayPal buttons...');
-		window.paypal.Buttons({
-			style: {
-				layout: 'vertical',
-				color: 'gold',
-				shape: 'rect',
-				label: 'paypal'
-			},
+		window.paypal
+			.Buttons({
+				style: {
+					layout: 'vertical',
+					color: 'gold',
+					shape: 'rect',
+					label: 'paypal'
+				},
 
-			// Create order on server
-			createOrder: async () => {
-				error = null;
+				// Create order on server
+				createOrder: async () => {
+					error = null;
 
-				// Wait if we're still resetting from a previous window close
-				if (resetting) {
-					await new Promise<void>((resolve) => {
-						const checkResetting = () => {
-							if (!resetting) {
-								resolve();
-							} else {
-								setTimeout(checkResetting, 100);
+					// Wait if we're still resetting from a previous window close
+					if (resetting) {
+						await new Promise<void>((resolve) => {
+							const checkResetting = () => {
+								if (!resetting) {
+									resolve();
+								} else {
+									setTimeout(checkResetting, 100);
+								}
+							};
+							checkResetting();
+						});
+					}
+
+					trackPaymentStart(amount);
+
+					try {
+						const response = await fetch('/api/membership/create-order', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json'
 							}
-						};
-						checkResetting();
-					});
-				}
+						});
 
-				trackPaymentStart(amount);
+						const data = await response.json();
 
-				try {
-					const response = await fetch('/api/membership/create-order', {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
+						if (!response.ok) {
+							throw new Error(data.message || 'Errore nella creazione del pagamento');
 						}
-					});
 
-					const data = await response.json();
-
-					if (!response.ok) {
-						throw new Error(data.message || 'Errore nella creazione del pagamento');
+						return data.orderId;
+					} catch (err) {
+						const message =
+							err instanceof Error ? err.message : 'Errore nella creazione del pagamento';
+						error = message;
+						throw err;
 					}
+				},
 
-					return data.orderId;
-				} catch (err) {
-					const message = err instanceof Error ? err.message : 'Errore nella creazione del pagamento';
-					error = message;
-					throw err;
-				}
-			},
+				// Capture payment on server after approval
+				onApprove: async (data: { orderID: string }) => {
+					error = null;
 
-			// Capture payment on server after approval
-			onApprove: async (data: { orderID: string }) => {
-				error = null;
+					try {
+						const response = await fetch('/api/membership/capture-order', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify({ orderId: data.orderID })
+						});
 
-				try {
-					const response = await fetch('/api/membership/capture-order', {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({ orderId: data.orderID })
-					});
+						const result = await response.json();
 
-					const result = await response.json();
+						if (!response.ok) {
+							throw new Error(result.message || 'Errore nella conferma del pagamento');
+						}
 
-					if (!response.ok) {
-						throw new Error(result.message || 'Errore nella conferma del pagamento');
+						// Navigate to success page
+						goto('/membership/payment/success');
+					} catch (err) {
+						const message =
+							err instanceof Error ? err.message : 'Errore nella conferma del pagamento';
+						error = message;
 					}
+				},
 
-					// Navigate to success page
-					goto('/membership/payment/success');
-				} catch (err) {
-					const message = err instanceof Error ? err.message : 'Errore nella conferma del pagamento';
-					error = message;
-				}
-			},
-
-			// Handle cancel
-			onCancel: async () => {
-				// Block new orders while we reset
-				resetting = true;
-				try {
-					await fetch('/api/membership/cancel-order', { method: 'POST' });
-				} catch (e) {
-					console.error('Failed to cancel order:', e);
-				} finally {
-					resetting = false;
-				}
-				goto('/membership/payment/cancel');
-			},
-
-			// Handle errors
-			onError: async (err: Error) => {
-				console.error('PayPal error:', err);
-
-				// Ignore "Window is closed" error - this happens when user closes popup
-				// It's not a real error, just PayPal complaining about the closed window
-				if (err?.message?.includes('Window is closed')) {
+				// Handle cancel
+				onCancel: async () => {
 					// Block new orders while we reset
 					resetting = true;
 					try {
@@ -186,15 +170,35 @@
 					} finally {
 						resetting = false;
 					}
-					return;
-				}
+					goto('/membership/payment/cancel');
+				},
 
-				// Don't overwrite specific error messages from createOrder or onApprove
-				if (!error) {
-					error = 'Si è verificato un errore durante il pagamento. Riprova più tardi.';
+				// Handle errors
+				onError: async (err: Error) => {
+					console.error('PayPal error:', err);
+
+					// Ignore "Window is closed" error - this happens when user closes popup
+					// It's not a real error, just PayPal complaining about the closed window
+					if (err?.message?.includes('Window is closed')) {
+						// Block new orders while we reset
+						resetting = true;
+						try {
+							await fetch('/api/membership/cancel-order', { method: 'POST' });
+						} catch (e) {
+							console.error('Failed to cancel order:', e);
+						} finally {
+							resetting = false;
+						}
+						return;
+					}
+
+					// Don't overwrite specific error messages from createOrder or onApprove
+					if (!error) {
+						error = 'Si è verificato un errore durante il pagamento. Riprova più tardi.';
+					}
 				}
-			}
-		}).render(buttonsContainer);
+			})
+			.render(buttonsContainer);
 	}
 
 	// Retry loading
@@ -213,13 +217,21 @@
 		</div>
 	{:else if error}
 		<div class="error-state">
-			<svg class="error-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+			<svg
+				class="error-icon"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+				/>
 			</svg>
 			<p class="error-message">{error}</p>
-			<button type="button" class="retry-button" onclick={handleRetry}>
-				Riprova
-			</button>
+			<button type="button" class="retry-button" onclick={handleRetry}> Riprova </button>
 		</div>
 	{:else}
 		{#if showAmount}

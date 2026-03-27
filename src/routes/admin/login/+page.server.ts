@@ -55,13 +55,16 @@ export const actions = {
 				where: { email: validation.data.email.toLowerCase().trim() }
 			});
 		} catch (error) {
-			authLogger.error({
-				event: 'admin_login_error',
-				email: validation.data.email,
-				error: error instanceof Error ? error.message : 'Unknown error'
-			}, 'Error during admin login - database error');
+			authLogger.error(
+				{
+					event: 'admin_login_error',
+					email: validation.data.email,
+					error: error instanceof Error ? error.message : 'Unknown error'
+				},
+				'Error during admin login - database error'
+			);
 			return fail(500, {
-				errors: { general: 'Errore durante l\'autenticazione. Riprova più tardi.' },
+				errors: { general: "Errore durante l'autenticazione. Riprova più tardi." },
 				email: validation.data.email
 			});
 		}
@@ -78,11 +81,14 @@ export const actions = {
 		const passwordMatch = await bcrypt.compare(password, admin.password);
 
 		if (!passwordMatch) {
-			authLogger.warn({
-				event: 'admin_login_failed',
-				email: validation.data.email,
-				reason: 'invalid_password'
-			}, 'Admin login failed - invalid password');
+			authLogger.warn(
+				{
+					event: 'admin_login_failed',
+					email: validation.data.email,
+					reason: 'invalid_password'
+				},
+				'Admin login failed - invalid password'
+			);
 			return fail(401, {
 				errors: { general: 'Email o password non validi' },
 				email: validation.data.email
@@ -95,11 +101,14 @@ export const actions = {
 		// Set admin session cookie (HttpOnly, secure in production)
 		cookies.set(ADMIN_SESSION_COOKIE_NAME, sessionToken, getAdminCookieOptions());
 
-		authLogger.info({
-			event: 'admin_login_success',
-			adminId: admin.id,
-			email: admin.email
-		}, 'Admin logged in successfully');
+		authLogger.info(
+			{
+				event: 'admin_login_success',
+				adminId: admin.id,
+				email: admin.email
+			},
+			'Admin logged in successfully'
+		);
 
 		// Redirect to admin dashboard
 		throw redirect(303, '/admin/users');

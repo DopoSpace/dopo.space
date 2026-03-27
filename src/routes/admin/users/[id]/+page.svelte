@@ -3,7 +3,9 @@
 	import Input from '$lib/components/forms/Input.svelte';
 	import Button from '$lib/components/forms/Button.svelte';
 	import ErrorMessage from '$lib/components/forms/ErrorMessage.svelte';
-	import AddressAutocomplete, { type AddressResult } from '$lib/components/forms/AddressAutocomplete.svelte';
+	import AddressAutocomplete, {
+		type AddressResult
+	} from '$lib/components/forms/AddressAutocomplete.svelte';
 	import type { PageData } from './$types';
 
 	type FormValues = {
@@ -73,7 +75,9 @@
 
 	// Form state
 	let nationality = $state(form?.values?.nationality ?? data.user.profile?.nationality ?? 'IT');
-	let hasForeignTaxCode = $state(form?.values?.hasForeignTaxCode ?? data.user.profile?.hasForeignTaxCode ?? false);
+	let hasForeignTaxCode = $state(
+		form?.values?.hasForeignTaxCode ?? data.user.profile?.hasForeignTaxCode ?? false
+	);
 	let gender = $state(form?.values?.gender ?? data.user.profile?.gender ?? '');
 
 	// Address fields (can be populated by autocomplete or manual entry)
@@ -88,10 +92,16 @@
 	let birthProvinceOverride = $state<string | null>(null);
 
 	// Derived values for address fields
-	let addressValue = $derived(addressOverride ?? form?.values?.address ?? data.user.profile?.address ?? '');
+	let addressValue = $derived(
+		addressOverride ?? form?.values?.address ?? data.user.profile?.address ?? ''
+	);
 	let cityValue = $derived(cityOverride ?? form?.values?.city ?? data.user.profile?.city ?? '');
-	let postalCodeValue = $derived(postalCodeOverride ?? form?.values?.postalCode ?? data.user.profile?.postalCode ?? '');
-	let residenceCountryValue = $derived(residenceCountryOverride ?? data.user.profile?.residenceCountry ?? 'IT');
+	let postalCodeValue = $derived(
+		postalCodeOverride ?? form?.values?.postalCode ?? data.user.profile?.postalCode ?? ''
+	);
+	let residenceCountryValue = $derived(
+		residenceCountryOverride ?? data.user.profile?.residenceCountry ?? 'IT'
+	);
 
 	// Province: auto-set to "EE" for foreign residence
 	let isForeignResidence = $derived(residenceCountryValue !== 'IT');
@@ -102,8 +112,12 @@
 	);
 
 	// Derived values for birth city/province
-	let birthCityValue = $derived(birthCityOverride ?? form?.values?.birthCity ?? data.user.profile?.birthCity ?? '');
-	let birthProvinceValue = $derived(birthProvinceOverride ?? form?.values?.birthProvince ?? data.user.profile?.birthProvince ?? '');
+	let birthCityValue = $derived(
+		birthCityOverride ?? form?.values?.birthCity ?? data.user.profile?.birthCity ?? ''
+	);
+	let birthProvinceValue = $derived(
+		birthProvinceOverride ?? form?.values?.birthProvince ?? data.user.profile?.birthProvince ?? ''
+	);
 
 	// Handle address selection from autocomplete
 	function handleAddressSelect(result: AddressResult) {
@@ -181,7 +195,10 @@
 		return isoString.split('T')[0];
 	}
 
-	function getFieldValue<K extends keyof FormValues>(field: K, profileField: keyof NonNullable<typeof data.user.profile>): string {
+	function getFieldValue<K extends keyof FormValues>(
+		field: K,
+		profileField: keyof NonNullable<typeof data.user.profile>
+	): string {
 		if (form?.values?.[field] !== undefined) {
 			return String(form.values[field] ?? '');
 		}
@@ -197,7 +214,8 @@
 		<a href="/admin/users" class="text-gray-500 hover:text-gray-700">Utenti</a>
 		<span class="text-gray-400">/</span>
 		<span class="text-gray-900 font-medium">
-			{data.user.profile?.firstName || ''} {data.user.profile?.lastName || data.user.email}
+			{data.user.profile?.firstName || ''}
+			{data.user.profile?.lastName || data.user.email}
 		</span>
 	</nav>
 
@@ -308,7 +326,7 @@
 								</button>
 								<button
 									type="button"
-									onclick={() => editingNumber = false}
+									onclick={() => (editingNumber = false)}
 									class="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
 								>
 									Annulla
@@ -316,17 +334,24 @@
 							</form>
 						{:else if data.user.membership.membershipNumber}
 							<span class="inline-flex items-center gap-2">
-								<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+								<span
+									class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800"
+								>
 									{data.user.membership.membershipNumber}
 								</span>
 								<button
 									type="button"
-									onclick={() => editingNumber = true}
+									onclick={() => (editingNumber = true)}
 									class="text-gray-400 hover:text-blue-600"
 									title="Modifica numero tessera"
 								>
 									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+										/>
 									</svg>
 								</button>
 								<form
@@ -349,7 +374,12 @@
 										title="Rimuovi numero tessera"
 									>
 										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M6 18L18 6M6 6l12 12"
+											/>
 										</svg>
 									</button>
 								</form>
@@ -364,7 +394,9 @@
 					<div>
 						<dt class="text-sm font-medium text-gray-500">Numero Tessera Precedente</dt>
 						<dd class="mt-1">
-							<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-600">
+							<span
+								class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-600"
+							>
 								{data.user.membership.previousMembershipNumber}
 							</span>
 						</dd>
@@ -375,23 +407,33 @@
 					<dt class="text-sm font-medium text-gray-500">Stato Iscrizione</dt>
 					<dd class="mt-1">
 						{#if data.user.membership.status === 'ACTIVE'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+							>
 								Attiva
 							</span>
 						{:else if data.user.membership.status === 'PENDING'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+							>
 								In attesa
 							</span>
 						{:else if data.user.membership.status === 'EXPIRED'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+							>
 								Scaduta
 							</span>
 						{:else if data.user.membership.status === 'CANCELED'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+							>
 								Cancellata
 							</span>
 						{:else}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+							>
 								{data.user.membership.status}
 							</span>
 						{/if}
@@ -402,19 +444,27 @@
 					<dt class="text-sm font-medium text-gray-500">Stato Pagamento</dt>
 					<dd class="mt-1">
 						{#if data.user.membership.paymentStatus === 'SUCCEEDED'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+							>
 								Pagato
 							</span>
 						{:else if data.user.membership.paymentStatus === 'PENDING'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+							>
 								In attesa
 							</span>
 						{:else if data.user.membership.paymentStatus === 'FAILED'}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+							>
 								Fallito
 							</span>
 						{:else}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+							<span
+								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+							>
 								{data.user.membership.paymentStatus}
 							</span>
 						{/if}
@@ -465,9 +515,7 @@
 								</div>
 
 								<div>
-									<label class="block text-xs font-medium text-gray-500 mb-1">
-										Data Fine
-									</label>
+									<label class="block text-xs font-medium text-gray-500 mb-1"> Data Fine </label>
 									<span class="inline-block px-3 py-2 text-sm text-gray-900">
 										{#if data.user.membership.endDate}
 											{new Date(data.user.membership.endDate).toLocaleDateString('it-IT')}
@@ -625,7 +673,12 @@
 							class="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
 						>
 							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
 							</svg>
 							{exportLoading ? 'Export in corso...' : 'Esporta AICS'}
 						</button>
@@ -634,11 +687,16 @@
 					{#if data.user.membership.status !== 'CANCELED' && data.user.membership.status !== 'EXPIRED'}
 						<button
 							type="button"
-							onclick={() => showCancelDialog = true}
+							onclick={() => (showCancelDialog = true)}
 							class="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
 						>
 							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+								/>
 							</svg>
 							Annulla Tessera
 						</button>
@@ -657,14 +715,31 @@
 	{#if showCancelDialog && data.user.membership}
 		<div class="fixed inset-0 z-50 overflow-y-auto">
 			<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-				<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick={() => showCancelDialog = false}></div>
+				<div
+					class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+					onclick={() => (showCancelDialog = false)}
+				></div>
 
-				<div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+				<div
+					class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
+				>
 					<div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
 						<div class="sm:flex sm:items-start">
-							<div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-								<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+							<div
+								class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+							>
+								<svg
+									class="h-6 w-6 text-red-600"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="1.5"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+									/>
 								</svg>
 							</div>
 							<div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
@@ -673,7 +748,8 @@
 									<p class="text-sm text-gray-500">
 										Sei sicuro di voler annullare la tessera di questo utente?
 										{#if data.user.membership.membershipNumber}
-											Il numero tessera <strong>{data.user.membership.membershipNumber}</strong> verrà salvato come numero precedente e potrà essere riassegnato.
+											Il numero tessera <strong>{data.user.membership.membershipNumber}</strong> verrà
+											salvato come numero precedente e potrà essere riassegnato.
 										{/if}
 									</p>
 								</div>
@@ -704,7 +780,7 @@
 						</form>
 						<button
 							type="button"
-							onclick={() => showCancelDialog = false}
+							onclick={() => (showCancelDialog = false)}
 							class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
 						>
 							Annulla
@@ -720,7 +796,10 @@
 		<h2 class="text-xl font-bold text-gray-900 mb-4">Modifica Dati Profilo</h2>
 
 		{#if form?.success}
-			<div id="profile-form-feedback" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+			<div
+				id="profile-form-feedback"
+				class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md"
+			>
 				<p class="text-sm text-green-700">Profilo aggiornato con successo</p>
 			</div>
 		{/if}
@@ -744,7 +823,9 @@
 					await update({ invalidateAll: true, reset: false });
 					loading = false;
 					if (result.type === 'success') {
-						document.getElementById('profile-form-feedback')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						document
+							.getElementById('profile-form-feedback')
+							?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 					}
 				};
 			}}
@@ -775,7 +856,8 @@
 						name="birthDate"
 						label="Data di Nascita"
 						type="date"
-						value={form?.values?.birthDate ?? formatDateForInput(data.user.profile?.birthDate ?? null)}
+						value={form?.values?.birthDate ??
+							formatDateForInput(data.user.profile?.birthDate ?? null)}
 						error={form?.errors?.birthDate}
 					/>
 
@@ -889,9 +971,7 @@
 					/>
 
 					<div>
-						<label for="gender" class="block text-sm font-medium text-gray-700 mb-1">
-							Sesso
-						</label>
+						<label for="gender" class="block text-sm font-medium text-gray-700 mb-1"> Sesso </label>
 						<select
 							id="gender"
 							name="gender"
@@ -913,7 +993,8 @@
 
 				{#if isForeign && !hasForeignTaxCode}
 					<p class="text-sm text-gray-500 mt-3">
-						Per gli utenti stranieri senza CF italiano, il campo CF verrà lasciato vuoto (export AICS: 16 zeri).
+						Per gli utenti stranieri senza CF italiano, il campo CF verrà lasciato vuoto (export
+						AICS: 16 zeri).
 					</p>
 				{/if}
 			</div>
@@ -944,7 +1025,7 @@
 							id="residenceCountry"
 							name="residenceCountry"
 							value={residenceCountryValue}
-							onchange={(e) => residenceCountryOverride = (e.target as HTMLSelectElement).value}
+							onchange={(e) => (residenceCountryOverride = (e.target as HTMLSelectElement).value)}
 							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
 						>
 							<option value="IT">Italia</option>
@@ -969,11 +1050,11 @@
 
 					<Input
 						name="city"
-						label={isForeignResidence ? "Citta" : "Comune"}
+						label={isForeignResidence ? 'Citta' : 'Comune'}
 						type="text"
 						value={cityValue}
 						error={form?.errors?.city}
-						placeholder={isForeignResidence ? "Es: Londra" : "Es: Milano"}
+						placeholder={isForeignResidence ? 'Es: Londra' : 'Es: Milano'}
 					/>
 
 					{#if isForeignResidence}
@@ -1068,7 +1149,7 @@
 								</button>
 								<button
 									type="button"
-									onclick={() => editingEmail = false}
+									onclick={() => (editingEmail = false)}
 									class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
 								>
 									Annulla
@@ -1085,12 +1166,17 @@
 								/>
 								<button
 									type="button"
-									onclick={() => editingEmail = true}
+									onclick={() => (editingEmail = true)}
 									class="text-gray-400 hover:text-blue-600"
 									title="Modifica email"
 								>
 									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+										/>
 									</svg>
 								</button>
 							</div>
@@ -1111,9 +1197,7 @@
 							checked={form?.values?.privacyConsent ?? data.user.profile?.privacyConsent ?? false}
 							class="mt-1 h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
 						/>
-						<span class="text-sm text-gray-700">
-							Accetta la Privacy Policy
-						</span>
+						<span class="text-sm text-gray-700"> Accetta la Privacy Policy </span>
 					</label>
 
 					<label class="flex items-start gap-3">
@@ -1124,9 +1208,7 @@
 							checked={form?.values?.dataConsent ?? data.user.profile?.dataConsent ?? false}
 							class="mt-1 h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
 						/>
-						<span class="text-sm text-gray-700">
-							Acconsente al trattamento dei dati
-						</span>
+						<span class="text-sm text-gray-700"> Acconsente al trattamento dei dati </span>
 					</label>
 				</div>
 			</div>
@@ -1144,7 +1226,10 @@
 	<!-- Danger Zone -->
 	<div class="bg-white rounded-lg shadow-sm border border-red-200 p-6">
 		<h2 class="text-xl font-bold text-red-700 mb-2">Zona Pericolosa</h2>
-		<p class="text-sm text-gray-600 mb-4">L'eliminazione dell'utente è irreversibile. Tutti i dati associati (profilo, tessere) verranno rimossi.</p>
+		<p class="text-sm text-gray-600 mb-4">
+			L'eliminazione dell'utente è irreversibile. Tutti i dati associati (profilo, tessere) verranno
+			rimossi.
+		</p>
 
 		{#if form?.deleteError}
 			<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -1154,11 +1239,16 @@
 
 		<button
 			type="button"
-			onclick={() => showDeleteDialog = true}
+			onclick={() => (showDeleteDialog = true)}
 			class="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
 		>
 			<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+				/>
 			</svg>
 			Elimina Utente
 		</button>
@@ -1168,26 +1258,47 @@
 	{#if showDeleteDialog}
 		<div class="fixed inset-0 z-50 overflow-y-auto">
 			<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-				<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick={() => showDeleteDialog = false}></div>
+				<div
+					class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+					onclick={() => (showDeleteDialog = false)}
+				></div>
 
-				<div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+				<div
+					class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
+				>
 					<div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
 						<div class="sm:flex sm:items-start">
-							<div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-								<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+							<div
+								class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+							>
+								<svg
+									class="h-6 w-6 text-red-600"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="1.5"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+									/>
 								</svg>
 							</div>
 							<div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
 								<h3 class="text-base font-semibold leading-6 text-gray-900">Elimina Utente</h3>
 								<div class="mt-2">
 									<p class="text-sm text-gray-500">
-										Sei sicuro di voler eliminare <strong>{data.user.profile?.firstName || ''} {data.user.profile?.lastName || data.user.email}</strong>?
-										Questa azione è irreversibile.
+										Sei sicuro di voler eliminare <strong
+											>{data.user.profile?.firstName || ''}
+											{data.user.profile?.lastName || data.user.email}</strong
+										>? Questa azione è irreversibile.
 									</p>
 									{#if data.user.membership?.membershipNumber}
 										<p class="text-sm text-red-600 mt-2">
-											Attenzione: l'utente ha la tessera <strong>{data.user.membership.membershipNumber}</strong> assegnata.
+											Attenzione: l'utente ha la tessera <strong
+												>{data.user.membership.membershipNumber}</strong
+											> assegnata.
 										</p>
 									{/if}
 								</div>
@@ -1217,7 +1328,7 @@
 						</form>
 						<button
 							type="button"
-							onclick={() => showDeleteDialog = false}
+							onclick={() => (showDeleteDialog = false)}
 							class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
 						>
 							Annulla

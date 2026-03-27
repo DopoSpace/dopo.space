@@ -4,7 +4,13 @@ import { prisma } from '$lib/server/db/prisma';
 import { createLogger } from '$lib/server/utils/logger';
 import { z } from 'zod';
 import { formatZodErrors } from '$lib/server/utils/validation';
-import { validateTaxCode, validateTaxCodeConsistency, extractGenderFromTaxCode, validateTaxCodeNameConsistency, suggestCompoundName } from '$lib/server/utils/tax-code';
+import {
+	validateTaxCode,
+	validateTaxCodeConsistency,
+	extractGenderFromTaxCode,
+	validateTaxCodeNameConsistency,
+	suggestCompoundName
+} from '$lib/server/utils/tax-code';
 import { ITALIAN_NAMES } from '$lib/server/data/italian-names';
 import { getGooglePlacesApiKey } from '$lib/server/config/env';
 import { cancelMembership, calculateEndDate } from '$lib/server/services/membership';
@@ -319,7 +325,12 @@ export const actions = {
 			const result = await cancelMembership(membershipId, admin.id);
 
 			logger.info(
-				{ userId: params.id, membershipId, adminEmail: admin.email, previousNumber: result.previousNumber },
+				{
+					userId: params.id,
+					membershipId,
+					adminEmail: admin.email,
+					previousNumber: result.previousNumber
+				},
 				'Admin canceled membership'
 			);
 
@@ -394,7 +405,7 @@ export const actions = {
 			return { statusSuccess: true };
 		} catch (err) {
 			logger.error({ err, membershipId }, 'Error updating membership status');
-			return fail(500, { statusError: 'Errore durante l\'aggiornamento dello stato' });
+			return fail(500, { statusError: "Errore durante l'aggiornamento dello stato" });
 		}
 	},
 
@@ -516,7 +527,7 @@ export const actions = {
 			return { numberSuccess: true };
 		} catch (err) {
 			logger.error({ err, membershipId }, 'Error removing membership number');
-			return fail(500, { numberError: "Errore durante la rimozione del numero tessera" });
+			return fail(500, { numberError: 'Errore durante la rimozione del numero tessera' });
 		}
 	},
 
@@ -597,14 +608,19 @@ export const actions = {
 			});
 
 			logger.info(
-				{ membershipId, adminEmail: admin.email, startDate: startDateStr, endDate: endDate.toISOString() },
+				{
+					membershipId,
+					adminEmail: admin.email,
+					startDate: startDateStr,
+					endDate: endDate.toISOString()
+				},
 				'Admin updated membership start date'
 			);
 
 			return { dateSuccess: true };
 		} catch (err) {
 			logger.error({ err, membershipId }, 'Error updating membership start date');
-			return fail(500, { dateError: 'Errore durante l\'aggiornamento della data' });
+			return fail(500, { dateError: "Errore durante l'aggiornamento della data" });
 		}
 	}
 } satisfies Actions;

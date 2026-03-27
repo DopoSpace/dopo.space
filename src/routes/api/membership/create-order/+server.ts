@@ -84,10 +84,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 			data: { paymentProviderId: orderId }
 		});
 
-		logger.info(
-			{ userId: user.id, membershipId: membership.id, orderId },
-			'PayPal order created'
-		);
+		logger.info({ userId: user.id, membershipId: membership.id, orderId }, 'PayPal order created');
 
 		return json({
 			orderId,

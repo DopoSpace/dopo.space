@@ -5,20 +5,13 @@
  * Documentation: https://developer.paypal.com/docs/api/orders/v2/
  */
 
-import {
-	PAYPAL_CLIENT_ID,
-	PAYPAL_CLIENT_SECRET,
-	PAYPAL_MODE,
-	APP_URL
-} from '$env/static/private';
+import { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_MODE, APP_URL } from '$env/static/private';
 import pino from 'pino';
 
 const paymentLogger = pino({ name: 'paypal' });
 
 const PAYPAL_API_BASE =
-	PAYPAL_MODE === 'live'
-		? 'https://api-m.paypal.com'
-		: 'https://api-m.sandbox.paypal.com';
+	PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 
 interface PayPalAccessTokenResponse {
 	access_token: string;
@@ -142,11 +135,14 @@ export async function capturePayPalOrder(orderId: string): Promise<{
 
 	if (!response.ok) {
 		const errorBody = await response.text();
-		paymentLogger.error({
-			orderId,
-			statusCode: response.status,
-			errorBody
-		}, 'PayPal capture request failed');
+		paymentLogger.error(
+			{
+				orderId,
+				statusCode: response.status,
+				errorBody
+			},
+			'PayPal capture request failed'
+		);
 		// Don't expose internal PayPal error details to user
 		throw new Error('Payment capture failed. Please try again or contact support.');
 	}
@@ -233,13 +229,16 @@ export async function verifyPayPalWebhook(
 
 	if (!response.ok) {
 		const errorBody = await response.text().catch(() => 'Unable to read response body');
-		paymentLogger.error({
-			webhookId,
-			statusCode: response.status,
-			statusText: response.statusText,
-			errorBody,
-			transmissionId: headers['paypal-transmission-id']
-		}, 'PayPal webhook signature verification API call failed');
+		paymentLogger.error(
+			{
+				webhookId,
+				statusCode: response.status,
+				statusText: response.statusText,
+				errorBody,
+				transmissionId: headers['paypal-transmission-id']
+			},
+			'PayPal webhook signature verification API call failed'
+		);
 		return false;
 	}
 
@@ -247,11 +246,14 @@ export async function verifyPayPalWebhook(
 	const isValid = result.verification_status === 'SUCCESS';
 
 	if (!isValid) {
-		paymentLogger.warn({
-			webhookId,
-			verificationStatus: result.verification_status,
-			transmissionId: headers['paypal-transmission-id']
-		}, 'PayPal webhook signature verification returned non-SUCCESS status');
+		paymentLogger.warn(
+			{
+				webhookId,
+				verificationStatus: result.verification_status,
+				transmissionId: headers['paypal-transmission-id']
+			},
+			'PayPal webhook signature verification returned non-SUCCESS status'
+		);
 	}
 
 	return isValid;

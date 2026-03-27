@@ -54,10 +54,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Check if already captured
 		if (membership.paymentStatus === PaymentStatus.SUCCEEDED) {
-			logger.info(
-				{ membershipId: membership.id, orderId },
-				'Payment already captured'
-			);
+			logger.info({ membershipId: membership.id, orderId }, 'Payment already captured');
 			return json({
 				success: true,
 				alreadyCaptured: true

@@ -45,7 +45,9 @@ export function initializeScheduler(): void {
 	);
 
 	isInitialized = true;
-	logger.info('Scheduler initialized - membership expiration job scheduled for 5:00 AM Europe/Rome');
+	logger.info(
+		'Scheduler initialized - membership expiration job scheduled for 5:00 AM Europe/Rome'
+	);
 }
 
 /**

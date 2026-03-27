@@ -41,9 +41,6 @@ export const POST: RequestHandler = async ({ locals }) => {
 	} catch (error) {
 		logger.error({ err: error }, 'Failed to run manual membership expiration check');
 
-		return json(
-			{ error: 'Errore durante il controllo delle scadenze' },
-			{ status: 500 }
-		);
+		return json({ error: 'Errore durante il controllo delle scadenze' }, { status: 500 });
 	}
 };

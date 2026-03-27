@@ -75,6 +75,12 @@ pnpm check                            # Run svelte-check for type errors
 pnpm check:watch                      # Type check with watch mode
 ```
 
+### Docker (Local)
+```bash
+docker compose up -d                  # Start PostgreSQL + app locally
+docker compose down                   # Stop all containers
+```
+
 ### Admin Scripts
 ```bash
 pnpm create-admin                     # Create admin user interactively
@@ -88,11 +94,12 @@ pnpm seed-users                       # Seed test users (development only)
 ### Tech Stack
 - **Frontend/Backend**: SvelteKit 2.x (Svelte 5.x) - full-stack framework
 - **Database**: PostgreSQL 16 with Prisma ORM 6.x
-- **Styling**: Tailwind CSS 3.x
+- **Styling**: Tailwind CSS 4.x
 - **Auth**: JWT + Magic Links (passwordless)
 - **Payments**: PayPal Server SDK
-- **Email**: Nodemailer (SMTP)
+- **Email**: Resend
 - **Newsletter**: Mailchimp API
+- **i18n**: Paraglide (inlang) — messages in `messages/` directory
 - **Testing**: Vitest with Browser Mode for components
 
 ### Project Structure
@@ -239,8 +246,14 @@ After schema changes:
 - Session tokens verified on every protected route
 - CSRF protection via SvelteKit's built-in mechanisms
 
+### Git Workflow
+- Push directly to `main` (no feature branches)
+- Use conventional commits: `fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, etc.
+- Deployment via Coolify (auto-deploys on push to main)
+
 ### Code Style
 - TypeScript strict mode enabled
+- Prettier for formatting (default config + svelte plugin)
 - Zod for runtime validation
 - Pino for structured logging
 - Date-fns for date manipulation
@@ -253,7 +266,21 @@ After schema changes:
 - `birthDate`: User must be at least 16 years old
 - `privacyConsent` + `dataConsent`: Must be TRUE for profile to be valid
 
+### Production Server
+```bash
+ssh root@49.13.230.12
+```
+
 ### Common Issues
 - **"Module not found" errors**: Run `npx svelte-kit sync` to regenerate SvelteKit files
 - **Type errors after Prisma changes**: Run `npx prisma generate` to update Prisma Client types
 - **Port already in use**: `lsof -ti:5173 | xargs kill`
+
+### Additional Documentation
+For deeper reference on specific topics, see:
+- @docs/ARCHITECTURE.md — system architecture details
+- @docs/DATABASE.md — schema details and patterns
+- @docs/DEPLOYMENT.md — Coolify/Hetzner deployment guide
+- @docs/API.md — API endpoint documentation
+- @docs/DEVELOPMENT.md — development environment setup
+- @docs/ADMIN_SETUP.md — admin user setup

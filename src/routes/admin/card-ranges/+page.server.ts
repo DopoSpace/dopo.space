@@ -119,14 +119,14 @@ export const actions: Actions = {
 			const result = await deleteCardNumberRange(rangeId);
 
 			if (!result.success) {
-				return fail(400, { errors: { _form: result.error || 'Errore durante l\'eliminazione' } });
+				return fail(400, { errors: { _form: result.error || "Errore durante l'eliminazione" } });
 			}
 
 			return { success: true, deleted: true };
 		} catch (err) {
 			logger.error({ err, rangeId }, 'Database error deleting card range');
 			return fail(500, {
-				errors: { _form: 'Errore del database durante l\'eliminazione del range.' }
+				errors: { _form: "Errore del database durante l'eliminazione del range." }
 			});
 		}
 	}

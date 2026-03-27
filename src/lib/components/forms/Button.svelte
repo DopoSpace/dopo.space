@@ -27,7 +27,9 @@
 
 <button {type} disabled={isDisabled} class={buttonClass}>
 	{#if loading}
-		<span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-r-transparent mr-2"></span>
+		<span
+			class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-r-transparent mr-2"
+		></span>
 	{/if}
 	{@render children()}
 </button>

@@ -29,7 +29,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		const match = startDateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 		if (!match) {
-			return json({ success: false, error: 'Formato data non valido (atteso YYYY-MM-DD).' }, { status: 400 });
+			return json(
+				{ success: false, error: 'Formato data non valido (atteso YYYY-MM-DD).' },
+				{ status: 400 }
+			);
 		}
 
 		const [, year, month, day] = match;
@@ -77,13 +80,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		logger.info(
-			{ adminEmail: admin.email, updated, skipped, startDate: startDateStr, userCount: userIds.length },
+			{
+				adminEmail: admin.email,
+				updated,
+				skipped,
+				startDate: startDateStr,
+				userCount: userIds.length
+			},
 			'Bulk start date update completed'
 		);
 
 		return json({ success: true, updated, skipped });
 	} catch (err) {
 		logger.error({ err }, 'Bulk start date update failed');
-		return json({ success: false, error: 'Errore durante l\'aggiornamento.' }, { status: 500 });
+		return json({ success: false, error: "Errore durante l'aggiornamento." }, { status: 500 });
 	}
 };

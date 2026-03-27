@@ -224,10 +224,7 @@ export function extractAddressComponents(
 			streetNumber = component.long_name;
 		} else if (types.includes('route')) {
 			route = component.long_name;
-		} else if (
-			types.includes('locality') ||
-			types.includes('administrative_area_level_3')
-		) {
+		} else if (types.includes('locality') || types.includes('administrative_area_level_3')) {
 			// locality is the city, administrative_area_level_3 is comune in Italy
 			if (!city) {
 				city = component.long_name;

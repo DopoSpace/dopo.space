@@ -30,17 +30,14 @@ const envSchema = z.object({
 	JWT_SECRET: z
 		.string()
 		.min(32, 'JWT_SECRET must be at least 32 characters for security')
-		.refine(
-			(val) => {
-				// Blacklist of insecure default/placeholder values
-				const blacklistedSecrets = [
-					'your-super-secret-jwt-key-change-this-in-production',
-					'your-secret-key-here-change-in-production' // From .env.example
-				];
-				return !blacklistedSecrets.includes(val);
-			},
-			'JWT_SECRET must not be a default/placeholder value. Please set a secure random string (e.g., openssl rand -base64 48).'
-		),
+		.refine((val) => {
+			// Blacklist of insecure default/placeholder values
+			const blacklistedSecrets = [
+				'your-super-secret-jwt-key-change-this-in-production',
+				'your-secret-key-here-change-in-production' // From .env.example
+			];
+			return !blacklistedSecrets.includes(val);
+		}, 'JWT_SECRET must not be a default/placeholder value. Please set a secure random string (e.g., openssl rand -base64 48).'),
 
 	// Database
 	DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL'),

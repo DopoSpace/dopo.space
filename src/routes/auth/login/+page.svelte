@@ -78,5 +78,9 @@
 </PublicPageLayout>
 
 {#if showSuccessToast}
-	<Toast message={m.auth_toast_success()} type="success" onclose={() => (showSuccessToast = false)} />
+	<Toast
+		message={m.auth_toast_success()}
+		type="success"
+		onclose={() => (showSuccessToast = false)}
+	/>
 {/if}

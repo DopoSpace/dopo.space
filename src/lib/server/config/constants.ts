@@ -65,4 +65,3 @@ export function getAdminCookieOptions(secure?: boolean) {
 		...(isProduction && { domain: domainForCookie })
 	};
 }
-

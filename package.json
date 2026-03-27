@@ -24,7 +24,9 @@
 		"fix-names": "tsx scripts/fix-names-from-cf.ts",
 		"test:server": "vitest run --config vitest.config.ts",
 		"test:components": "vitest run --config vitest.browser.config.ts",
-		"test:all": "pnpm run test:server && pnpm run test:components"
+		"test:all": "pnpm run test:server && pnpm run test:components",
+		"lint": "eslint src/",
+		"format:check": "prettier --check src/"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -36,6 +38,7 @@
 		]
 	},
 	"devDependencies": {
+		"@eslint/js": "^9.39.1",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-node": "^5.4.0",
 		"@sveltejs/kit": "^2.49.2",
@@ -54,6 +57,9 @@
 		"@vitest/browser-playwright": "^4.0.15",
 		"@vitest/ui": "^4.0.15",
 		"eslint": "^9.39.1",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.16.0",
+		"globals": "^17.4.0",
 		"happy-dom": "^20.0.11",
 		"jsdom": "^27.3.0",
 		"playwright": "^1.57.0",
@@ -66,6 +72,7 @@
 		"tailwindcss": "^4.1.18",
 		"tsx": "^4.21.0",
 		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.57.2",
 		"vite": "^7.2.7",
 		"vitest": "^4.0.15",
 		"xlsx": "^0.18.5"

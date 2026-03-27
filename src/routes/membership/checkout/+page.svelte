@@ -48,11 +48,7 @@
 			<div class="form-section">
 				<h2 class="form-section-title">{m.checkout_payment_method()}</h2>
 				<div class="paypal-container">
-					<PayPalButtons
-						clientId={data.paypalClientId}
-						amount={data.fee}
-						showAmount={false}
-					/>
+					<PayPalButtons clientId={data.paypalClientId} amount={data.fee} showAmount={false} />
 				</div>
 			</div>
 

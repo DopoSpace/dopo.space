@@ -14,8 +14,10 @@ export const load: PageServerLoad = async ({ url }) => {
 	const token = url.searchParams.get('token');
 
 	if (!token) {
-		authLogger.warn({ event: 'magic_link_peek_failed', reason: 'missing_token' },
-			'Magic link verification failed - missing token');
+		authLogger.warn(
+			{ event: 'magic_link_peek_failed', reason: 'missing_token' },
+			'Magic link verification failed - missing token'
+		);
 		return { error: 'Link non valido. Token mancante.' };
 	}
 
@@ -25,9 +27,14 @@ export const load: PageServerLoad = async ({ url }) => {
 	const peek = peekMagicLinkToken(token);
 
 	if (!peek) {
-		authLogger.warn({ event: 'magic_link_peek_failed', reason: 'invalid_or_expired',
-			tokenPrefix: `${token.substring(0, 10)}...` },
-			'Magic link verification failed - invalid or expired token');
+		authLogger.warn(
+			{
+				event: 'magic_link_peek_failed',
+				reason: 'invalid_or_expired',
+				tokenPrefix: `${token.substring(0, 10)}...`
+			},
+			'Magic link verification failed - invalid or expired token'
+		);
 		return { error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.' };
 	}
 
@@ -49,9 +56,14 @@ export const actions = {
 		const payload = await verifyMagicLinkToken(token);
 
 		if (!payload) {
-			authLogger.warn({ event: 'magic_link_verify_failed', reason: 'invalid_or_expired',
-				tokenPrefix: `${token.substring(0, 10)}...` },
-				'Magic link verification failed during confirmation');
+			authLogger.warn(
+				{
+					event: 'magic_link_verify_failed',
+					reason: 'invalid_or_expired',
+					tokenPrefix: `${token.substring(0, 10)}...`
+				},
+				'Magic link verification failed during confirmation'
+			);
 			return fail(400, { error: 'Link non valido o scaduto. Richiedi un nuovo link di accesso.' });
 		}
 
@@ -67,13 +79,16 @@ export const actions = {
 				data: { preferredLocale: locale }
 			});
 		} catch (error) {
-			authLogger.error({
-				event: 'magic_link_authentication_failed',
-				email: payload.email,
-				err: error
-			}, 'Failed to authenticate user after magic link verification');
+			authLogger.error(
+				{
+					event: 'magic_link_authentication_failed',
+					email: payload.email,
+					err: error
+				},
+				'Failed to authenticate user after magic link verification'
+			);
 			return fail(500, {
-				error: 'Si è verificato un errore durante l\'accesso. Riprova più tardi.'
+				error: "Si è verificato un errore durante l'accesso. Riprova più tardi."
 			});
 		}
 
