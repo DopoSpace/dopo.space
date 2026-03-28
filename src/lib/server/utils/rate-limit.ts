@@ -124,6 +124,11 @@ export const RATE_LIMITS = {
 		maxAttempts: 5,
 		windowMs: 15 * 60 * 1000
 	},
+	// Magic link per email: 4 attempts per hour per email address
+	MAGIC_LINK_EMAIL: {
+		maxAttempts: 4,
+		windowMs: 60 * 60 * 1000
+	},
 	// Admin login: 5 attempts per 15 minutes per IP
 	ADMIN_LOGIN: {
 		maxAttempts: 5,

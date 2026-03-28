@@ -37,6 +37,22 @@ export const actions = {
 			return fail(400, { errors, email: email as string });
 		}
 
+		// Rate limiting per email: prevent excessive emails to the same address
+		const emailRateLimitResponse = checkRateLimit(
+			`magic-link-email:${validation.data.email}`,
+			RATE_LIMITS.MAGIC_LINK_EMAIL
+		);
+		if (emailRateLimitResponse) {
+			const errorMessage =
+				locale === 'en'
+					? 'A login link has already been sent to this address. Check your inbox (and spam folder) or try again in an hour.'
+					: "Un link di accesso è già stato inviato a questo indirizzo. Controlla la tua casella di posta (e la cartella spam) oppure riprova tra un'ora.";
+			return fail(429, {
+				errors: { email: errorMessage },
+				email: validation.data.email
+			});
+		}
+
 		try {
 			// Generate magic link token
 			const token = generateMagicLinkToken(validation.data.email);
