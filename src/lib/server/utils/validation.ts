@@ -5,7 +5,11 @@
  */
 
 import { z } from 'zod';
-import { validateTaxCode, validateTaxCodeConsistency } from './tax-code';
+import {
+	validateTaxCode,
+	validateTaxCodeConsistency,
+	validateTaxCodeNameConsistency
+} from './tax-code';
 import { isValidAge } from '$lib/utils/date';
 import { isValidComuneAICS, getOfficialComuneName } from '$lib/server/data/aics-comuni';
 import { createLogger } from '$lib/server/utils/logger';
@@ -153,6 +157,16 @@ export const userProfileSchema = userProfileBaseSchema.superRefine((data, ctx) =
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: 'La data di nascita non corrisponde al codice fiscale',
+				path: ['taxCode']
+			});
+		}
+
+		// Validate consistency with name/surname
+		const nameWarning = validateTaxCodeNameConsistency(data.taxCode, data.firstName, data.lastName);
+		if (nameWarning) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: nameWarning,
 				path: ['taxCode']
 			});
 		}
