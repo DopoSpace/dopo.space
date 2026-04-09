@@ -14,9 +14,12 @@ import {
 import { ITALIAN_NAMES } from '$lib/server/data/italian-names';
 import { getGooglePlacesApiKey } from '$lib/server/config/env';
 import { cancelMembership, calculateEndDate } from '$lib/server/services/membership';
-import { MembershipStatus } from '@prisma/client';
+import { MembershipStatus, PaymentStatus } from '@prisma/client';
 
 const logger = createLogger({ module: 'admin' });
+
+const VALID_STATUSES: MembershipStatus[] = ['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELED'];
+const VALID_PAYMENT_STATUSES: PaymentStatus[] = ['PENDING', 'SUCCEEDED', 'FAILED'];
 
 /**
  * Admin profile update schema - less strict than user self-registration
@@ -359,15 +362,11 @@ export const actions = {
 			return fail(400, { statusError: 'ID membership mancante' });
 		}
 
-		// Validate status values
-		const validStatuses = ['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELED'];
-		const validPaymentStatuses = ['PENDING', 'SUCCEEDED', 'FAILED'];
-
-		if (newStatus && !validStatuses.includes(newStatus as string)) {
+		if (newStatus && !VALID_STATUSES.includes(newStatus as MembershipStatus)) {
 			return fail(400, { statusError: 'Stato non valido' });
 		}
 
-		if (newPaymentStatus && !validPaymentStatuses.includes(newPaymentStatus as string)) {
+		if (newPaymentStatus && !VALID_PAYMENT_STATUSES.includes(newPaymentStatus as PaymentStatus)) {
 			return fail(400, { statusError: 'Stato pagamento non valido' });
 		}
 
@@ -561,6 +560,60 @@ export const actions = {
 		}
 
 		throw redirect(303, '/admin/users');
+	},
+
+	createMembership: async ({ request, params, locals }) => {
+		const admin = locals.admin;
+
+		if (!admin) {
+			return fail(401, { createError: 'Non autorizzato' });
+		}
+
+		const formData = await request.formData();
+		const status = formData.get('status') as string;
+		const paymentStatus = formData.get('paymentStatus') as string;
+
+		if (!status || !VALID_STATUSES.includes(status as MembershipStatus)) {
+			return fail(400, { createError: 'Stato iscrizione non valido' });
+		}
+
+		if (!paymentStatus || !VALID_PAYMENT_STATUSES.includes(paymentStatus as PaymentStatus)) {
+			return fail(400, { createError: 'Stato pagamento non valido' });
+		}
+
+		try {
+			const user = await prisma.user.findUnique({
+				where: { id: params.id },
+				select: { id: true, _count: { select: { memberships: true } } }
+			});
+
+			if (!user) {
+				return fail(404, { createError: 'Utente non trovato' });
+			}
+
+			if (user._count.memberships > 0) {
+				return fail(400, { createError: "L'utente ha già una membership" });
+			}
+
+			await prisma.membership.create({
+				data: {
+					userId: params.id,
+					status: status as MembershipStatus,
+					paymentStatus: paymentStatus as PaymentStatus,
+					updatedBy: admin.id
+				}
+			});
+
+			logger.info(
+				{ userId: params.id, adminEmail: admin.email, status, paymentStatus },
+				'Admin created membership for user'
+			);
+
+			return { createSuccess: true };
+		} catch (err) {
+			logger.error({ err, userId: params.id }, 'Error creating membership');
+			return fail(500, { createError: 'Errore durante la creazione della membership' });
+		}
 	},
 
 	updateStartDate: async ({ request, locals }) => {

@@ -50,6 +50,9 @@
 		// Number update action fields
 		numberError?: string;
 		numberSuccess?: boolean;
+		// Create membership action fields
+		createError?: string;
+		createSuccess?: boolean;
 		// Delete action fields
 		deleteError?: string;
 	} | null;
@@ -68,6 +71,7 @@
 	let editingEmail = $state(false);
 	let showDeleteDialog = $state(false);
 	let deleteLoading = $state(false);
+	let createMembershipLoading = $state(false);
 
 	// Status form state
 	let selectedStatus = $state(data.user.membership?.status ?? 'PENDING');
@@ -704,9 +708,72 @@
 				</div>
 			{/if}
 		{:else}
-			<div class="text-center py-6 text-gray-500">
-				<p>Nessuna tessera associativa</p>
-				<p class="text-sm mt-1">L'utente non ha ancora iniziato il processo di iscrizione.</p>
+			<div class="py-4">
+				<p class="text-gray-500 mb-4">Nessuna tessera associativa. Puoi crearne una manualmente.</p>
+
+				{#if form?.createError}
+					<div class="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
+						<p class="text-sm text-red-700">{form.createError}</p>
+					</div>
+				{/if}
+
+				{#if form?.createSuccess}
+					<div class="mb-3 p-2 bg-green-50 border border-green-200 rounded-md">
+						<p class="text-sm text-green-700">Membership creata con successo</p>
+					</div>
+				{/if}
+
+				<form
+					method="POST"
+					action="?/createMembership"
+					use:enhance={() => {
+						createMembershipLoading = true;
+						return async ({ update }) => {
+							await update({ invalidateAll: true, reset: false });
+							createMembershipLoading = false;
+						};
+					}}
+					class="flex flex-wrap items-end gap-4"
+				>
+					<div class="flex-1 min-w-[150px]">
+						<label for="createStatus" class="block text-xs font-medium text-gray-500 mb-1">
+							Stato Iscrizione
+						</label>
+						<select
+							id="createStatus"
+							name="status"
+							class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						>
+							<option value="PENDING">In attesa</option>
+							<option value="ACTIVE">Attiva</option>
+							<option value="EXPIRED">Scaduta</option>
+							<option value="CANCELED">Cancellata</option>
+						</select>
+					</div>
+
+					<div class="flex-1 min-w-[150px]">
+						<label for="createPaymentStatus" class="block text-xs font-medium text-gray-500 mb-1">
+							Stato Pagamento
+						</label>
+						<select
+							id="createPaymentStatus"
+							name="paymentStatus"
+							class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						>
+							<option value="PENDING">In attesa</option>
+							<option value="SUCCEEDED">Pagato</option>
+							<option value="FAILED">Fallito</option>
+						</select>
+					</div>
+
+					<button
+						type="submit"
+						disabled={createMembershipLoading}
+						class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+					>
+						{createMembershipLoading ? 'Creazione...' : 'Crea Membership'}
+					</button>
+				</form>
 			</div>
 		{/if}
 	</div>
